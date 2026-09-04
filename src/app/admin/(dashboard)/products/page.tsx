@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
+import { listProducts } from "@/lib/store/products";
 import { formatCents } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
@@ -7,17 +7,15 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Admin — Products" };
 
 export default async function AdminProductsPage() {
-  const products = await prisma.product.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { variants: { orderBy: { priceCents: "asc" }, take: 1 } },
-  });
+  const products = await listProducts();
 
   return (
     <div>
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Products</h1>
         <p className="text-xs text-muted">
-          Manage products via the seed script or Prisma Studio for now.
+          Manage products via the seed script, Prisma Studio, or the{" "}
+          <code>/api/agent/products</code> API (see docs/AGENT_API.md).
         </p>
       </div>
 

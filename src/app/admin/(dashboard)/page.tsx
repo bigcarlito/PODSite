@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
+import { listOrders } from "@/lib/store/orders";
 import { OrderRow } from "./OrderRow";
 
 export const dynamic = "force-dynamic";
@@ -7,10 +7,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Admin — Orders" };
 
 export default async function AdminOrdersPage() {
-  const orders = await prisma.order.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const orders = await listOrders();
 
   return (
     <div>
