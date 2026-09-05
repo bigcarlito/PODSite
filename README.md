@@ -17,6 +17,11 @@ fulfillment, and a `/api/agent/summary` snapshot built for "what should I
 optimize next?" decisions). If you're a coding agent working in this repo,
 read `AGENTS.md` first.
 
+If you run your own AI agent/harness (outside this repo) and want it to
+operate this store, load **[`skills/wildline-store-agent/`](./skills/wildline-store-agent/SKILL.md)**
+into it — a condensed, harness-portable version of the same API reference,
+kept in sync with `docs/AGENT_API.md`.
+
 ## Stack
 
 - **Next.js 16** (App Router, TypeScript, Server Actions)
@@ -95,6 +100,8 @@ src/app/admin/                Password-gated human dashboard (thin UI over
 AGENTS.md / CLAUDE.md         Conventions for agents (and humans) working
                               in this codebase — read this first
 docs/AGENT_API.md             Full reference for the agent API
+skills/wildline-store-agent/  Same reference, packaged as a Skill for an
+                              external agent harness
 ```
 
 ## Roadmap / not yet implemented

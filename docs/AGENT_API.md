@@ -5,8 +5,11 @@ agent (or any script) can read the store's full state and make the same
 changes a human admin would make in `/admin` — without a browser. See
 `AGENTS.md` for the design principles behind it.
 
-If you add, change, or remove an endpoint, update this file in the same
-commit — an undocumented endpoint is a bug (see `AGENTS.md` rule #3).
+If you add, change, or remove an endpoint, update this file **and**
+`skills/wildline-store-agent/SKILL.md` (a condensed version of this same
+reference, packaged for an external agent harness) in the same commit —
+an undocumented endpoint, or a mismatch between the two, is a bug (see
+`AGENTS.md` rule #3).
 
 ## Auth
 

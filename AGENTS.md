@@ -49,9 +49,12 @@ not stack traces.
 
 ### 3. The agent API is the source of truth for "what can be managed"
 
-`docs/AGENT_API.md` documents every endpoint under `/api/agent/*`. When
-you add, change, or remove an endpoint, update that doc in the same
-commit. Treat an undocumented endpoint as a bug.
+`docs/AGENT_API.md` documents every endpoint under `/api/agent/*`, and
+`skills/wildline-store-agent/SKILL.md` is a condensed operating version of
+the same reference, meant to be dropped into an external agent harness
+that supports Skills. When you add, change, or remove an endpoint, update
+**both files** in the same commit. Treat either as undocumented — or the
+two as inconsistent with each other — as a bug.
 
 ### 4. Prices and money are always integer cents, never floats
 
@@ -115,6 +118,9 @@ src/app/api/agent/           JSON API surface for agents (see docs/AGENT_API.md)
 src/app/admin/                Human dashboard — thin UI over src/lib/store/
 src/app/                     Storefront pages (home, products, cart, checkout...)
 docs/AGENT_API.md            Full reference for the agent API
+skills/wildline-store-agent/  Same reference, packaged as a Skill for an
+                              external agent harness (kept in sync with
+                              docs/AGENT_API.md — see rule #3)
 ```
 
 ## Before you finish a change
