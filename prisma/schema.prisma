@@ -38,6 +38,11 @@ model Product {
   slug        String              @unique
   title       String
   description String
+  /// Ordered variant option keys for this product, e.g. ["size","color"]
+  /// for apparel or ["printType","size"] for wall art. Drives which
+  /// selectors the product page renders and what keys each variant's
+  /// `options` should have. Generic on purpose — see AGENTS.md.
+  optionNames String[]
   images      ProductImage[]
   variants    ProductVariant[]
   collections ProductCollection[]
@@ -66,22 +71,24 @@ model ProductImage {
 }
 
 model ProductVariant {
-  id                 String                   @id @default(cuid())
-  product            Product                  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId          String
-  sku                String                   @unique
-  size               String?
-  color               String?
-  priceCents         Int
-  currency           String                   @default("USD")
-  provider            FulfillmentProviderName @default(PRINTFUL)
-  providerVariantId   String?
-  inStock             Boolean                 @default(true)
-  cartItems           CartItem[]
-  orderItems          OrderItem[]
-  quotes              ProviderQuote[]
-  createdAt           DateTime                @default(now())
-  updatedAt           DateTime                @updatedAt
+  id                String                  @id @default(cuid())
+  product           Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId         String
+  sku               String                  @unique
+  /// Option values for this variant, keyed by the product's optionNames,
+  /// e.g. {"size":"M","color":"Forest"} or {"printType":"Canvas","size":"16x20"}.
+  /// Every variant of a product should have a value for every optionName.
+  options           Json                    @default("{}")
+  priceCents        Int
+  currency          String                  @default("USD")
+  provider          FulfillmentProviderName @default(PRINTFUL)
+  providerVariantId String?
+  inStock           Boolean                 @default(true)
+  cartItems         CartItem[]
+  orderItems        OrderItem[]
+  quotes            ProviderQuote[]
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
 }
 
 model ProviderQuote {

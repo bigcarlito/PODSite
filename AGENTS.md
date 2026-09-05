@@ -105,6 +105,20 @@ yet — that complexity makes the codebase harder for an agent (or a human)
 to reason about and safely change. Power comes from the agent API and
 clean data model, not from architectural layers.
 
+### 10. Variant properties are generic, never fixed columns
+
+The store sells apparel, wall art, and eventually other print-on-demand
+categories, each with different variant axes (size/color for a tee,
+printType/size for a poster). Don't add a `size` column, a `color`
+column, or any other category-specific column to `ProductVariant` — that
+doesn't scale past two categories and breaks the "one product model"
+premise. Instead: `Product.optionNames` lists the ordered option keys for
+that product, and `ProductVariant.options` (JSON) holds the values for
+those keys. Adding a new product category is a data change (pick option
+names, seed variants), never a schema change. Every variant keeps its own
+`priceCents` regardless of its options, so different combinations (a
+Framed Print vs. a Poster at the same size) price independently.
+
 ## Where things are
 
 ```

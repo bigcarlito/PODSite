@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCart, cartTotalCents } from "@/lib/cart";
 import { formatCents } from "@/lib/money";
+import { formatVariantOptions } from "@/lib/variant-label";
 import { CheckoutForm } from "@/components/CheckoutForm";
 
 export const dynamic = "force-dynamic";
@@ -32,9 +33,9 @@ export default async function CheckoutPage() {
               <div key={item.id} className="flex justify-between text-sm">
                 <span className="text-muted">
                   {item.variant.product.title}{" "}
-                  {[item.variant.color, item.variant.size]
-                    .filter(Boolean)
-                    .join(" / ")}{" "}
+                  {formatVariantOptions(
+                    item.variant.options as Record<string, string>
+                  )}{" "}
                   × {item.quantity}
                 </span>
                 <span>

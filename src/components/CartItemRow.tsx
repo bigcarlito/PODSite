@@ -4,14 +4,14 @@ import Image from "next/image";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatCents } from "@/lib/money";
+import { formatVariantOptions } from "@/lib/variant-label";
 import { removeCartItem, updateCartItemQuantity } from "@/app/cart/actions";
 
 export type CartLine = {
   id: string;
   quantity: number;
   variant: {
-    size?: string | null;
-    color?: string | null;
+    options: unknown;
     priceCents: number;
     currency: string;
     product: {
@@ -44,7 +44,7 @@ export function CartItemRow({ item }: { item: CartLine }) {
               {item.variant.product.title}
             </p>
             <p className="text-xs text-muted sm:text-sm">
-              {[item.variant.color, item.variant.size].filter(Boolean).join(" / ")}
+              {formatVariantOptions(item.variant.options as Record<string, string>)}
             </p>
           </div>
           <p className="shrink-0 text-sm font-medium sm:text-base">

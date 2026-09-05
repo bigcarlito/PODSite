@@ -52,6 +52,7 @@ export async function createProduct(input: ProductCreateInput) {
       slug: input.slug,
       title: input.title,
       description: input.description,
+      optionNames: input.optionNames,
       isFeatured: input.isFeatured,
       isActive: input.isActive,
       collections: {
@@ -69,8 +70,7 @@ export async function createProduct(input: ProductCreateInput) {
       variants: {
         create: input.variants.map((v) => ({
           sku: v.sku,
-          size: v.size,
-          color: v.color,
+          options: v.options,
           priceCents: v.priceCents,
           currency: v.currency,
           provider: v.provider,
@@ -95,6 +95,7 @@ export async function updateProduct(id: string, input: ProductUpdateInput) {
       data: {
         title: input.title,
         description: input.description,
+        optionNames: input.optionNames,
         isFeatured: input.isFeatured,
         isActive: input.isActive,
       },
@@ -129,8 +130,7 @@ export async function updateProduct(id: string, input: ProductUpdateInput) {
             where: { id: v.id },
             data: {
               sku: v.sku,
-              size: v.size,
-              color: v.color,
+              options: v.options,
               priceCents: v.priceCents,
               currency: v.currency,
               provider: v.provider,
@@ -143,8 +143,7 @@ export async function updateProduct(id: string, input: ProductUpdateInput) {
             data: {
               productId: id,
               sku: v.sku,
-              size: v.size,
-              color: v.color,
+              options: v.options,
               priceCents: v.priceCents,
               currency: v.currency,
               provider: v.provider,

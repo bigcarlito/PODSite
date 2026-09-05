@@ -25,8 +25,7 @@ export async function getStoreSummary() {
       select: {
         id: true,
         sku: true,
-        size: true,
-        color: true,
+        options: true,
         product: { select: { title: true, slug: true } },
       },
     }),

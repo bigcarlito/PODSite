@@ -43,6 +43,14 @@ A missing/wrong token returns `401` with `{"error":{"code":"UNAUTHORIZED",...}}`
   `ALREADY_SUBMITTED` (409), `MISSING_PROVIDER_VARIANT` (422).
 - IDs are `cuid()` strings. Orders also accept their human-readable
   `orderNumber` (e.g. `WL-MTMEQDWZ`) anywhere an order ID is expected.
+- Variant properties are **generic**, not fixed size/color columns. Each
+  product has `optionNames` (ordered keys, e.g. `["size","color"]` for
+  apparel or `["printType","size"]` for wall art), and each variant has an
+  `options` object with a value per key, e.g.
+  `{"printType":"Canvas","size":"16x20"}`. Any option keys are valid — use
+  whatever fits the product category. Every variant keeps its own
+  `priceCents`, so different option combinations (e.g. Framed Print vs.
+  Poster at the same size) can be priced independently.
 
 ## Start here: the store summary
 
@@ -66,19 +74,35 @@ answer "what should I fix or optimize right now?" — check it first.
   ```json
   {
     "slug": "summit-jacket", "title": "Summit Jacket",
-    "description": "...", "isFeatured": false, "isActive": true,
+    "description": "...", "optionNames": ["size", "color"],
+    "isFeatured": false, "isActive": true,
     "collectionIds": [], "images": [{"url": "https://...", "altText": "..."}],
-    "variants": [{ "sku": "summit-jacket-m-black", "size": "M",
-      "color": "Black", "priceCents": 8995, "currency": "USD",
+    "variants": [{ "sku": "summit-jacket-m-black",
+      "options": { "size": "M", "color": "Black" },
+      "priceCents": 8995, "currency": "USD",
       "provider": "PRINTFUL", "inStock": true }]
+  }
+  ```
+  For a non-apparel product, `optionNames` can be anything — e.g. wall art
+  with independent pricing per print type and size:
+  ```json
+  {
+    "slug": "trailhead-vista-print", "title": "Trailhead Vista Print",
+    "description": "...", "optionNames": ["printType", "size"],
+    "variants": [
+      { "sku": "...", "options": { "printType": "Poster", "size": "16x20" }, "priceCents": 2800 },
+      { "sku": "...", "options": { "printType": "Canvas", "size": "16x20" }, "priceCents": 5800 },
+      { "sku": "...", "options": { "printType": "Framed Print", "size": "16x20" }, "priceCents": 8800 }
+    ]
   }
   ```
 - `PATCH /api/agent/products/:id` — update price, stock, active/featured
   status, description, images, or collections. This is how you change
   **price** (edit `priceCents` on a variant) and **stock** (`inStock`).
   A `variants` entry needs an `id` to update an existing variant (send
-  the full variant object, not a partial patch — fetch the product first
-  if you need its current field values); omit `id` to add a new variant.
+  the full variant object — `sku`, `options`, `priceCents`, etc., not a
+  partial patch of just one field — fetch the product first if you need
+  its current values); omit `id` to add a new variant.
 - `DELETE /api/agent/products/:id` — soft-delete (`isActive: false`).
   Products are never hard-deleted (past orders reference their variants).
 
