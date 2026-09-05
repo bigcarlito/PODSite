@@ -5,17 +5,19 @@ import { prisma } from "@/lib/prisma";
 
 const CART_COOKIE = "cart_token";
 
-export async function getOrCreateCart() {
+export async function getOrCreateCart(storeId: string) {
   const cookieStore = await cookies();
   let token = cookieStore.get(CART_COOKIE)?.value;
 
   if (token) {
     const existing = await prisma.cart.findUnique({ where: { token } });
-    if (existing) return existing;
+    // Cookie may belong to a different store (shared apex domain, dev
+    // ?store= override, etc.) — a mismatch means it's not this cart.
+    if (existing && existing.storeId === storeId) return existing;
   }
 
   token = randomUUID();
-  const cart = await prisma.cart.create({ data: { token } });
+  const cart = await prisma.cart.create({ data: { token, storeId } });
   cookieStore.set(CART_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
@@ -25,12 +27,12 @@ export async function getOrCreateCart() {
   return cart;
 }
 
-export async function getCart() {
+export async function getCart(storeId: string) {
   const cookieStore = await cookies();
   const token = cookieStore.get(CART_COOKIE)?.value;
   if (!token) return null;
 
-  return prisma.cart.findUnique({
+  const cart = await prisma.cart.findUnique({
     where: { token },
     include: {
       items: {
@@ -45,6 +47,8 @@ export async function getCart() {
       },
     },
   });
+
+  return cart && cart.storeId === storeId ? cart : null;
 }
 
 export function cartTotalCents(

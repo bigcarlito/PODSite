@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getCurrentStore } from "@/lib/store-context";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Collections" };
 
 export default async function CollectionsPage() {
+  const store = await getCurrentStore();
+  if (!store) notFound();
+
   const collections = await prisma.collection.findMany({
+    where: { storeId: store.id },
     orderBy: { title: "asc" },
     include: { _count: { select: { products: true } } },
   });

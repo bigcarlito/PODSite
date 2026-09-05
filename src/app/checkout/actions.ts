@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getCart, cartTotalCents } from "@/lib/cart";
 import { formatVariantOptions } from "@/lib/variant-label";
+import { requireCurrentStore } from "@/lib/store-context";
 import { cookies } from "next/headers";
 
 export type CheckoutState = {
@@ -15,7 +16,8 @@ export async function placeOrder(
   _prevState: CheckoutState,
   formData: FormData
 ): Promise<CheckoutState> {
-  const cart = await getCart();
+  const store = await requireCurrentStore();
+  const cart = await getCart(store.id);
   if (!cart || cart.items.length === 0) {
     return { error: "Your cart is empty." };
   }
@@ -41,10 +43,12 @@ export async function placeOrder(
   }
 
   const subtotalCents = cartTotalCents(cart.items);
-  const orderNumber = `WL-${Date.now().toString(36).toUpperCase()}`;
+  const prefix = store.slug.replace(/[^a-z0-9]/gi, "").slice(0, 3).toUpperCase() || "ORD";
+  const orderNumber = `${prefix}-${Date.now().toString(36).toUpperCase()}`;
 
   const order = await prisma.order.create({
     data: {
+      storeId: store.id,
       orderNumber,
       email,
       shippingName,

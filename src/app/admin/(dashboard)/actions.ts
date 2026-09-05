@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { destroyAdminSession } from "@/lib/admin-auth";
+import { requireCurrentStore } from "@/lib/store-context";
 import * as ordersStore from "@/lib/store/orders";
 
 export async function logoutAdmin() {
@@ -11,11 +12,13 @@ export async function logoutAdmin() {
 }
 
 export async function submitOrderToFulfillment(orderId: string) {
-  await ordersStore.submitOrderToFulfillment(orderId);
+  const store = await requireCurrentStore();
+  await ordersStore.submitOrderToFulfillment(store, orderId);
   revalidatePath("/admin");
 }
 
 export async function markOrderPaid(orderId: string) {
-  await ordersStore.markOrderPaid(orderId);
+  const store = await requireCurrentStore();
+  await ordersStore.markOrderPaid(store.id, orderId);
   revalidatePath("/admin");
 }

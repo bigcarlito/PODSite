@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { getCart, cartTotalCents } from "@/lib/cart";
+import { getCurrentStore } from "@/lib/store-context";
 import { formatCents } from "@/lib/money";
 import { formatVariantOptions } from "@/lib/variant-label";
 import { CheckoutForm } from "@/components/CheckoutForm";
@@ -10,7 +11,9 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Checkout" };
 
 export default async function CheckoutPage() {
-  const cart = await getCart();
+  const store = await getCurrentStore();
+  if (!store) notFound();
+  const cart = await getCart(store.id);
   if (!cart || cart.items.length === 0) {
     redirect("/cart");
   }

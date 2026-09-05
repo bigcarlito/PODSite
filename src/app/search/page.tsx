@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getCurrentStore } from "@/lib/store-context";
 import { ProductCard } from "@/components/ProductCard";
 
 export const dynamic = "force-dynamic";
@@ -13,10 +15,13 @@ export default async function SearchPage({
 }) {
   const { q } = await searchParams;
   const query = q?.trim() ?? "";
+  const store = await getCurrentStore();
+  if (!store) notFound();
 
   const products = query
     ? await prisma.product.findMany({
         where: {
+          storeId: store.id,
           isActive: true,
           OR: [
             { title: { contains: query, mode: "insensitive" } },

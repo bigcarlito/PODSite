@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { getCart, cartTotalCents } from "@/lib/cart";
+import { getCurrentStore } from "@/lib/store-context";
 import { CartItemRow } from "@/components/CartItemRow";
 import { formatCents } from "@/lib/money";
 
@@ -9,7 +11,9 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Your Cart" };
 
 export default async function CartPage() {
-  const cart = await getCart();
+  const store = await getCurrentStore();
+  if (!store) notFound();
+  const cart = await getCart(store.id);
   const items = cart?.items ?? [];
   const subtotal = cartTotalCents(items);
 

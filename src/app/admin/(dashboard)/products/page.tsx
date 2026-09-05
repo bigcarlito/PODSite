@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { listProducts } from "@/lib/store/products";
+import { requireCurrentStore } from "@/lib/store-context";
 import { formatCents } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
@@ -7,7 +8,8 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Admin — Products" };
 
 export default async function AdminProductsPage() {
-  const products = await listProducts();
+  const store = await requireCurrentStore();
+  const products = await listProducts(store.id);
 
   return (
     <div>

@@ -22,20 +22,81 @@ enum OrderStatus {
   CANCELED
 }
 
+/// A single storefront/tenant. One app + one database serves every store;
+/// everything else (Product, Collection, Cart, Order) belongs to exactly
+/// one Store. See AGENTS.md for why: an agent creating a store is a row
+/// insert + agent-API calls, not new infrastructure. Never add columns
+/// here for a single store's one-off need — theme/nav/footer/etc. are
+/// JSON precisely so brand-specific shape doesn't require a migration.
+model Store {
+  id          String  @id @default(cuid())
+  /// Subdomain label — first-available.yourdomain.com
+  slug        String  @unique
+  /// Optional custom domain, checked before slug when resolving a request.
+  domain      String? @unique
+  isActive    Boolean @default(true)
+
+  name        String
+  tagline     String
+  description String
+  /// Free-text brand tone brief, e.g. "self-deprecating, insider humor" —
+  /// meant to be read by an agent generating copy/products for this store,
+  /// not rendered on the storefront itself.
+  tone        String?
+  /// Free-text target audience brief, e.g. "casual/intermediate disc golfers".
+  audience    String?
+
+  /// { "accent": "#...", "accentDark": "#...", "logoUrl": "..." }
+  theme       Json @default("{}")
+  /// [{ "label": "...", "href": "..." }, ...]
+  nav         Json @default("[]")
+  /// { "Help": [{ "label": "...", "href": "..." }], "Company": [...] }
+  footerLinks Json @default("{}")
+  /// ["25,000+ happy customers", ...]
+  trustBadges Json @default("[]")
+  /// [{ "label": "Instagram", "href": "..." }, ...]
+  socialLinks Json @default("[]")
+
+  /// scrypt hash ("salt:hash" hex) of this store's human /admin password.
+  /// Never store or compare the plaintext password.
+  adminPasswordHash String
+  /// sha256 hex hash of this store's agent-API bearer token. The plaintext
+  /// key is generated once at store-creation time and returned only then.
+  agentApiKeyHash   String
+  /// This store's own Printful account key, if different from the
+  /// platform default. Falls back to PRINTFUL_API_KEY when unset.
+  printfulApiKey    String?
+
+  products    Product[]
+  variants    ProductVariant[]
+  collections Collection[]
+  carts       Cart[]
+  orders      Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Collection {
   id          String              @id @default(cuid())
-  slug        String              @unique
+  store       Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId     String
+  slug        String
   title       String
   description String?
   heroImage   String?
   products    ProductCollection[]
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
+
+  @@unique([storeId, slug])
 }
 
 model Product {
   id          String              @id @default(cuid())
-  slug        String              @unique
+  store       Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId     String
+  slug        String
   title       String
   description String
   /// Ordered variant option keys for this product, e.g. ["size","color"]
@@ -50,6 +111,8 @@ model Product {
   isActive    Boolean             @default(true)
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
+
+  @@unique([storeId, slug])
 }
 
 model ProductCollection {
@@ -72,9 +135,11 @@ model ProductImage {
 
 model ProductVariant {
   id                String                  @id @default(cuid())
+  store             Store                   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId           String
   product           Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId         String
-  sku               String                  @unique
+  sku               String
   /// Option values for this variant, keyed by the product's optionNames,
   /// e.g. {"size":"M","color":"Forest"} or {"printType":"Canvas","size":"16x20"}.
   /// Every variant of a product should have a value for every optionName.
@@ -89,23 +154,27 @@ model ProductVariant {
   quotes            ProviderQuote[]
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
+
+  @@unique([storeId, sku])
 }
 
 model ProviderQuote {
-  id                String                   @id @default(cuid())
-  variant           ProductVariant           @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  variantId         String
-  provider          FulfillmentProviderName
-  costCents         Int
-  shippingCents     Int
-  currency          String                   @default("USD")
-  fetchedAt         DateTime                 @default(now())
+  id            String                  @id @default(cuid())
+  variant       ProductVariant          @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  variantId     String
+  provider      FulfillmentProviderName
+  costCents     Int
+  shippingCents Int
+  currency      String                  @default("USD")
+  fetchedAt     DateTime                @default(now())
 
   @@unique([variantId, provider])
 }
 
 model Cart {
   id        String     @id @default(cuid())
+  store     Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId   String
   token     String     @unique
   items     CartItem[]
   createdAt DateTime   @default(now())
@@ -125,23 +194,27 @@ model CartItem {
 }
 
 model Order {
-  id                String      @id @default(cuid())
-  orderNumber       String      @unique
-  email             String
-  shippingName      String
-  shippingAddress1  String
-  shippingAddress2  String?
-  shippingCity      String
-  shippingState     String
-  shippingZip       String
-  shippingCountry   String
-  status            OrderStatus @default(PENDING_PAYMENT)
-  items             OrderItem[]
-  subtotalCents     Int
-  providerOrderId   String?
-  notes             String?
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  id               String      @id @default(cuid())
+  store            Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId          String
+  orderNumber      String
+  email            String
+  shippingName     String
+  shippingAddress1 String
+  shippingAddress2 String?
+  shippingCity     String
+  shippingState    String
+  shippingZip      String
+  shippingCountry  String
+  status           OrderStatus @default(PENDING_PAYMENT)
+  items            OrderItem[]
+  subtotalCents    Int
+  providerOrderId  String?
+  notes            String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@unique([storeId, orderNumber])
 }
 
 model OrderItem {

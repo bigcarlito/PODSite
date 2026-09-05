@@ -2,32 +2,38 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getFulfillmentProvider } from "@/lib/fulfillment/registry";
 import { StoreError, notFound } from "./errors";
-import type { OrderStatus } from "@prisma/client";
+import type { OrderStatus, Store } from "@prisma/client";
 
 const orderInclude = {
   items: { include: { variant: true } },
 } as const;
 
-export function listOrders(opts?: { status?: OrderStatus; take?: number }) {
+export function listOrders(
+  storeId: string,
+  opts?: { status?: OrderStatus; take?: number }
+) {
   return prisma.order.findMany({
-    where: opts?.status ? { status: opts.status } : undefined,
+    where: { storeId, ...(opts?.status ? { status: opts.status } : {}) },
     include: orderInclude,
     orderBy: { createdAt: "desc" },
     take: opts?.take ?? 100,
   });
 }
 
-export async function getOrder(idOrNumber: string) {
+export async function getOrder(storeId: string, idOrNumber: string) {
   const order = await prisma.order.findFirst({
-    where: { OR: [{ id: idOrNumber }, { orderNumber: idOrNumber }] },
+    where: {
+      storeId,
+      OR: [{ id: idOrNumber }, { orderNumber: idOrNumber }],
+    },
     include: orderInclude,
   });
   if (!order) throw notFound(`Order "${idOrNumber}"`);
   return order;
 }
 
-export async function markOrderPaid(idOrNumber: string) {
-  const order = await getOrder(idOrNumber);
+export async function markOrderPaid(storeId: string, idOrNumber: string) {
+  const order = await getOrder(storeId, idOrNumber);
   if (order.status !== "PENDING_PAYMENT") {
     throw new StoreError(
       "INVALID_STATUS",
@@ -42,8 +48,8 @@ export async function markOrderPaid(idOrNumber: string) {
   });
 }
 
-export async function submitOrderToFulfillment(idOrNumber: string) {
-  const order = await getOrder(idOrNumber);
+export async function submitOrderToFulfillment(store: Store, idOrNumber: string) {
+  const order = await getOrder(store.id, idOrNumber);
 
   if (order.status === "SUBMITTED_TO_FULFILLMENT") {
     throw new StoreError(
@@ -64,7 +70,10 @@ export async function submitOrderToFulfillment(idOrNumber: string) {
     );
   }
 
-  const provider = getFulfillmentProvider(order.items[0].variant.provider);
+  const provider = getFulfillmentProvider(
+    order.items[0].variant.provider,
+    store.printfulApiKey
+  );
 
   const result = await provider.submitOrder(
     order.items.map((i) => ({
