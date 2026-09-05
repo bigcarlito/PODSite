@@ -9,35 +9,35 @@ const productInclude = {
   collections: { include: { collection: true } },
 } as const;
 
-export function listProducts(opts?: { activeOnly?: boolean }) {
+export function listProducts(storeId: string, opts?: { activeOnly?: boolean }) {
   return prisma.product.findMany({
-    where: opts?.activeOnly ? { isActive: true } : undefined,
+    where: { storeId, ...(opts?.activeOnly ? { isActive: true } : {}) },
     include: productInclude,
     orderBy: { createdAt: "desc" },
   });
 }
 
-export async function getProductBySlug(slug: string) {
+export async function getProductBySlug(storeId: string, slug: string) {
   const product = await prisma.product.findUnique({
-    where: { slug },
+    where: { storeId_slug: { storeId, slug } },
     include: productInclude,
   });
   if (!product) throw notFound(`Product "${slug}"`);
   return product;
 }
 
-export async function getProductById(id: string) {
-  const product = await prisma.product.findUnique({
-    where: { id },
+export async function getProductById(storeId: string, id: string) {
+  const product = await prisma.product.findFirst({
+    where: { id, storeId },
     include: productInclude,
   });
   if (!product) throw notFound(`Product "${id}"`);
   return product;
 }
 
-export async function createProduct(input: ProductCreateInput) {
+export async function createProduct(storeId: string, input: ProductCreateInput) {
   const existing = await prisma.product.findUnique({
-    where: { slug: input.slug },
+    where: { storeId_slug: { storeId, slug: input.slug } },
   });
   if (existing) {
     throw new StoreError(
@@ -49,6 +49,7 @@ export async function createProduct(input: ProductCreateInput) {
 
   const product = await prisma.product.create({
     data: {
+      storeId,
       slug: input.slug,
       title: input.title,
       description: input.description,
@@ -69,6 +70,7 @@ export async function createProduct(input: ProductCreateInput) {
       },
       variants: {
         create: input.variants.map((v) => ({
+          storeId,
           sku: v.sku,
           options: v.options,
           priceCents: v.priceCents,
@@ -85,8 +87,12 @@ export async function createProduct(input: ProductCreateInput) {
   return product;
 }
 
-export async function updateProduct(id: string, input: ProductUpdateInput) {
-  const existing = await prisma.product.findUnique({ where: { id } });
+export async function updateProduct(
+  storeId: string,
+  id: string,
+  input: ProductUpdateInput
+) {
+  const existing = await prisma.product.findFirst({ where: { id, storeId } });
   if (!existing) throw notFound(`Product "${id}"`);
 
   await prisma.$transaction(async (tx) => {
@@ -127,7 +133,7 @@ export async function updateProduct(id: string, input: ProductUpdateInput) {
       for (const v of input.variants) {
         if (v.id) {
           await tx.productVariant.update({
-            where: { id: v.id },
+            where: { id: v.id, storeId },
             data: {
               sku: v.sku,
               options: v.options,
@@ -141,6 +147,7 @@ export async function updateProduct(id: string, input: ProductUpdateInput) {
         } else {
           await tx.productVariant.create({
             data: {
+              storeId,
               productId: id,
               sku: v.sku,
               options: v.options,
@@ -156,12 +163,12 @@ export async function updateProduct(id: string, input: ProductUpdateInput) {
     }
   });
 
-  return getProductById(id);
+  return getProductById(storeId, id);
 }
 
 /** Soft delete — print-on-demand orders may still reference this product. */
-export async function deactivateProduct(id: string) {
-  const existing = await prisma.product.findUnique({ where: { id } });
+export async function deactivateProduct(storeId: string, id: string) {
+  const existing = await prisma.product.findFirst({ where: { id, storeId } });
   if (!existing) throw notFound(`Product "${id}"`);
   return prisma.product.update({
     where: { id },
@@ -171,9 +178,9 @@ export async function deactivateProduct(id: string) {
 }
 
 /** Variants that are out of stock or have no price set — worth an agent's attention. */
-export function listAttentionVariants() {
+export function listAttentionVariants(storeId: string) {
   return prisma.productVariant.findMany({
-    where: { OR: [{ inStock: false }, { priceCents: 0 }] },
+    where: { storeId, OR: [{ inStock: false }, { priceCents: 0 }] },
     include: { product: { select: { title: true, slug: true, isActive: true } } },
   });
 }

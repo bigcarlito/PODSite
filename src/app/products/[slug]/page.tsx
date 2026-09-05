@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getCurrentStore } from "@/lib/store-context";
 import { Gallery } from "@/components/Gallery";
 import { VariantPicker } from "@/components/VariantPicker";
 import { ProductCard } from "@/components/ProductCard";
@@ -12,7 +13,11 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const product = await prisma.product.findUnique({ where: { slug } });
+  const store = await getCurrentStore();
+  if (!store) return { title: "Product" };
+  const product = await prisma.product.findUnique({
+    where: { storeId_slug: { storeId: store.id, slug } },
+  });
   return { title: product?.title ?? "Product" };
 }
 
@@ -22,9 +27,11 @@ export default async function ProductPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const store = await getCurrentStore();
+  if (!store) notFound();
 
   const product = await prisma.product.findUnique({
-    where: { slug, isActive: true },
+    where: { storeId_slug: { storeId: store.id, slug }, isActive: true },
     include: {
       images: { orderBy: { position: "asc" } },
       variants: true,
@@ -34,7 +41,7 @@ export default async function ProductPage({
   if (!product) notFound();
 
   const related = await prisma.product.findMany({
-    where: { isActive: true, id: { not: product.id } },
+    where: { storeId: store.id, isActive: true, id: { not: product.id } },
     include: {
       images: { orderBy: { position: "asc" }, take: 1 },
       variants: { orderBy: { priceCents: "asc" }, take: 1 },

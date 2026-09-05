@@ -9,39 +9,45 @@ import type {
 
 const PRINTFUL_API_BASE = "https://api.printful.com";
 
-function getApiKey(): string {
-  const key = process.env.PRINTFUL_API_KEY;
-  if (!key) {
-    throw new Error("PRINTFUL_API_KEY is not set");
-  }
-  return key;
-}
-
-async function printfulFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${PRINTFUL_API_BASE}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${getApiKey()}`,
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Printful API error ${res.status}: ${body}`);
-  }
-
-  const json = await res.json();
-  return json.result as T;
-}
-
 /**
  * Printful implementation of the FulfillmentProvider interface.
  * https://developers.printful.com/docs/
+ *
+ * Takes the API key explicitly (a specific store's own Printful account,
+ * or falls back to the platform default) rather than reading env vars
+ * inside each method — each store may use a different Printful account.
  */
 export class PrintfulProvider implements FulfillmentProvider {
   readonly name = "PRINTFUL" as const;
+
+  constructor(private readonly apiKey?: string) {}
+
+  private getApiKey(): string {
+    const key = this.apiKey ?? process.env.PRINTFUL_API_KEY;
+    if (!key) {
+      throw new Error("No Printful API key configured for this store");
+    }
+    return key;
+  }
+
+  private async printfulFetch<T>(path: string, init?: RequestInit): Promise<T> {
+    const res = await fetch(`${PRINTFUL_API_BASE}${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${this.getApiKey()}`,
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {}),
+      },
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`Printful API error ${res.status}: ${body}`);
+    }
+
+    const json = await res.json();
+    return json.result as T;
+  }
 
   async getCatalog(): Promise<CatalogProduct[]> {
     type StoreProduct = { id: number; name: string };
@@ -57,11 +63,11 @@ export class PrintfulProvider implements FulfillmentProvider {
       }>;
     };
 
-    const products = await printfulFetch<StoreProduct[]>("/store/products");
+    const products = await this.printfulFetch<StoreProduct[]>("/store/products");
 
     const detailed = await Promise.all(
       products.map((p) =>
-        printfulFetch<StoreProductDetail>(`/store/products/${p.id}`)
+        this.printfulFetch<StoreProductDetail>(`/store/products/${p.id}`)
       )
     );
 
@@ -95,7 +101,7 @@ export class PrintfulProvider implements FulfillmentProvider {
       quantity: 1,
     }));
 
-    const result = await printfulFetch<RateResult[]>("/shipping/rates", {
+    const result = await this.printfulFetch<RateResult[]>("/shipping/rates", {
       method: "POST",
       body: JSON.stringify({
         recipient: {
@@ -129,7 +135,7 @@ export class PrintfulProvider implements FulfillmentProvider {
   ): Promise<FulfillmentOrderResult> {
     type PrintfulOrder = { id: number; status: string };
 
-    const result = await printfulFetch<PrintfulOrder>("/orders", {
+    const result = await this.printfulFetch<PrintfulOrder>("/orders", {
       method: "POST",
       body: JSON.stringify({
         external_id: externalOrderId,
@@ -154,7 +160,7 @@ export class PrintfulProvider implements FulfillmentProvider {
 
   async getOrderStatus(providerOrderId: string): Promise<string> {
     type PrintfulOrder = { status: string };
-    const result = await printfulFetch<PrintfulOrder>(
+    const result = await this.printfulFetch<PrintfulOrder>(
       `/orders/${providerOrderId}`
     );
     return result.status;

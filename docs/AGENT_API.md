@@ -1,28 +1,100 @@
 # Agent API Reference
 
-This is the machine-callable interface to the store. It exists so an AI
-agent (or any script) can read the store's full state and make the same
-changes a human admin would make in `/admin` — without a browser. See
-`AGENTS.md` for the design principles behind it.
+This is the machine-callable interface to the platform — one app and one
+database serving many print-on-demand stores. It exists so an AI agent
+(or any script) can create a new store, read a store's full state, and
+make the same changes a human admin would make in that store's `/admin`
+— all without a browser. See `AGENTS.md` for the design principles
+behind it.
 
 If you add, change, or remove an endpoint, update this file **and**
-`skills/wildline-store-agent/SKILL.md` (a condensed version of this same
+`skills/pod-platform-agent/SKILL.md` (a condensed version of this same
 reference, packaged for an external agent harness) in the same commit —
 an undocumented endpoint, or a mismatch between the two, is a bug (see
 `AGENTS.md` rule #3).
 
-## Auth
+## Which store a request hits
 
-Every request needs:
+Every `/api/agent/*` endpoint operates on **one store**, resolved the same
+way the storefront resolves it: by subdomain in production
+(`first-available.yourdomain.com`), or by an exact custom domain if the
+store has one configured. Point requests at that store's host.
+
+Locally (no real subdomains), append `?store=<slug>` to the URL — e.g.
+`http://localhost:3000/api/agent/summary?store=first-available`. This
+also works as a fallback if `DEV_STORE_SLUG` is set. `/api/platform/*`
+(below) is the one exception — it's not store-scoped, since it's what
+creates stores in the first place.
+
+## Creating a new store
+
+### `POST /api/platform/stores`
+
+Gated by a separate, store-independent bearer token:
 
 ```
-Authorization: Bearer <ADMIN_API_KEY>
+Authorization: Bearer <PLATFORM_API_KEY>
 ```
 
-`ADMIN_API_KEY` is a separate secret from `ADMIN_PASSWORD` (the human
-`/admin` login) — set it in your environment (see `.env.example`). A
-missing or wrong token gets a `401` with a JSON body, never a redirect or
-HTML page:
+Creates a new store from a brand brief:
+
+```json
+{
+  "slug": "first-available",
+  "name": "First Available",
+  "tagline": "Throw first. Explain later.",
+  "description": "Disc golf apparel for people who know exactly why that last shot went into the pond.",
+  "tone": "self-deprecating, insider humor",
+  "audience": "casual/intermediate disc golfers",
+  "theme": { "accent": "#1f6f4a", "accentDark": "#154d33" },
+  "nav": [{ "label": "All Products", "href": "/products" }],
+  "footerLinks": { "Help": [{ "label": "Contact", "href": "/contact" }] },
+  "trustBadges": ["30-day happiness guarantee"],
+  "socialLinks": [{ "label": "Instagram", "href": "https://instagram.com/..." }],
+  "domain": "firstavailable.com",
+  "printfulApiKey": "optional — this store's own Printful account"
+}
+```
+
+Only `slug`, `name`, `tagline`, and `description` are required — `tone`
+and `audience` are free text meant for whichever agent generates this
+store's copy/products next, not rendered on the storefront. Everything
+else defaults to empty and can be set later via... there's no
+`PATCH /api/platform/stores/:id` yet (see "What's not here yet") — for
+now, set brand fields you care about at creation time.
+
+Returns `201`:
+
+```json
+{
+  "store": { "id": "...", "slug": "first-available", "name": "...", ... },
+  "credentials": {
+    "adminPassword": "f734bfcb07273efac91f",
+    "agentApiKey": "4e8abfeaa189f...9013"
+  }
+}
+```
+
+**`credentials` is shown exactly once.** Neither value is recoverable
+after this response — only their hashes are stored. Use `agentApiKey`
+immediately against that store's `/api/agent/*` endpoints (resolved via
+its slug/domain, see above) to populate its catalog; use `adminPassword`
+to log into `<slug>.yourdomain.com/admin` as a human.
+
+Fails with `409 SLUG_TAKEN` if the slug is already used.
+
+## Auth (per-store endpoints)
+
+Every `/api/agent/*` request needs:
+
+```
+Authorization: Bearer <that store's agent API key>
+```
+
+The key is checked against the **resolved store's own** key — one store's
+key never authenticates against another, even if you have both. A
+missing/wrong token, or a request that doesn't resolve to any store at
+all, gets a `401` with a JSON body, never a redirect or HTML page:
 
 ```json
 { "error": { "code": "UNAUTHORIZED", "message": "..." } }
@@ -215,6 +287,12 @@ crawling every product/order endpoint individually.
 
 ## What's not here yet
 
+- `PATCH /api/platform/stores/:id` — updating a store's brand/theme after
+  creation. Today you'd use Prisma Studio or a direct DB update; adding
+  this endpoint is the natural next step if agents need to iterate on
+  branding after launch.
+- `GET /api/platform/stores` — listing all stores. Not yet needed since
+  each store's own key already scopes what an agent can see.
 - Fetching a live Printful catalog / cost quotes through the agent API
   directly (today you'd call `getFulfillmentProvider("PRINTFUL")` from
   server-side code — see `src/lib/fulfillment/`). Worth adding as

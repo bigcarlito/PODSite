@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { checkAdminPassword, createAdminSession } from "@/lib/admin-auth";
+import { requireCurrentStore } from "@/lib/store-context";
 
 export type LoginState = { error?: string };
 
@@ -10,11 +11,12 @@ export async function adminLogin(
   formData: FormData
 ): Promise<LoginState> {
   const password = String(formData.get("password") ?? "");
+  const store = await requireCurrentStore();
 
-  if (!checkAdminPassword(password)) {
+  if (!checkAdminPassword(password, store)) {
     return { error: "Incorrect password." };
   }
 
-  await createAdminSession();
+  await createAdminSession(store);
   redirect("/admin");
 }

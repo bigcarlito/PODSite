@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
  * here (see AGENTS.md #8) whenever it would help answer "what should I
  * fix or optimize right now?".
  */
-export async function getStoreSummary() {
+export async function getStoreSummary(storeId: string) {
   const [
     productCount,
     activeProductCount,
@@ -17,11 +17,15 @@ export async function getStoreSummary() {
     revenue,
     recentOrders,
   ] = await Promise.all([
-    prisma.product.count(),
-    prisma.product.count({ where: { isActive: true } }),
-    prisma.order.groupBy({ by: ["status"], _count: { _all: true } }),
+    prisma.product.count({ where: { storeId } }),
+    prisma.product.count({ where: { storeId, isActive: true } }),
+    prisma.order.groupBy({
+      by: ["status"],
+      where: { storeId },
+      _count: { _all: true },
+    }),
     prisma.productVariant.findMany({
-      where: { inStock: false },
+      where: { storeId, inStock: false },
       select: {
         id: true,
         sku: true,
@@ -30,7 +34,7 @@ export async function getStoreSummary() {
       },
     }),
     prisma.productVariant.findMany({
-      where: { priceCents: 0 },
+      where: { storeId, priceCents: 0 },
       select: {
         id: true,
         sku: true,
@@ -38,10 +42,14 @@ export async function getStoreSummary() {
       },
     }),
     prisma.order.aggregate({
-      where: { status: { in: ["PAID", "SUBMITTED_TO_FULFILLMENT", "SHIPPED"] } },
+      where: {
+        storeId,
+        status: { in: ["PAID", "SUBMITTED_TO_FULFILLMENT", "SHIPPED"] },
+      },
       _sum: { subtotalCents: true },
     }),
     prisma.order.findMany({
+      where: { storeId },
       orderBy: { createdAt: "desc" },
       take: 5,
       select: {
@@ -55,6 +63,7 @@ export async function getStoreSummary() {
 
   const stuckOrders = await prisma.order.findMany({
     where: {
+      storeId,
       status: "PENDING_PAYMENT",
       createdAt: { lt: new Date(Date.now() - 1000 * 60 * 60 * 24) },
     },

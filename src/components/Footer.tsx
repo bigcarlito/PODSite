@@ -1,16 +1,22 @@
 import Link from "next/link";
-import { siteConfig } from "@/lib/site-config";
+import { getCurrentStore } from "@/lib/store-context";
+import { getStoreBranding } from "@/lib/store-branding";
 import { Newsletter } from "./Newsletter";
 
-export function Footer() {
+export async function Footer() {
+  const store = await getCurrentStore();
+  if (!store) return null;
+
+  const branding = getStoreBranding(store);
+
   return (
     <footer className="mt-16 border-t border-border bg-background">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div className="sm:col-span-2 lg:col-span-2">
-            <p className="text-lg font-semibold">{siteConfig.shortName}</p>
+            <p className="text-lg font-semibold">{branding.name}</p>
             <p className="mt-2 max-w-sm text-sm text-muted">
-              {siteConfig.description}
+              {branding.description}
             </p>
             <div className="mt-4">
               <p className="text-sm font-medium">
@@ -22,7 +28,7 @@ export function Footer() {
             </div>
           </div>
 
-          {Object.entries(siteConfig.footerLinks).map(([title, links]) => (
+          {Object.entries(branding.footerLinks).map(([title, links]) => (
             <div key={title}>
               <p className="text-sm font-semibold">{title}</p>
               <ul className="mt-3 space-y-2">
@@ -43,11 +49,10 @@ export function Footer() {
 
         <div className="mt-10 flex flex-col-reverse items-center gap-4 border-t border-border pt-6 sm:flex-row sm:justify-between">
           <p className="text-xs text-muted">
-            © {new Date().getFullYear()} {siteConfig.name}. All rights
-            reserved.
+            © {new Date().getFullYear()} {branding.name}. All rights reserved.
           </p>
           <div className="flex gap-4">
-            {siteConfig.social.map((s) => (
+            {branding.social.map((s) => (
               <a
                 key={s.href}
                 href={s.href}

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getCurrentStore } from "@/lib/store-context";
 import { ProductCard } from "@/components/ProductCard";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +11,11 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const collection = await prisma.collection.findUnique({ where: { slug } });
+  const store = await getCurrentStore();
+  if (!store) return { title: "Collection" };
+  const collection = await prisma.collection.findUnique({
+    where: { storeId_slug: { storeId: store.id, slug } },
+  });
   return { title: collection?.title ?? "Collection" };
 }
 
@@ -20,9 +25,11 @@ export default async function CollectionPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const store = await getCurrentStore();
+  if (!store) notFound();
 
   const collection = await prisma.collection.findUnique({
-    where: { slug },
+    where: { storeId_slug: { storeId: store.id, slug } },
     include: {
       products: {
         include: {

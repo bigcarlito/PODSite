@@ -4,14 +4,14 @@ import { collectionCreateSchema } from "@/lib/store/schemas";
 
 export const dynamic = "force-dynamic";
 
-export const GET = withAgentAuth(async () => {
-  const collections = await listCollections();
+export const GET = withAgentAuth(async (_request, store) => {
+  const collections = await listCollections(store.id);
   return Response.json({ collections });
 });
 
-export const POST = withAgentAuth(async (request) => {
+export const POST = withAgentAuth(async (request, store) => {
   const body = await request.json();
   const input = collectionCreateSchema.parse(body);
-  const collection = await createCollection(input);
+  const collection = await createCollection(store.id, input);
   return Response.json({ collection }, { status: 201 });
 });

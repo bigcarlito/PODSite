@@ -5,8 +5,8 @@ export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export const GET = withAgentAuth(async (_request, ctx: Ctx) => {
+export const GET = withAgentAuth(async (_request, store, ctx: Ctx) => {
   const { id } = await ctx.params;
-  const order = await getOrder(id);
+  const order = await getOrder(store.id, id);
   return Response.json({ order });
 });

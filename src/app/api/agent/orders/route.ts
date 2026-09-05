@@ -13,7 +13,7 @@ const VALID_STATUSES: OrderStatus[] = [
   "CANCELED",
 ];
 
-export const GET = withAgentAuth(async (request) => {
+export const GET = withAgentAuth(async (request, store) => {
   const url = new URL(request.url);
   const statusParam = url.searchParams.get("status");
   const status =
@@ -22,6 +22,6 @@ export const GET = withAgentAuth(async (request) => {
       : undefined;
   const take = Number(url.searchParams.get("take") ?? "100");
 
-  const orders = await listOrders({ status, take });
+  const orders = await listOrders(store.id, { status, take });
   return Response.json({ orders });
 });

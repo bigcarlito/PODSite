@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getCurrentStore } from "@/lib/store-context";
 import { ProductCard } from "@/components/ProductCard";
 
 export const dynamic = "force-dynamic";
@@ -7,8 +9,11 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "All Products" };
 
 export default async function ProductsPage() {
+  const store = await getCurrentStore();
+  if (!store) notFound();
+
   const products = await prisma.product.findMany({
-    where: { isActive: true },
+    where: { storeId: store.id, isActive: true },
     include: {
       images: { orderBy: { position: "asc" }, take: 1 },
       variants: { orderBy: { priceCents: "asc" }, take: 1 },

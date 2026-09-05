@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getCurrentStore } from "@/lib/store-context";
 import { formatCents } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
@@ -13,9 +14,11 @@ export default async function ConfirmationPage({
   params: Promise<{ orderNumber: string }>;
 }) {
   const { orderNumber } = await params;
+  const store = await getCurrentStore();
+  if (!store) notFound();
 
   const order = await prisma.order.findUnique({
-    where: { orderNumber },
+    where: { storeId_orderNumber: { storeId: store.id, orderNumber } },
     include: { items: true },
   });
 

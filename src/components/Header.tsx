@@ -1,27 +1,43 @@
 import Link from "next/link";
 import { getCart, cartItemCount } from "@/lib/cart";
-import { siteConfig } from "@/lib/site-config";
+import { getCurrentStore } from "@/lib/store-context";
+import { getStoreBranding } from "@/lib/store-branding";
 import { MobileNav } from "./MobileNav";
 
 export async function Header() {
-  const cart = await getCart();
+  const store = await getCurrentStore();
+
+  if (!store) {
+    return (
+      <header className="sticky top-0 z-50 border-b border-border bg-background/95">
+        <div className="mx-auto flex h-16 max-w-6xl items-center px-4 sm:px-6">
+          <span className="text-lg font-semibold tracking-tight">
+            Store not found
+          </span>
+        </div>
+      </header>
+    );
+  }
+
+  const branding = getStoreBranding(store);
+  const cart = await getCart(store.id);
   const count = cart ? cartItemCount(cart.items) : 0;
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-backdrop-blur:bg-background/80">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex items-center gap-2">
-          <MobileNav nav={siteConfig.nav} />
+          <MobileNav nav={branding.nav} />
           <Link
             href="/"
             className="text-lg font-semibold tracking-tight sm:text-xl"
           >
-            {siteConfig.shortName}
+            {branding.name}
           </Link>
         </div>
 
         <nav className="hidden md:flex md:items-center md:gap-8">
-          {siteConfig.nav.map((item) => (
+          {branding.nav.map((item) => (
             <Link
               key={item.href}
               href={item.href}
