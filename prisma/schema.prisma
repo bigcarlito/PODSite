@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FulfillmentProviderName {
+  PRINTFUL
+  PRINTIFY
+  GELATO
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  SUBMITTED_TO_FULFILLMENT
+  IN_PRODUCTION
+  SHIPPED
+  CANCELED
+}
+
+model Collection {
+  id          String              @id @default(cuid())
+  slug        String              @unique
+  title       String
+  description String?
+  heroImage   String?
+  products    ProductCollection[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+model Product {
+  id          String              @id @default(cuid())
+  slug        String              @unique
+  title       String
+  description String
+  images      ProductImage[]
+  variants    ProductVariant[]
+  collections ProductCollection[]
+  isFeatured  Boolean             @default(false)
+  isActive    Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+model ProductCollection {
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId    String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  collectionId String
+
+  @@id([productId, collectionId])
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  url       String
+  altText   String?
+  position  Int      @default(0)
+}
+
+model ProductVariant {
+  id                 String                   @id @default(cuid())
+  product            Product                  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId          String
+  sku                String                   @unique
+  size               String?
+  color               String?
+  priceCents         Int
+  currency           String                   @default("USD")
+  provider            FulfillmentProviderName @default(PRINTFUL)
+  providerVariantId   String?
+  inStock             Boolean                 @default(true)
+  cartItems           CartItem[]
+  orderItems          OrderItem[]
+  quotes              ProviderQuote[]
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+}
+
+model ProviderQuote {
+  id                String                   @id @default(cuid())
+  variant           ProductVariant           @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  variantId         String
+  provider          FulfillmentProviderName
+  costCents         Int
+  shippingCents     Int
+  currency          String                   @default("USD")
+  fetchedAt         DateTime                 @default(now())
+
+  @@unique([variantId, provider])
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  token     String     @unique
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String         @id @default(cuid())
+  cart      Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cartId    String
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+  variantId String
+  quantity  Int            @default(1)
+  createdAt DateTime       @default(now())
+
+  @@unique([cartId, variantId])
+}
+
+model Order {
+  id                String      @id @default(cuid())
+  orderNumber       String      @unique
+  email             String
+  shippingName      String
+  shippingAddress1  String
+  shippingAddress2  String?
+  shippingCity      String
+  shippingState     String
+  shippingZip       String
+  shippingCountry   String
+  status            OrderStatus @default(PENDING_PAYMENT)
+  items             OrderItem[]
+  subtotalCents     Int
+  providerOrderId   String?
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+model OrderItem {
+  id          String         @id @default(cuid())
+  order       Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId     String
+  variant     ProductVariant @relation(fields: [variantId], references: [id])
+  variantId   String
+  quantity    Int
+  priceCents  Int
+  productName String
+  variantName String
+}
