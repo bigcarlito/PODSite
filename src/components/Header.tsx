@@ -10,12 +10,15 @@ export async function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-backdrop-blur:bg-background/80">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link
-          href="/"
-          className="text-lg font-semibold tracking-tight sm:text-xl"
-        >
-          {siteConfig.shortName}
-        </Link>
+        <div className="flex items-center gap-2">
+          <MobileNav nav={siteConfig.nav} />
+          <Link
+            href="/"
+            className="text-lg font-semibold tracking-tight sm:text-xl"
+          >
+            {siteConfig.shortName}
+          </Link>
+        </div>
 
         <nav className="hidden md:flex md:items-center md:gap-8">
           {siteConfig.nav.map((item) => (
@@ -49,7 +52,6 @@ export async function Header() {
               </span>
             )}
           </Link>
-          <MobileNav nav={siteConfig.nav} />
         </div>
       </div>
     </header>
