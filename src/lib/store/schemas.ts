@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { navLinkSchema } from "@/lib/platform-schemas";
 
 export const variantInputSchema = z.object({
   id: z.string().optional(), // present = update existing variant, absent = create new
@@ -51,6 +52,32 @@ export const collectionCreateSchema = z.object({
   heroImage: z.string().url().optional(),
 });
 
+/// A store updating its own brand/copy — never slug, domain, or credentials.
+export const storeUpdateSchema = z.object({
+  name: z.string().min(1).optional(),
+  tagline: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+  tone: z.string().optional(),
+  audience: z.string().optional(),
+  /// Fuller brand/business knowledge — see Store.brief in schema.prisma.
+  /// Merge this yourself (fetch current via GET /api/agent/briefing first)
+  /// — a PATCH here replaces the whole object, it doesn't deep-merge.
+  brief: z.record(z.string(), z.unknown()).optional(),
+  theme: z.object({ accent: z.string(), accentDark: z.string() }).partial().optional(),
+  nav: z.array(navLinkSchema).optional(),
+  footerLinks: z.record(z.string(), z.array(navLinkSchema)).optional(),
+  trustBadges: z.array(z.string()).optional(),
+  socialLinks: z.array(navLinkSchema).optional(),
+});
+
+export const activityCreateSchema = z.object({
+  category: z.string().min(1),
+  summary: z.string().min(1),
+  details: z.record(z.string(), z.unknown()).optional(),
+});
+
 export type ProductCreateInput = z.infer<typeof productCreateSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 export type CollectionCreateInput = z.infer<typeof collectionCreateSchema>;
+export type StoreUpdateInput = z.infer<typeof storeUpdateSchema>;
+export type ActivityCreateInput = z.infer<typeof activityCreateSchema>;

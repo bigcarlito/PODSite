@@ -45,6 +45,13 @@ model Store {
   tone        String?
   /// Free-text target audience brief, e.g. "casual/intermediate disc golfers".
   audience    String?
+  /// Fuller brand/business knowledge for an agent to read before acting —
+  /// mission, differentiators, pricing philosophy/margin targets, voice
+  /// examples, things to avoid. Free-form JSON on purpose (see AGENTS.md
+  /// #10): shape varies by store and grows over time without a migration.
+  /// e.g. { "mission": "...", "pricingPhilosophy": "...",
+  ///        "voiceExamples": ["..."], "avoid": ["..."] }
+  brief       Json    @default("{}")
 
   /// { "accent": "#...", "accentDark": "#...", "logoUrl": "..." }
   theme       Json @default("{}")
@@ -72,9 +79,37 @@ model Store {
   collections Collection[]
   carts       Cart[]
   orders      Order[]
+  activity    ActivityLogEntry[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// A running history of what changed and why, per store — the "recent
+/// activity" half of full agent context (the other half is Store.brief +
+/// GET /api/agent/summary). Without this, every fresh agent session
+/// re-discovers the business from scratch and can repeat failed
+/// experiments. Written automatically by key mutations (price/stock
+/// changes, order status changes, brand updates) and by agents/humans
+/// leaving explicit notes via POST /api/agent/activity. Never edited or
+/// deleted — it's a log, not a mutable record.
+model ActivityLogEntry {
+  id        String   @id @default(cuid())
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId   String
+  /// Who/what recorded this: "agent", "admin" (human /admin action),
+  /// "customer" (e.g. an order placed), or "system".
+  actor     String
+  /// Free-text category for filtering, e.g. "product", "pricing",
+  /// "order", "fulfillment", "brand", "note". Not an enum on purpose —
+  /// new categories shouldn't need a migration.
+  category  String
+  summary   String
+  /// Optional structured detail, e.g. { "productId": "...", "from": 2995, "to": 2495 }
+  details   Json?
+  createdAt DateTime @default(now())
+
+  @@index([storeId, createdAt])
 }
 
 model Collection {

@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { StoreError, notFound } from "./errors";
+import { logActivity, type ActivityActor } from "./activity";
 import type { ProductCreateInput, ProductUpdateInput } from "./schemas";
 
 const productInclude = {
@@ -35,7 +36,11 @@ export async function getProductById(storeId: string, id: string) {
   return product;
 }
 
-export async function createProduct(storeId: string, input: ProductCreateInput) {
+export async function createProduct(
+  storeId: string,
+  input: ProductCreateInput,
+  actor: ActivityActor = "agent"
+) {
   const existing = await prisma.product.findUnique({
     where: { storeId_slug: { storeId, slug: input.slug } },
   });
@@ -84,13 +89,21 @@ export async function createProduct(storeId: string, input: ProductCreateInput) 
     include: productInclude,
   });
 
+  await logActivity(storeId, {
+    actor,
+    category: "product",
+    summary: `Created product "${product.title}"`,
+    details: { productId: product.id, slug: product.slug },
+  });
+
   return product;
 }
 
 export async function updateProduct(
   storeId: string,
   id: string,
-  input: ProductUpdateInput
+  input: ProductUpdateInput,
+  actor: ActivityActor = "agent"
 ) {
   const existing = await prisma.product.findFirst({ where: { id, storeId } });
   if (!existing) throw notFound(`Product "${id}"`);
@@ -163,18 +176,42 @@ export async function updateProduct(
     }
   });
 
+  const priceChanges = (input.variants ?? [])
+    .filter((v) => v.id)
+    .map((v) => ({ variantId: v.id, sku: v.sku, priceCents: v.priceCents }));
+
+  await logActivity(storeId, {
+    actor,
+    category: priceChanges.length > 0 ? "pricing" : "product",
+    summary: `Updated product "${existing.title}"`,
+    details: { productId: id, changes: input },
+  });
+
   return getProductById(storeId, id);
 }
 
 /** Soft delete — print-on-demand orders may still reference this product. */
-export async function deactivateProduct(storeId: string, id: string) {
+export async function deactivateProduct(
+  storeId: string,
+  id: string,
+  actor: ActivityActor = "agent"
+) {
   const existing = await prisma.product.findFirst({ where: { id, storeId } });
   if (!existing) throw notFound(`Product "${id}"`);
-  return prisma.product.update({
+  const product = await prisma.product.update({
     where: { id },
     data: { isActive: false },
     include: productInclude,
   });
+
+  await logActivity(storeId, {
+    actor,
+    category: "product",
+    summary: `Deactivated product "${existing.title}"`,
+    details: { productId: id },
+  });
+
+  return product;
 }
 
 /** Variants that are out of stock or have no price set — worth an agent's attention. */

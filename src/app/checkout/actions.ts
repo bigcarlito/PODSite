@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getCart, cartTotalCents } from "@/lib/cart";
 import { formatVariantOptions } from "@/lib/variant-label";
 import { requireCurrentStore } from "@/lib/store-context";
+import { logActivity } from "@/lib/store/activity";
 import { cookies } from "next/headers";
 
 export type CheckoutState = {
@@ -75,6 +76,13 @@ export async function placeOrder(
   });
 
   await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+
+  await logActivity(store.id, {
+    actor: "customer",
+    category: "order",
+    summary: `New order ${order.orderNumber} placed ($${(subtotalCents / 100).toFixed(2)})`,
+    details: { orderId: order.id, orderNumber: order.orderNumber, subtotalCents },
+  });
 
   const cookieStore = await cookies();
   cookieStore.set("cart_token", randomUUID(), {

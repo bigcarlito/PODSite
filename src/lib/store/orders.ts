@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getFulfillmentProvider } from "@/lib/fulfillment/registry";
 import { StoreError, notFound } from "./errors";
+import { logActivity, type ActivityActor } from "./activity";
 import type { OrderStatus, Store } from "@prisma/client";
 
 const orderInclude = {
@@ -32,7 +33,11 @@ export async function getOrder(storeId: string, idOrNumber: string) {
   return order;
 }
 
-export async function markOrderPaid(storeId: string, idOrNumber: string) {
+export async function markOrderPaid(
+  storeId: string,
+  idOrNumber: string,
+  actor: ActivityActor = "agent"
+) {
   const order = await getOrder(storeId, idOrNumber);
   if (order.status !== "PENDING_PAYMENT") {
     throw new StoreError(
@@ -41,14 +46,27 @@ export async function markOrderPaid(storeId: string, idOrNumber: string) {
       { status: 409 }
     );
   }
-  return prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id: order.id },
     data: { status: "PAID" },
     include: orderInclude,
   });
+
+  await logActivity(storeId, {
+    actor,
+    category: "order",
+    summary: `Marked order ${order.orderNumber} paid`,
+    details: { orderId: order.id, orderNumber: order.orderNumber },
+  });
+
+  return updated;
 }
 
-export async function submitOrderToFulfillment(store: Store, idOrNumber: string) {
+export async function submitOrderToFulfillment(
+  store: Store,
+  idOrNumber: string,
+  actor: ActivityActor = "agent"
+) {
   const order = await getOrder(store.id, idOrNumber);
 
   if (order.status === "SUBMITTED_TO_FULFILLMENT") {
@@ -92,7 +110,7 @@ export async function submitOrderToFulfillment(store: Store, idOrNumber: string)
     order.orderNumber
   );
 
-  return prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id: order.id },
     data: {
       status: "SUBMITTED_TO_FULFILLMENT",
@@ -100,4 +118,17 @@ export async function submitOrderToFulfillment(store: Store, idOrNumber: string)
     },
     include: orderInclude,
   });
+
+  await logActivity(store.id, {
+    actor,
+    category: "fulfillment",
+    summary: `Submitted order ${order.orderNumber} to ${order.items[0].variant.provider}`,
+    details: {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      providerOrderId: result.providerOrderId,
+    },
+  });
+
+  return updated;
 }

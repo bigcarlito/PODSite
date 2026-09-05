@@ -27,6 +27,12 @@ type SeedStore = {
   description: string;
   tone: string;
   audience: string;
+  brief: {
+    mission: string;
+    pricingPhilosophy: string;
+    voiceExamples: string[];
+    avoid: string[];
+  };
   theme: { accent: string; accentDark: string };
   collections: { slug: string; title: string; description: string }[];
   products: (collectionSlugs: Record<string, string>) => SeedProduct[];
@@ -50,6 +56,17 @@ const stores: SeedStore[] = [
       "Premium print-on-demand apparel and gear, made for the slow, scenic route.",
     tone: "warm, unhurried, outdoorsy",
     audience: "casual hikers and outdoor gear enthusiasts",
+    brief: {
+      mission:
+        "Make quality outdoor apparel available print-on-demand, so nothing is overproduced and every order is made fresh.",
+      pricingPhilosophy:
+        "Mid-market: a bit above generic POD marketplaces, justified by heavier fabrics and considered designs. Avoid racing to the bottom on price.",
+      voiceExamples: [
+        "Adventure, at your own pace.",
+        "Printed fresh when you order it — no warehouses full of unsold stock.",
+      ],
+      avoid: ["Extreme sports intensity", "Hard-sell urgency/scarcity marketing"],
+    },
     theme: { accent: "#3f4a2f", accentDark: "#2c3420" },
     collections: [
       { slug: "new-arrivals", title: "New Arrivals", description: "Fresh off the press." },
@@ -137,6 +154,17 @@ const stores: SeedStore[] = [
       "Disc golf apparel for people who know exactly why that last shot went into the pond.",
     tone: "self-deprecating, insider humor",
     audience: "casual/intermediate disc golfers",
+    brief: {
+      mission:
+        "Give disc golfers apparel that's actually in on the joke — the sport's culture, not generic athletic wear with a disc printed on it.",
+      pricingPhilosophy:
+        "Impulse-buy friendly ($25-55). Most sales come from course pro shops and post-round browsing, not planned purchases — keep the barrier low.",
+      voiceExamples: [
+        "Throw first. Explain later.",
+        "The lie every disc golfer tells their family.",
+      ],
+      avoid: ["Anything that reads as beginner-mocking", "Corporate/generic sports branding tone"],
+    },
     theme: { accent: "#1f6f4a", accentDark: "#154d33" },
     collections: [
       { slug: "new-arrivals", title: "New Arrivals", description: "Fresh off the tee pad." },
@@ -188,6 +216,17 @@ const stores: SeedStore[] = [
       "Apparel and gifts for backyard chicken keepers who lost count a long time ago.",
     tone: "cute, chaotic, obsessive",
     audience: "backyard chicken owners (great for gifts, skews female)",
+    brief: {
+      mission:
+        "Give backyard chicken keepers apparel and gifts that capture how the hobby actually goes — you said three hens, you have fourteen.",
+      pricingPhilosophy:
+        "Gift-price anchored ($25-55): a large share of sales are gifts (Mother's Day, birthdays), not self-purchases — package/describe accordingly.",
+      voiceExamples: [
+        "You said three. It's fourteen now.",
+        "Wear it proudly to the coop at 6am in your pajamas.",
+      ],
+      avoid: ["Anything that reads as mocking rather than affectionate", "Overly polished/corporate tone"],
+    },
     theme: { accent: "#c2622a", accentDark: "#8f461c" },
     collections: [
       { slug: "new-arrivals", title: "New Arrivals", description: "Fresh from the coop." },
@@ -242,6 +281,17 @@ const stores: SeedStore[] = [
       "Apparel for birders who bring binoculars to brunch. Field-tested humor, life-list pride.",
     tone: "smart, nerdy, outdoorsy",
     audience: "serious-but-funny birdwatchers",
+    brief: {
+      mission:
+        "Serve birders who take the hobby seriously but don't take themselves too seriously — smart references, real field-guide aesthetics, not generic nature-lover merch.",
+      pricingPhilosophy:
+        "This audience is under-served relative to its size (per market research) — price at a slight premium to signal quality/specificity rather than competing on price.",
+      voiceExamples: [
+        "Yes, I did stop the car for that.",
+        "For the exact moment you add a new species to your life list.",
+      ],
+      avoid: ["Generic 'nature lover' or 'bird watching' cliches", "Cutesy tone — this audience wants smart, not twee"],
+    },
     theme: { accent: "#2b5f7a", accentDark: "#1c4152" },
     collections: [
       { slug: "new-arrivals", title: "New Arrivals", description: "Freshly spotted." },
@@ -303,6 +353,7 @@ async function main() {
         description: s.description,
         tone: s.tone,
         audience: s.audience,
+        brief: s.brief satisfies Prisma.InputJsonValue,
         theme: s.theme,
         nav: [
           { label: "All Products", href: "/products" },

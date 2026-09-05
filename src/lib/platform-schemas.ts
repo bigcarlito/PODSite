@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const navLinkSchema = z.object({ label: z.string(), href: z.string() });
+export const navLinkSchema = z.object({ label: z.string(), href: z.string() });
 
 export const storeCreateSchema = z.object({
   slug: z
@@ -15,6 +15,8 @@ export const storeCreateSchema = z.object({
   tone: z.string().optional(),
   /// Free-text brief, e.g. "casual/intermediate disc golfers"
   audience: z.string().optional(),
+  /// Fuller brand/business knowledge — see Store.brief in schema.prisma.
+  brief: z.record(z.string(), z.unknown()).optional(),
   domain: z.string().optional(),
   theme: z.object({ accent: z.string(), accentDark: z.string() }).partial().optional(),
   nav: z.array(navLinkSchema).optional(),
