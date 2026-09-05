@@ -7,31 +7,50 @@ import { addToCart } from "@/app/cart/actions";
 
 export type VariantOption = {
   id: string;
-  size?: string | null;
-  color?: string | null;
+  options: Record<string, string>;
   priceCents: number;
   currency: string;
   inStock: boolean;
 };
 
-export function VariantPicker({ variants }: { variants: VariantOption[] }) {
-  const sizes = useMemo(
-    () => Array.from(new Set(variants.map((v) => v.size).filter(Boolean))) as string[],
-    [variants]
-  );
-  const colors = useMemo(
-    () => Array.from(new Set(variants.map((v) => v.color).filter(Boolean))) as string[],
-    [variants]
-  );
+function humanize(optionName: string) {
+  return optionName
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/^./, (c) => c.toUpperCase());
+}
 
-  const [size, setSize] = useState<string | undefined>(sizes[0]);
-  const [color, setColor] = useState<string | undefined>(colors[0]);
+export function VariantPicker({
+  optionNames,
+  variants,
+}: {
+  optionNames: string[];
+  variants: VariantOption[];
+}) {
+  const valuesByOption = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const name of optionNames) {
+      map.set(
+        name,
+        Array.from(new Set(variants.map((v) => v.options[name]).filter(Boolean)))
+      );
+    }
+    return map;
+  }, [optionNames, variants]);
+
+  const [selection, setSelection] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    for (const name of optionNames) {
+      const first = valuesByOption.get(name)?.[0];
+      if (first) initial[name] = first;
+    }
+    return initial;
+  });
   const [added, setAdded] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  const selected = variants.find(
-    (v) => (sizes.length === 0 || v.size === size) && (colors.length === 0 || v.color === color)
+  const selected = variants.find((v) =>
+    optionNames.every((name) => v.options[name] === selection[name])
   );
 
   return (
@@ -40,49 +59,33 @@ export function VariantPicker({ variants }: { variants: VariantOption[] }) {
         {selected ? formatCents(selected.priceCents, selected.currency) : "—"}
       </p>
 
-      {colors.length > 0 && (
-        <div>
-          <p className="mb-2 text-sm font-medium">Color</p>
-          <div className="flex flex-wrap gap-2">
-            {colors.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setColor(c)}
-                className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-                  color === c
-                    ? "border-accent bg-accent text-white"
-                    : "border-border hover:border-accent"
-                }`}
-              >
-                {c}
-              </button>
-            ))}
+      {optionNames.map((name) => {
+        const values = valuesByOption.get(name) ?? [];
+        if (values.length === 0) return null;
+        return (
+          <div key={name}>
+            <p className="mb-2 text-sm font-medium">{humanize(name)}</p>
+            <div className="flex flex-wrap gap-2">
+              {values.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() =>
+                    setSelection((prev) => ({ ...prev, [name]: value }))
+                  }
+                  className={`min-w-11 rounded-full border px-4 py-2 text-sm transition-colors ${
+                    selection[name] === value
+                      ? "border-accent bg-accent text-white"
+                      : "border-border hover:border-accent"
+                  }`}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-
-      {sizes.length > 0 && (
-        <div>
-          <p className="mb-2 text-sm font-medium">Size</p>
-          <div className="flex flex-wrap gap-2">
-            {sizes.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSize(s)}
-                className={`min-w-11 rounded-full border px-4 py-2 text-sm transition-colors ${
-                  size === s
-                    ? "border-accent bg-accent text-white"
-                    : "border-border hover:border-accent"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+        );
+      })}
 
       <button
         type="button"

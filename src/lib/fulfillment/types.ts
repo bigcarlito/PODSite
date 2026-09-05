@@ -3,8 +3,8 @@ export type FulfillmentProviderName = "PRINTFUL" | "PRINTIFY" | "GELATO";
 export interface CatalogVariant {
   providerVariantId: string;
   name: string;
-  size?: string;
-  color?: string;
+  /** Provider-reported option values, e.g. {"size":"M","color":"Forest"}. */
+  options?: Record<string, string>;
   costCents: number;
   currency: string;
 }

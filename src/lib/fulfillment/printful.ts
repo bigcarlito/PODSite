@@ -71,8 +71,10 @@ export class PrintfulProvider implements FulfillmentProvider {
       variants: d.sync_variants.map((v) => ({
         providerVariantId: String(v.id),
         name: v.name,
-        size: v.size,
-        color: v.color,
+        options: {
+          ...(v.size ? { size: v.size } : {}),
+          ...(v.color ? { color: v.color } : {}),
+        },
         costCents: Math.round(parseFloat(v.retail_price) * 100),
         currency: v.currency,
       })),

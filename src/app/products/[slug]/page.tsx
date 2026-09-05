@@ -54,10 +54,10 @@ export default async function ProductPage({
 
           <div className="mt-6">
             <VariantPicker
+              optionNames={product.optionNames}
               variants={product.variants.map((v) => ({
                 id: v.id,
-                size: v.size,
-                color: v.color,
+                options: v.options as Record<string, string>,
                 priceCents: v.priceCents,
                 currency: v.currency,
                 inStock: v.inStock,

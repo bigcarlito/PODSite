@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getCart, cartTotalCents } from "@/lib/cart";
+import { formatVariantOptions } from "@/lib/variant-label";
 import { cookies } from "next/headers";
 
 export type CheckoutState = {
@@ -61,9 +62,9 @@ export async function placeOrder(
           quantity: item.quantity,
           priceCents: item.variant.priceCents,
           productName: item.variant.product.title,
-          variantName: [item.variant.color, item.variant.size]
-            .filter(Boolean)
-            .join(" / "),
+          variantName: formatVariantOptions(
+            item.variant.options as Record<string, string>
+          ),
         })),
       },
     },

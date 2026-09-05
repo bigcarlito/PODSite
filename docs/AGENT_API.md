@@ -40,6 +40,15 @@ HTML page:
   `MISSING_PROVIDER_VARIANT` (422), `INTERNAL_ERROR` (500).
 - IDs are `cuid()` strings. Orders also accept their human-readable
   `orderNumber` (e.g. `WL-MTMEQDWZ`) anywhere an order ID is accepted.
+- Variant properties are **generic**, not fixed columns. A product
+  declares `optionNames` (an ordered list of option keys, e.g.
+  `["size","color"]` for apparel or `["printType","size"]` for wall art),
+  and each of its variants has an `options` object with a value for each
+  of those keys, e.g. `{"size":"M","color":"Forest"}` or
+  `{"printType":"Canvas","size":"16x20"}`. There's no fixed set of
+  supported option names — a product can use whatever keys make sense for
+  its category. Every variant still has its own independent `priceCents`,
+  so a Framed Print can cost more than a Poster at the same size.
 
 ## Products
 
@@ -70,6 +79,7 @@ Create a product with its variants.
   "slug": "summit-jacket",
   "title": "Summit Jacket",
   "description": "A weatherproof shell for exposed ridgelines.",
+  "optionNames": ["size", "color"],
   "isFeatured": false,
   "isActive": true,
   "collectionIds": ["clx...collectionId"],
@@ -77,14 +87,31 @@ Create a product with its variants.
   "variants": [
     {
       "sku": "summit-jacket-m-black",
-      "size": "M",
-      "color": "Black",
+      "options": { "size": "M", "color": "Black" },
       "priceCents": 8995,
       "currency": "USD",
       "provider": "PRINTFUL",
       "providerVariantId": "12345",
       "inStock": true
     }
+  ]
+}
+```
+
+`optionNames` can be any list of keys appropriate to the product — e.g.
+`["printType", "size"]` for a wall-art product with Poster/Canvas/Framed
+Print variants at different sizes, each with its own `priceCents`:
+
+```json
+{
+  "slug": "trailhead-vista-print",
+  "title": "Trailhead Vista Print",
+  "description": "...",
+  "optionNames": ["printType", "size"],
+  "variants": [
+    { "sku": "...", "options": { "printType": "Poster", "size": "16x20" }, "priceCents": 2800 },
+    { "sku": "...", "options": { "printType": "Canvas", "size": "16x20" }, "priceCents": 5800 },
+    { "sku": "...", "options": { "printType": "Framed Print", "size": "16x20" }, "priceCents": 8800 }
   ]
 }
 ```
@@ -100,7 +127,7 @@ Update any subset of a product's fields. This is how an agent changes
 membership.
 
 ```json
-{ "variants": [{ "id": "clx...variantId", "priceCents": 7995 }] }
+{ "variants": [{ "id": "clx...variantId", "options": { "size": "M", "color": "Forest" }, "priceCents": 7995, "sku": "trailhead-tee-m-forest" }] }
 ```
 
 A `variants` entry with an `id` updates that variant; one without an `id`
@@ -176,7 +203,7 @@ A single-call snapshot built for "what should I do next?" decisions:
   },
   "revenueCents": 45992,
   "attention": {
-    "outOfStockVariants": [ { "id": "...", "sku": "...", "product": { "title": "...", "slug": "..." } } ],
+    "outOfStockVariants": [ { "id": "...", "sku": "...", "options": { "size": "M" }, "product": { "title": "...", "slug": "..." } } ],
     "variantsMissingPrice": [ { "id": "...", "sku": "...", "product": { "title": "...", "slug": "..." } } ]
   }
 }
