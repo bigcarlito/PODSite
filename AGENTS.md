@@ -19,10 +19,11 @@ without ever opening a browser:
 1. **Create** a new store from a brand brief (name, tagline, tone,
    audience) via `POST /api/platform/stores` — a data insert, not new
    infrastructure. See "Creating a new store" below.
-2. **Read** the full state of any store it holds a key for — products,
-   variants, pricing, inventory signals, orders, fulfillment status, and a
+2. **Read** the full context of any store it holds a key for in one call
+   (`GET /api/agent/briefing`) — brand/business knowledge, products,
+   variants, pricing, inventory signals, orders, fulfillment status, a
    rollup of what needs attention (out-of-stock variants, stuck orders,
-   pricing outliers).
+   pricing outliers), and a history of what's already been tried.
 3. **Act** on that state — create/update/deactivate products and variants,
    change prices, submit orders to fulfillment, mark orders paid — through
    the same typed functions the UI calls, not by reimplementing logic.
@@ -118,13 +119,16 @@ bar to make an endpoint "easier to call."
 
 ### 8. Optimization data is a first-class feature, not an afterthought
 
-`GET /api/agent/summary` exists specifically so an agent can answer "what
-should I do next?" in one call — low/no-stock variants, orders stuck in a
-status, revenue rollups, all scoped to the calling store. When you add a
-new signal that would help an agent decide what to fix or change (a
-slow-moving product, an abandoned-cart pattern, a price that's out of
-line with a provider's cost), add it here rather than burying it in a
-human-only admin page.
+`GET /api/agent/briefing` exists specifically so a fresh agent session —
+which has no memory of anything done before — can answer "what's this
+store, and what should I do next?" in one call: brand/business knowledge
+(`Store.brief`), a live operational snapshot (`GET /api/agent/summary`:
+low/no-stock variants, orders stuck in a status, revenue rollups), and
+recent history (`GET /api/agent/activity`), all scoped to the calling
+store. When you add a new signal that would help an agent decide what to
+fix or change (a slow-moving product, an abandoned-cart pattern, a price
+that's out of line with a provider's cost), add it to the summary rather
+than burying it in a human-only admin page.
 
 ### 9. Keep each store's storefront simple
 
@@ -187,6 +191,47 @@ for code that touches them:
   it's a dev convenience layered under real domain resolution, not a
   replacement for it.
 
+### 12. Every meaningful mutation writes an activity log entry
+
+`ActivityLogEntry` (see `src/lib/store/activity.ts`) is the "recent
+activity" half of full agent context — without it, every fresh session
+re-discovers the business from scratch and can repeat a failed
+experiment. Any mutation an agent, admin, or customer makes that another
+session would benefit from knowing about — price/stock changes, order
+status changes, brand/settings updates, orders placed — calls
+`logActivity()` after the write succeeds, inside the same
+`src/lib/store/*.ts` function (not bolted on in the route handler,
+per rule #1). Pass the real `actor` (`"agent"`, `"admin"`, `"customer"`,
+or `"system"`) — never default a human action to `"agent"` or vice versa.
+`category` is free text, not an enum — a new kind of event never needs a
+migration. `POST /api/agent/activity` exists so an agent can also log a
+note that doesn't correspond to any mutation ("tried X, didn't work") —
+this is how reasoning survives across sessions and models.
+
+### 13. Every new agent-facing capability must consider MCP exposure
+
+There is no MCP server yet (see `docs/AGENT_API.md` "What's not here
+yet"), but one is planned: a thin `/api/mcp` layer wrapping this same
+REST surface as tools for Claude/Gemini/OpenAI-agent-SDK clients, so it's
+built once and used by all three instead of three separate integrations.
+Until it exists, every new `/api/agent/*` or `/api/platform/*` endpoint
+must still be **designed as if it will become an MCP tool**:
+
+- One clear action per endpoint (not a multi-purpose endpoint switched by
+  a body field) — this maps 1:1 to one MCP tool with one JSON-schema input.
+- Inputs and outputs validated by a `zod` schema (rule #2) — MCP tool
+  schemas will be generated from these, not written by hand a second time.
+- No capability that only works via a human browser session (a cookie,
+  a multi-step form flow) — an MCP tool call is stateless like a REST
+  call, so anything agent-facing must already be a single authenticated
+  request/response, which rule #1 and #7 already require.
+
+When the MCP server is eventually built, it must not duplicate logic: its
+tool handlers call the same `src/lib/store/*.ts` functions the REST
+routes call (same pattern as rule #1, one more thin caller), and
+`docs/AGENT_API.md` stays the canonical reference both the REST docs and
+the MCP tool descriptions are generated/kept in sync from.
+
 ## Where things are
 
 ```
@@ -210,6 +255,13 @@ src/lib/store/                  Shared per-store business logic (used by
                                 both actions.ts and api/agent/ routes) —
                                 start here for any behavior change. Every
                                 function takes a storeId (rule #11).
+src/lib/store/activity.ts       logActivity()/listActivity() — the
+                                recent-activity log (rule #12)
+src/lib/store/settings.ts       updateStoreBrand() — a store editing its
+                                own brand fields (name/brief/theme/etc.)
+src/lib/store/public.ts         toSafeStore() — the allow-listed Store
+                                shape returned by any agent-facing route,
+                                never the credential-hash fields
 src/lib/fulfillment/            Pluggable POD provider interface + Printful
                                 impl — each call takes the calling store's
                                 own provider credentials
@@ -238,4 +290,7 @@ skills/pod-platform-agent/    Same reference, packaged as a Skill for an
   for it, documented in `docs/AGENT_API.md`?
 - If you added a new model or a store-specific field: does it have (or
   live under something with) a `storeId`, and is every query on it scoped?
+- Did the mutation log an activity entry (rule #12), with the right actor?
+- Is the new capability shaped like a future MCP tool — one action, one
+  zod-validated input, no browser-session dependency (rule #13)?
 - Did you run `npm run lint` and `npm run build`?

@@ -2,7 +2,9 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, generateApiKey, hashApiKey } from "@/lib/credentials";
 import { StoreError } from "@/lib/store/errors";
+import { logActivity } from "@/lib/store/activity";
 import type { StoreCreateInput } from "@/lib/platform-schemas";
+import type { Prisma } from "@prisma/client";
 
 /**
  * Creates a new store (tenant) from a brand brief. This is the mechanism
@@ -33,6 +35,7 @@ export async function createStore(input: StoreCreateInput) {
       description: input.description,
       tone: input.tone,
       audience: input.audience,
+      brief: (input.brief ?? {}) as Prisma.InputJsonValue,
       theme: input.theme ?? {},
       nav: input.nav ?? [],
       footerLinks: input.footerLinks ?? {},
@@ -42,6 +45,13 @@ export async function createStore(input: StoreCreateInput) {
       adminPasswordHash: hashPassword(adminPassword),
       agentApiKeyHash: hashApiKey(agentApiKey),
     },
+  });
+
+  await logActivity(store.id, {
+    actor: "system",
+    category: "store",
+    summary: `Store "${store.name}" created`,
+    details: { slug: store.slug },
   });
 
   return {

@@ -43,6 +43,7 @@ Body — a brand brief:
   "description": "Disc golf apparel for people who know exactly why that last shot went into the pond.",
   "tone": "self-deprecating, insider humor",
   "audience": "casual/intermediate disc golfers",
+  "brief": { "mission": "...", "pricingPhilosophy": "...", "voiceExamples": ["..."] },
   "theme": { "accent": "#1f6f4a", "accentDark": "#154d33" }
 }
 ```
@@ -92,18 +93,43 @@ store never works against another store's host.
   `priceCents`, so different option combinations (e.g. Framed Print vs.
   Poster at the same size) can be priced independently.
 
-### Start here: the store summary
+### Start here: `GET /api/agent/briefing`
 
-Before making changes, call this to see what's worth doing:
+Before making changes — especially at the start of a fresh session with
+no memory of what's already been tried — call this once:
 
 ```
-GET /api/agent/summary
+GET /api/agent/briefing
 ```
 
-Returns product counts, orders grouped by status, orders stuck in
-`PENDING_PAYMENT` for 24h+, recent orders, total revenue, out-of-stock
-variants, and variants with no price set. This is the fastest way to
-answer "what should I fix or optimize right now?" — check it first.
+Returns three things in one call: `store` (brand/business knowledge —
+name, tagline, tone, audience, `brief` with mission/pricing
+philosophy/voice examples), `summary` (live snapshot: product counts,
+orders by status, orders stuck in `PENDING_PAYMENT` for 24h+, revenue,
+out-of-stock variants, variants with no price), and `recentActivity`
+(last 25 events — what changed and why). Read all three before acting —
+`recentActivity` in particular tells you what's already been tried, so
+you don't repeat a failed experiment.
+
+### Store brand & settings
+
+- `GET /api/agent/store` — just the brand/copy fields (no summary/activity).
+- `PATCH /api/agent/store` — update `name`, `tagline`, `description`,
+  `tone`, `audience`, `brief`, `theme`, `nav`, `footerLinks`,
+  `trustBadges`, `socialLinks`. **Replaces each field, doesn't deep-merge**
+  — `GET` first if you're only changing one key inside `brief`. Never
+  touches `slug`/`domain`/credentials.
+
+### Activity log
+
+- `GET /api/agent/activity?since=<ISO timestamp>&take=50` — history of
+  what changed, written automatically by product/pricing/order/brand
+  mutations below, plus explicit notes.
+- `POST /api/agent/activity` — leave a note for future sessions (yours or
+  a different model's) that doesn't correspond to a mutation:
+  ```json
+  { "category": "note", "summary": "Tried a 20% sale on the Tee — no lift. Reverted, won't retry without a design refresh." }
+  ```
 
 ### Products
 
@@ -170,15 +196,21 @@ answer "what should I fix or optimize right now?" — check it first.
 brief, save the returned credentials, then `POST /api/agent/products`
 against the new store's host, once per product, to build its catalog.
 
-**"What needs my attention on <store>?"** → `GET /api/agent/summary` on
-that store's host, then act on `attention.outOfStockVariants`,
-`attention.variantsMissingPrice`, and `orders.stuckPendingPaymentOver24h`.
+**"What needs my attention on <store>?"** → `GET /api/agent/briefing` on
+that store's host, then act on `summary.attention.outOfStockVariants`,
+`summary.attention.variantsMissingPrice`, and
+`summary.orders.stuckPendingPaymentOver24h`.
 
 **"Raise/lower prices on X"** → `GET /api/agent/products` (or fetch the
 one product), find the variant(s), `PATCH` with updated `priceCents`.
+Logged automatically to the activity log — no extra step needed.
 
 **"Process pending orders"** → `GET /api/agent/orders?status=PAID`, then
 `POST .../fulfill` on each.
+
+**"What have we tried already?"** → `GET /api/agent/briefing` (or
+`GET /api/agent/activity` for more than the last 25 entries) — check
+before repeating a price change or promotion.
 
 ## Keeping this in sync
 

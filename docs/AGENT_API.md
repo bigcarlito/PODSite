@@ -46,6 +46,7 @@ Creates a new store from a brand brief:
   "description": "Disc golf apparel for people who know exactly why that last shot went into the pond.",
   "tone": "self-deprecating, insider humor",
   "audience": "casual/intermediate disc golfers",
+  "brief": { "mission": "...", "pricingPhilosophy": "...", "voiceExamples": ["..."] },
   "theme": { "accent": "#1f6f4a", "accentDark": "#154d33" },
   "nav": [{ "label": "All Products", "href": "/products" }],
   "footerLinks": { "Help": [{ "label": "Contact", "href": "/contact" }] },
@@ -56,12 +57,13 @@ Creates a new store from a brand brief:
 }
 ```
 
-Only `slug`, `name`, `tagline`, and `description` are required — `tone`
-and `audience` are free text meant for whichever agent generates this
-store's copy/products next, not rendered on the storefront. Everything
-else defaults to empty and can be set later via... there's no
-`PATCH /api/platform/stores/:id` yet (see "What's not here yet") — for
-now, set brand fields you care about at creation time.
+Only `slug`, `name`, `tagline`, and `description` are required — `tone`,
+`audience`, and `brief` are for whichever agent generates this store's
+copy/products next, not rendered on the storefront. Everything else
+defaults to empty and can be refined later with the new store's own key
+via `PATCH /api/agent/store` (see "Store brand & settings" below) —
+there's no platform-level `PATCH /api/platform/stores/:id`, since brand
+edits are naturally a store managing itself, not a platform operation.
 
 Returns `201`:
 
@@ -121,6 +123,96 @@ all, gets a `401` with a JSON body, never a redirect or HTML page:
   supported option names — a product can use whatever keys make sense for
   its category. Every variant still has its own independent `priceCents`,
   so a Framed Print can cost more than a Poster at the same size.
+
+## Start here: `GET /api/agent/briefing`
+
+Before making changes in an unfamiliar store — especially at the start of
+a fresh agent session, which has no memory of anything done before —
+call this once to get fully oriented:
+
+```json
+{
+  "store": { "id": "...", "slug": "first-available", "name": "First Available",
+    "tagline": "...", "description": "...", "tone": "...", "audience": "...",
+    "brief": { "mission": "...", "pricingPhilosophy": "...", "voiceExamples": ["..."] },
+    "theme": {...}, "nav": [...], "footerLinks": {...}, "trustBadges": [...], "socialLinks": [...] },
+  "summary": { "products": {...}, "orders": {...}, "revenueCents": ..., "attention": {...} },
+  "recentActivity": [
+    { "id": "...", "actor": "agent", "category": "pricing",
+      "summary": "Updated product \"Mando or Nothing Tee\"",
+      "details": {...}, "createdAt": "..." }
+  ]
+}
+```
+
+`store` is the brand/business knowledge (who this store is, how it
+talks, its pricing philosophy — see "Store brand & settings" below);
+`summary` is the live operational snapshot (see "Store summary" below);
+`recentActivity` is the last 25 events (see "Activity log" below) — what's
+already been tried, so you don't repeat a failed experiment or contradict
+a decision from an earlier session. Read all three before acting.
+
+## Store brand & settings
+
+### `GET /api/agent/store`
+
+Returns the store's brand/copy fields (same shape as `briefing.store`
+above) without the operational snapshot or activity — use this if you
+only need to check/re-read branding.
+
+### `PATCH /api/agent/store`
+
+Update this store's own brand fields — `name`, `tagline`, `description`,
+`tone`, `audience`, `brief`, `theme`, `nav`, `footerLinks`, `trustBadges`,
+`socialLinks`. This is how a store manages its own identity over time
+(e.g. refining `brief.pricingPhilosophy` after seeing what sells).
+
+```json
+{ "brief": { "mission": "...", "pricingPhilosophy": "Undercut generic POD sites by 10-15%, never race to the bottom on quality." } }
+```
+
+**This replaces the field, it does not deep-merge.** If you're only
+adding one key to `brief`, `GET /api/agent/store` first, edit the object
+client-side, then `PATCH` the whole thing back. Never touches `slug`,
+`domain`, or credentials — there's no endpoint for those; contact the
+platform operator.
+
+Logs a `"brand"` activity entry automatically.
+
+## Activity log
+
+The record of what changed and why, per store — written automatically by
+mutations below (product/pricing changes, order status changes, brand
+updates, orders placed) and by explicit notes you leave.
+
+### `GET /api/agent/activity`
+
+Query params:
+- `since` — ISO timestamp; only entries at or after this time.
+- `take` — max rows (default 50).
+
+```json
+{ "activity": [ { "id": "...", "actor": "customer", "category": "order",
+  "summary": "New order FIR-... placed ($27.95)", "details": {...}, "createdAt": "..." } ] }
+```
+
+`actor` is one of `"agent"`, `"admin"` (human `/admin` action),
+`"customer"` (e.g. checkout), or `"system"` (e.g. store creation).
+`category` is free text (`"product"`, `"pricing"`, `"order"`,
+`"fulfillment"`, `"brand"`, `"note"`, ...) — not an enum, so a new kind of
+event never needs a migration.
+
+### `POST /api/agent/activity`
+
+Leave an explicit note — this is how you record reasoning/observations
+that don't correspond to any mutation, so a future session (yours or a
+different model's) doesn't have to rediscover it:
+
+```json
+{ "category": "note", "summary": "Tried a 20% sale on the Tee for a week — no lift in conversion. Reverting price, won't retry without a design refresh.", "details": {} }
+```
+
+Always logged with `actor: "agent"`. Returns `201` with the created entry.
 
 ## Products
 
@@ -287,10 +379,12 @@ crawling every product/order endpoint individually.
 
 ## What's not here yet
 
-- `PATCH /api/platform/stores/:id` — updating a store's brand/theme after
-  creation. Today you'd use Prisma Studio or a direct DB update; adding
-  this endpoint is the natural next step if agents need to iterate on
-  branding after launch.
+- **An MCP server.** Everything above is plain REST/JSON today. A future
+  MCP server would wrap these same endpoints as tools for Claude
+  Desktop/Code, Gemini CLI, and OpenAI-agent-SDK clients without needing
+  three separate integrations — see `AGENTS.md` rule #12. Not built yet;
+  when it is, every endpoint here gets a corresponding tool, and this
+  doc stays the source of truth both mirror.
 - `GET /api/platform/stores` — listing all stores. Not yet needed since
   each store's own key already scopes what an agent can see.
 - Fetching a live Printful catalog / cost quotes through the agent API

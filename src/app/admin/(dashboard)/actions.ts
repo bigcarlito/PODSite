@@ -13,12 +13,12 @@ export async function logoutAdmin() {
 
 export async function submitOrderToFulfillment(orderId: string) {
   const store = await requireCurrentStore();
-  await ordersStore.submitOrderToFulfillment(store, orderId);
+  await ordersStore.submitOrderToFulfillment(store, orderId, "admin");
   revalidatePath("/admin");
 }
 
 export async function markOrderPaid(orderId: string) {
   const store = await requireCurrentStore();
-  await ordersStore.markOrderPaid(store.id, orderId);
+  await ordersStore.markOrderPaid(store.id, orderId, "admin");
   revalidatePath("/admin");
 }
