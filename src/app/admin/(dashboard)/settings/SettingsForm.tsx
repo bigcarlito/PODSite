@@ -137,11 +137,15 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
             className={inputClass}
           />
           {heroImageUrl && (
+            // Roughly matches the actual hero's image panel proportions
+            // (half-width, stretched to the text column's height — see
+            // src/app/page.tsx) so this preview isn't misleading about
+            // how much of the image will actually be visible/cropped.
             // eslint-disable-next-line @next/next/no-img-element -- arbitrary/uploaded URL, see src/app/page.tsx
             <img
               src={heroImageUrl}
               alt=""
-              className="mt-2 h-24 w-full rounded-lg border border-border object-cover"
+              className="mt-2 aspect-square w-48 rounded-lg border border-border object-cover"
             />
           )}
         </Field>
