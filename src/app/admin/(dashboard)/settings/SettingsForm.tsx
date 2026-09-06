@@ -130,10 +130,10 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
         >
           <input
             name="theme_heroImageUrl"
-            type="url"
+            type="text"
             value={heroImageUrl}
             onChange={(e) => setHeroImageUrl(e.target.value)}
-            placeholder="https://..."
+            placeholder="https://... or /api/assets/..."
             className={inputClass}
           />
           {heroImageUrl && (

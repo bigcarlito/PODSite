@@ -64,7 +64,19 @@ export const storeUpdateSchema = z.object({
   /// — a PATCH here replaces the whole object, it doesn't deep-merge.
   brief: z.record(z.string(), z.unknown()).optional(),
   theme: z
-    .object({ accent: z.string(), accentDark: z.string(), heroImageUrl: z.string().url() })
+    .object({
+      accent: z.string(),
+      accentDark: z.string(),
+      /// Either an absolute URL (an externally-hosted image) or a
+      /// same-origin path (an uploaded asset, e.g. "/api/assets/<id>")
+      /// — z.string().url() alone would reject the latter.
+      heroImageUrl: z
+        .string()
+        .refine(
+          (v) => v.startsWith("/") || /^https?:\/\//.test(v),
+          "Must be an absolute URL or a path starting with \"/\""
+        ),
+    })
     .partial()
     .optional(),
   nav: z.array(navLinkSchema).optional(),
