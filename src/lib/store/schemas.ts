@@ -68,6 +68,10 @@ export const storeUpdateSchema = z.object({
   footerLinks: z.record(z.string(), z.array(navLinkSchema)).optional(),
   trustBadges: z.array(z.string()).optional(),
   socialLinks: z.array(navLinkSchema).optional(),
+  /// Raw HTML shown above the header on every page — empty/omitted hides
+  /// it. Trusted content (this store's own admin/agent), rendered
+  /// unescaped — never fed from end-user input.
+  bannerHtml: z.string().optional(),
 });
 
 export const activityCreateSchema = z.object({

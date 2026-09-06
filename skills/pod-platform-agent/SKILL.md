@@ -116,9 +116,13 @@ you don't repeat a failed experiment.
 - `GET /api/agent/store` — just the brand/copy fields (no summary/activity).
 - `PATCH /api/agent/store` — update `name`, `tagline`, `description`,
   `tone`, `audience`, `brief`, `theme`, `nav`, `footerLinks`,
-  `trustBadges`, `socialLinks`. **Replaces each field, doesn't deep-merge**
-  — `GET` first if you're only changing one key inside `brief`. Never
-  touches `slug`/`domain`/credentials.
+  `trustBadges`, `socialLinks`, `bannerHtml`. **Replaces each field,
+  doesn't deep-merge** — `GET` first if you're only changing one key
+  inside `brief`. Never touches `slug`/`domain`/credentials.
+  `bannerHtml` is an optional announcement banner shown above the header
+  on every page (background = `theme.accentDark`), empty/omitted to hide
+  it — raw HTML, rendered unescaped, e.g.
+  `{"bannerHtml": "Free shipping over $75 — <a href=\"/products\">shop now</a>"}`.
 
 ### Activity log
 

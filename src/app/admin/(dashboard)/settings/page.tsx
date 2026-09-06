@@ -42,6 +42,7 @@ export default async function AdminSettingsPage() {
           nav: JSON.stringify(store.nav ?? [], null, 2),
           footerLinks: JSON.stringify(store.footerLinks ?? {}, null, 2),
           socialLinks: JSON.stringify(store.socialLinks ?? [], null, 2),
+          bannerHtml: store.bannerHtml ?? "",
         }}
       />
     </div>

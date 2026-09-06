@@ -164,12 +164,25 @@ only need to check/re-read branding.
 
 Update this store's own brand fields — `name`, `tagline`, `description`,
 `tone`, `audience`, `brief`, `theme`, `nav`, `footerLinks`, `trustBadges`,
-`socialLinks`. This is how a store manages its own identity over time
-(e.g. refining `brief.pricingPhilosophy` after seeing what sells).
+`socialLinks`, `bannerHtml`. This is how a store manages its own identity
+over time (e.g. refining `brief.pricingPhilosophy` after seeing what
+sells).
 
 ```json
 { "brief": { "mission": "...", "pricingPhilosophy": "Undercut generic POD sites by 10-15%, never race to the bottom on quality." } }
 ```
+
+`bannerHtml` is an optional announcement banner shown above the header on
+every page of the storefront, with the `theme.accentDark` color as its
+background — empty/omitted hides it entirely:
+
+```json
+{ "bannerHtml": "Free shipping over $75 — <a href=\"/products\">shop now</a>" }
+```
+
+It's rendered as raw HTML, unescaped — this is trusted content set by the
+store's own admin/agent, the same trust level as `theme`/`nav`, never
+end-user input.
 
 **This replaces the field, it does not deep-merge.** If you're only
 adding one key to `brief`, `GET /api/agent/store` first, edit the object

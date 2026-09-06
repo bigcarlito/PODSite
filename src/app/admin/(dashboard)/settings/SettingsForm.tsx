@@ -19,6 +19,7 @@ export type SettingsFormValues = {
   nav: string;
   footerLinks: string;
   socialLinks: string;
+  bannerHtml: string;
 };
 
 const initialState: SettingsState = {};
@@ -136,6 +137,24 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
             name="brief_avoid"
             defaultValue={initial.briefAvoid}
             rows={3}
+            className={textareaClass}
+          />
+        </Field>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold uppercase text-muted">Announcement banner</h2>
+        <p className="text-xs text-muted">
+          Shown above the header on every page, background is the accent
+          (dark) color above. Leave blank to hide it. Accepts raw HTML
+          (e.g. <code>{`Free shipping over $75 — <a href="/products">shop now</a>`}</code>).
+        </p>
+        <Field label="Banner HTML">
+          <textarea
+            name="bannerHtml"
+            defaultValue={initial.bannerHtml}
+            rows={3}
+            spellCheck={false}
             className={textareaClass}
           />
         </Field>

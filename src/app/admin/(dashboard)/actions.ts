@@ -66,6 +66,7 @@ export async function updateStoreSettings(
       nav: parseJsonField(formData, "nav", "Nav links"),
       footerLinks: parseJsonField(formData, "footerLinks", "Footer links"),
       socialLinks: parseJsonField(formData, "socialLinks", "Social links"),
+      bannerHtml: String(formData.get("bannerHtml") ?? ""),
     });
 
     await updateStoreBrand(store.id, input, "admin");
@@ -83,7 +84,7 @@ export async function updateStoreSettings(
   }
 
   revalidatePath("/admin/settings");
-  revalidatePath("/");
+  revalidatePath("/", "layout"); // banner/theme show on every page via RootLayout
   return { success: true };
 }
 

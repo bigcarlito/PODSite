@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Banner } from "@/components/Banner";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { getCurrentStore } from "@/lib/store-context";
@@ -55,6 +56,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             : undefined
         }
       >
+        <Banner />
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />

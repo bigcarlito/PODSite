@@ -23,6 +23,7 @@ export function toSafeStore(store: Store) {
     footerLinks: store.footerLinks,
     trustBadges: store.trustBadges,
     socialLinks: store.socialLinks,
+    bannerHtml: store.bannerHtml,
     createdAt: store.createdAt,
     updatedAt: store.updatedAt,
   };
