@@ -63,7 +63,10 @@ export const storeUpdateSchema = z.object({
   /// Merge this yourself (fetch current via GET /api/agent/briefing first)
   /// — a PATCH here replaces the whole object, it doesn't deep-merge.
   brief: z.record(z.string(), z.unknown()).optional(),
-  theme: z.object({ accent: z.string(), accentDark: z.string() }).partial().optional(),
+  theme: z
+    .object({ accent: z.string(), accentDark: z.string(), heroImageUrl: z.string().url() })
+    .partial()
+    .optional(),
   nav: z.array(navLinkSchema).optional(),
   footerLinks: z.record(z.string(), z.array(navLinkSchema)).optional(),
   trustBadges: z.array(z.string()).optional(),

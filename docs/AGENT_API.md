@@ -184,6 +184,20 @@ It's rendered as raw HTML, unescaped — this is trusted content set by the
 store's own admin/agent, the same trust level as `theme`/`nav`, never
 end-user input.
 
+`theme.heroImageUrl` is an optional background image for the homepage
+hero section — omitted/empty falls back to the plain accent-tinted
+background. The storefront renders a dark gradient scrim behind the
+tagline/description text automatically, so any image works without the
+agent needing to leave space for text itself:
+
+```json
+{ "theme": { "heroImageUrl": "https://..." } }
+```
+
+There's no image generation or upload endpoint — this must be a URL to
+an already-hosted image (e.g. from an external image-gen API, or any
+image host).
+
 **This replaces the field, it does not deep-merge.** If you're only
 adding one key to `brief`, `GET /api/agent/store` first, edit the object
 client-side, then `PATCH` the whole thing back. Never touches `slug`,

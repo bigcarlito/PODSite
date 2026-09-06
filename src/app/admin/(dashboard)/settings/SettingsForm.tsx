@@ -15,6 +15,7 @@ export type SettingsFormValues = {
   briefAvoid: string;
   themeAccent: string;
   themeAccentDark: string;
+  themeHeroImageUrl: string;
   trustBadges: string;
   nav: string;
   footerLinks: string;
@@ -101,6 +102,18 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
             />
           </Field>
         </div>
+        <Field
+          label="Hero image URL"
+          hint="Shown as the homepage hero background, with a dark gradient behind the tagline for readability. Leave blank to use the plain accent background."
+        >
+          <input
+            name="theme_heroImageUrl"
+            type="url"
+            defaultValue={initial.themeHeroImageUrl}
+            placeholder="https://..."
+            className={inputClass}
+          />
+        </Field>
       </section>
 
       <section className="space-y-4">

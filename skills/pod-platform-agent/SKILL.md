@@ -123,6 +123,10 @@ you don't repeat a failed experiment.
   on every page (background = `theme.accentDark`), empty/omitted to hide
   it — raw HTML, rendered unescaped, e.g.
   `{"bannerHtml": "Free shipping over $75 — <a href=\"/products\">shop now</a>"}`.
+  `theme.heroImageUrl` is an optional homepage hero background image —
+  a dark gradient scrim is rendered behind the tagline/description
+  automatically, so no need to leave space for text in the image itself.
+  Must be an already-hosted URL — there's no generation/upload endpoint.
 
 ### Activity log
 

@@ -53,7 +53,8 @@ model Store {
   ///        "voiceExamples": ["..."], "avoid": ["..."] }
   brief       Json    @default("{}")
 
-  /// { "accent": "#...", "accentDark": "#...", "logoUrl": "..." }
+  /// { "accent": "#...", "accentDark": "#...", "logoUrl": "...",
+  ///   "heroImageUrl": "..." }
   theme       Json @default("{}")
   /// [{ "label": "...", "href": "..." }, ...]
   nav         Json @default("[]")

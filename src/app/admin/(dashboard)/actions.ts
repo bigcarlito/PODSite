@@ -61,6 +61,7 @@ export async function updateStoreSettings(
         ...currentTheme,
         accent: String(formData.get("theme_accent") ?? ""),
         accentDark: String(formData.get("theme_accentDark") ?? ""),
+        heroImageUrl: String(formData.get("theme_heroImageUrl") ?? "") || undefined,
       },
       trustBadges: linesOf(formData, "trustBadges"),
       nav: parseJsonField(formData, "nav", "Nav links"),

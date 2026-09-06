@@ -23,15 +23,45 @@ export default async function HomePage() {
 
   return (
     <div>
-      <section className="relative overflow-hidden bg-accent/5">
-        <div className="mx-auto flex max-w-6xl flex-col items-start gap-6 px-4 py-16 sm:px-6 sm:py-24 lg:py-28">
-          <p className="text-xs font-semibold uppercase tracking-widest text-accent">
+      <section
+        className="relative overflow-hidden bg-accent/5 bg-cover bg-center"
+        style={
+          branding.theme.heroImageUrl
+            ? { backgroundImage: `url(${branding.theme.heroImageUrl})` }
+            : undefined
+        }
+      >
+        {branding.theme.heroImageUrl && (
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(90deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.25) 45%, rgba(0,0,0,0.05) 70%)",
+            }}
+          />
+        )}
+        <div className="relative mx-auto flex max-w-6xl flex-col items-start gap-6 px-4 py-16 sm:px-6 sm:py-24 lg:py-28">
+          <p
+            className={`text-xs font-semibold uppercase tracking-widest ${
+              branding.theme.heroImageUrl ? "text-white" : "text-accent"
+            }`}
+          >
             New season, new gear
           </p>
-          <h1 className="max-w-2xl text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
+          <h1
+            className={`max-w-2xl text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl ${
+              branding.theme.heroImageUrl
+                ? "text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.4)]"
+                : ""
+            }`}
+          >
             {branding.tagline}
           </h1>
-          <p className="max-w-xl text-base text-muted sm:text-lg">
+          <p
+            className={`max-w-xl text-base sm:text-lg ${
+              branding.theme.heroImageUrl ? "text-white/90" : "text-muted"
+            }`}
+          >
             {branding.description}
           </p>
           <Link
