@@ -3,7 +3,10 @@ import type {
   FulfillmentOrderItem,
   FulfillmentOrderResult,
   FulfillmentProvider,
+  MockupRequest,
+  MockupResult,
   ShippingAddress,
+  VariantDetail,
   VariantQuote,
 } from "./types";
 
@@ -164,5 +167,107 @@ export class PrintfulProvider implements FulfillmentProvider {
       `/orders/${providerOrderId}`
     );
     return result.status;
+  }
+
+  /**
+   * Note: these are Printful *catalog* variant ids (the blank garment
+   * colorway), which is what the mockup generator works in. That's a
+   * different id space from the *sync* variant ids getCatalog/submitOrder
+   * use. A sync id here fails loudly rather than silently rendering the
+   * wrong garment.
+   */
+  async getVariantDetails(providerVariantIds: string[]): Promise<VariantDetail[]> {
+    type VariantResponse = {
+      variant: {
+        id: number;
+        product_id: number;
+        color?: string | null;
+        color_code?: string | null;
+      };
+    };
+
+    const unique = [...new Set(providerVariantIds)];
+
+    return Promise.all(
+      unique.map(async (id) => {
+        let result: VariantResponse;
+        try {
+          result = await this.printfulFetch<VariantResponse>(
+            `/products/variant/${id}`
+          );
+        } catch (cause) {
+          throw new Error(
+            `Printful catalog variant "${id}" not found. Mockups need catalog ` +
+              `variant ids (the blank garment colorway), not sync variant ids. ` +
+              `Cause: ${cause instanceof Error ? cause.message : String(cause)}`
+          );
+        }
+
+        return {
+          providerVariantId: String(result.variant.id),
+          colorName: result.variant.color ?? "",
+          colorHex: result.variant.color_code ?? "",
+          catalogProductId: String(result.variant.product_id),
+        };
+      })
+    );
+  }
+
+  async generateMockups(request: MockupRequest): Promise<MockupResult[]> {
+    type CreateTask = { task_key: string; status: string };
+    type TaskStatus = {
+      status: "pending" | "completed" | "failed";
+      error?: string;
+      mockups?: Array<{
+        placement: string;
+        variant_ids: number[];
+        mockup_url: string;
+      }>;
+    };
+
+    const task = await this.printfulFetch<CreateTask>(
+      `/mockup-generator/create-task/${request.catalogProductId}`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          variant_ids: request.providerVariantIds.map(Number),
+          format: "jpg",
+          // No explicit `position`: let Printful place the file using the
+          // product's default print area rather than guessing dimensions.
+          files: [
+            { placement: request.placement, image_url: request.imageUrl },
+          ],
+        }),
+      }
+    );
+
+    // Rendering is async on Printful's side; poll until it settles.
+    const deadline = Date.now() + 90_000;
+    let delayMs = 2_000;
+
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      delayMs = Math.min(delayMs * 1.5, 10_000);
+
+      const status = await this.printfulFetch<TaskStatus>(
+        `/mockup-generator/task?task_key=${encodeURIComponent(task.task_key)}`
+      );
+
+      if (status.status === "failed") {
+        throw new Error(
+          `Printful mockup generation failed: ${status.error ?? "unknown error"}`
+        );
+      }
+      if (status.status === "completed") {
+        return (status.mockups ?? []).flatMap((mockup) =>
+          mockup.variant_ids.map((variantId) => ({
+            providerVariantId: String(variantId),
+            url: mockup.mockup_url,
+          }))
+        );
+      }
+    }
+
+    throw new Error("Printful mockup generation timed out after 90s");
   }
 }

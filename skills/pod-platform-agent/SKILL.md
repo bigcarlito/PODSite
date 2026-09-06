@@ -175,6 +175,37 @@ you don't repeat a failed experiment.
   its current values); omit `id` to add a new variant.
 - `DELETE /api/agent/products/:id` — soft-delete (`isActive: false`).
   Products are never hard-deleted (past orders reference their variants).
+- `POST /api/agent/products/:id/mockups` — render product photos of a
+  design on the garment colors it reads well on, and attach them:
+  ```json
+  { "designUrl": "https://.../design.png", "placement": "front", "dryRun": true }
+  ```
+  Reads the design's palette from its **opaque pixels only**, then
+  contrasts **every** significant design color against each garment — a
+  dark design with a white outline still fails on white shirts, and only
+  that per-color check catches it. Returns each color with `minContrast`,
+  the limiting `worstColor`, `fits`, and a `mockupUrl` when rendered;
+  images are stored with `optionValues: {"color": "..."}` so a storefront
+  can match the image to the selected variant. Re-running replaces the
+  images for the colors it renders.
+
+  **Always try `dryRun: true` first** — it scores colors without spending
+  provider render calls, and with `garments: [{name, hex}]` it needs no
+  provider credentials at all. Tune with `minContrast` (default 2),
+  `colors` to restrict the set, and `colorOptionName` if the color axis
+  isn't called `"color"`. An `opaqueRatio` near 1 means the design's
+  background was never removed.
+
+  Colors that fail the threshold are **skipped, not fatal** — you get
+  mockups for the ones that pass plus a reason for each that didn't. Only
+  when *nothing* passes does it fail, with `NO_LEGIBLE_COLORS`; that error
+  carries the whole scoring in `error.details` and names the closest miss
+  in its message, so retry with a lower `minContrast` straight from the
+  error rather than re-running a `dryRun` to find the numbers.
+
+  Needs variants that have both a color option and a `providerVariantId`
+  (`NO_MOCKUP_VARIANTS` otherwise). Other errors: `DESIGN_UNREADABLE`,
+  `EMPTY_DESIGN`, `PROVIDER_ERROR`.
 
 ### Collections
 
@@ -204,6 +235,12 @@ against the new store's host, once per product, to build its catalog.
 that store's host, then act on `summary.attention.outOfStockVariants`,
 `summary.attention.variantsMissingPrice`, and
 `summary.orders.stuckPendingPaymentOver24h`.
+
+**"Put this design on a shirt"** → `POST /api/agent/products` with a
+variant per size/color (each with its `providerVariantId`), then
+`POST /api/agent/products/:id/mockups` with `dryRun: true` to see which
+garment colors the design survives on, then the same call without
+`dryRun` to render and attach the real product photos.
 
 **"Raise/lower prices on X"** → `GET /api/agent/products` (or fetch the
 one product), find the variant(s), `PATCH` with updated `priceCents`.
