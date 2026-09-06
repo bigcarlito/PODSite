@@ -195,9 +195,8 @@ renders on its own plain background, never over the image:
 { "theme": { "heroImageUrl": "https://..." } }
 ```
 
-There's no image generation or upload endpoint — this must be a URL to
-an already-hosted image (e.g. from an external image-gen API, or any
-image host).
+To set it from a generated image (rather than an already-hosted URL),
+use `POST /api/agent/store/hero-image` instead — see below.
 
 **This replaces the field, it does not deep-merge.** If you're only
 adding one key to `brief`, `GET /api/agent/store` first, edit the object
@@ -206,6 +205,27 @@ client-side, then `PATCH` the whole thing back. Never touches `slug`,
 platform operator.
 
 Logs a `"brand"` activity entry automatically.
+
+### `POST /api/agent/store/hero-image`
+
+Uploads an image and sets it as this store's homepage hero in one step —
+use this when you've generated an image yourself rather than getting a
+URL from an external host. Body is JSON with the image base64-encoded
+(not multipart):
+
+```json
+{ "data": "<base64-encoded image bytes>", "mimeType": "image/png" }
+```
+
+`mimeType` must be one of `image/png`, `image/jpeg`, `image/webp`; max
+8MB decoded. The image is stored by the platform itself (no S3/Cloudinary
+credentials needed) and served publicly from `/api/assets/<id>` — the
+response is the updated store (same shape as `GET /api/agent/store`),
+with `theme.heroImageUrl` already pointing at the new image. This is
+equivalent to hosting the image yourself and calling `PATCH
+/api/agent/store` with `{"theme": {"heroImageUrl": "..."}}`, except the
+platform does the hosting. Logs an `"assets"` activity entry
+automatically.
 
 ## Activity log
 

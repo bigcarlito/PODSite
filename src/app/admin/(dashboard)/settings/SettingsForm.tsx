@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
-import { updateStoreSettings, type SettingsState } from "../actions";
+import { useActionState, useState, useTransition } from "react";
+import { updateStoreSettings, uploadHeroImage, type SettingsState } from "../actions";
 
 export type SettingsFormValues = {
   name: string;
@@ -52,6 +52,28 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
     updateStoreSettings,
     initialState
   );
+
+  const [heroImageUrl, setHeroImageUrl] = useState(initial.themeHeroImageUrl);
+  const [uploadError, setUploadError] = useState<string>();
+  const [uploading, startUpload] = useTransition();
+
+  function handleHeroFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+
+    setUploadError(undefined);
+    startUpload(async () => {
+      const formData = new FormData();
+      formData.set("file", file);
+      const result = await uploadHeroImage(formData);
+      if (result.error) {
+        setUploadError(result.error);
+      } else if (result.url) {
+        setHeroImageUrl(result.url);
+      }
+    });
+  }
 
   return (
     <form action={formAction} className="mt-6 max-w-2xl space-y-8">
@@ -109,10 +131,37 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
           <input
             name="theme_heroImageUrl"
             type="url"
-            defaultValue={initial.themeHeroImageUrl}
+            value={heroImageUrl}
+            onChange={(e) => setHeroImageUrl(e.target.value)}
             placeholder="https://..."
             className={inputClass}
           />
+          {heroImageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- arbitrary/uploaded URL, see src/app/page.tsx
+            <img
+              src={heroImageUrl}
+              alt=""
+              className="mt-2 h-24 w-full rounded-lg border border-border object-cover"
+            />
+          )}
+        </Field>
+        <Field
+          label="Or upload an image"
+          hint="Uploads immediately and fills in the URL above — PNG, JPEG, or WebP, up to 8MB."
+        >
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            disabled={uploading}
+            onChange={handleHeroFileChange}
+            className="block w-full text-sm text-muted file:mr-3 file:rounded-full file:border-0 file:bg-accent file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-accent-dark disabled:opacity-50"
+          />
+          {uploading && <p className="mt-1 text-xs text-muted">Uploading…</p>}
+          {uploadError && (
+            <p className="mt-1 text-xs text-red-600" role="alert">
+              {uploadError}
+            </p>
+          )}
         </Field>
       </section>
 

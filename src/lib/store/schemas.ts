@@ -77,6 +77,14 @@ export const storeUpdateSchema = z.object({
   bannerHtml: z.string().optional(),
 });
 
+/// Base64-encoded image upload — used to set the homepage hero image.
+/// JSON body (not multipart) so this stays a single zod-validated action,
+/// consistent with every other agent-facing endpoint (see AGENTS.md #13).
+export const heroImageUploadSchema = z.object({
+  data: z.string().min(1), // base64, no "data:image/...;base64," prefix
+  mimeType: z.enum(["image/png", "image/jpeg", "image/webp"]),
+});
+
 export const activityCreateSchema = z.object({
   category: z.string().min(1),
   summary: z.string().min(1),
@@ -87,4 +95,5 @@ export type ProductCreateInput = z.infer<typeof productCreateSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 export type CollectionCreateInput = z.infer<typeof collectionCreateSchema>;
 export type StoreUpdateInput = z.infer<typeof storeUpdateSchema>;
+export type HeroImageUploadInput = z.infer<typeof heroImageUploadSchema>;
 export type ActivityCreateInput = z.infer<typeof activityCreateSchema>;
