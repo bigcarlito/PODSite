@@ -45,6 +45,30 @@ export const productUpdateSchema = z.object({
   variants: z.array(variantInputSchema).optional(),
 });
 
+/// Generate per-garment-color mockups of a design on an existing product.
+export const mockupGenerateSchema = z.object({
+  /// Publicly reachable print file — a transparent PNG at print resolution.
+  designUrl: z.string().url(),
+  placement: z.string().default("front"),
+  /// Which of the product's optionNames carries the garment color.
+  colorOptionName: z.string().default("color"),
+  /// Restrict to these garment colors; omitted means every color the product has.
+  colors: z.array(z.string()).optional(),
+  /// Supply garment hexes directly instead of looking them up from the
+  /// provider — the only way to preview colors without provider credentials.
+  garments: z
+    .array(z.object({ name: z.string().min(1), hex: z.string().min(4) }))
+    .optional(),
+  catalogProductId: z.string().optional(),
+  /// Minimum WCAG contrast between every significant design color and the
+  /// garment for that garment to be considered legible.
+  minContrast: z.number().positive().optional(),
+  /// Ignore design colors covering less than this share of the artwork.
+  minCoverage: z.number().min(0).max(1).optional(),
+  /// Score colors and report, without calling the provider or writing images.
+  dryRun: z.boolean().default(false),
+});
+
 export const collectionCreateSchema = z.object({
   slug: z.string().min(1),
   title: z.string().min(1),
@@ -80,6 +104,7 @@ export const activityCreateSchema = z.object({
   details: z.record(z.string(), z.unknown()).optional(),
 });
 
+export type MockupGenerateInput = z.infer<typeof mockupGenerateSchema>;
 export type ProductCreateInput = z.infer<typeof productCreateSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 export type CollectionCreateInput = z.infer<typeof collectionCreateSchema>;

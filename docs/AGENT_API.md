@@ -321,6 +321,84 @@ Returns `{ "product": {...} }` with the full updated product.
 Soft-delete: sets `isActive: false`. Products are never hard-deleted
 because past orders reference their variants.
 
+### `POST /api/agent/products/:id/mockups`
+
+Render product photos of a design on the garment colors it actually reads
+well on, and attach them to the product. Mockups are per **color** — all
+sizes of one color share an image — so variants are collapsed to one per
+color before anything is sent to the provider.
+
+```json
+{
+  "designUrl": "https://.../design.png",
+  "placement": "front",
+  "dryRun": false
+}
+```
+
+| field | default | meaning |
+| --- | --- | --- |
+| `designUrl` | *required* | Publicly reachable print file — a transparent PNG at print resolution. |
+| `placement` | `"front"` | Provider placement key. |
+| `colorOptionName` | `"color"` | Which of the product's `optionNames` carries the garment color. |
+| `colors` | all | Restrict to these garment colors. |
+| `garments` | provider lookup | `[{name, hex}]` — supply garment hexes yourself instead of looking them up. The only way to preview without provider credentials. |
+| `catalogProductId` | provider lookup | Provider catalog product (the blank garment model). |
+| `minContrast` | `2` | Minimum WCAG contrast for a garment to count as legible. |
+| `minCoverage` | `0.05` | Ignore design colors below this share of the artwork. |
+| `dryRun` | `false` | Score colors and report only — no provider calls, no images written. |
+
+**How colors are chosen.** The design's palette is read from its *opaque*
+pixels only (transparent background never counts as a design color), then
+**every** significant color is contrasted against each garment — not just
+the dominant one. That matters: a design with a dark body and a white
+outline still loses its outline on a white shirt, and only the per-color
+minimum catches it. `worstColor` tells you which design color was the
+limiting factor.
+
+Response:
+
+```json
+{
+  "design": {
+    "palette": [{ "hex": "#3f4a2f", "coverage": 0.55 }, { "hex": "#ffffff", "coverage": 0.41 }],
+    "opaqueRatio": 0.428
+  },
+  "colors": [
+    { "color": "Black", "hex": "#101010", "minContrast": 2.02, "worstColor": "#3f4a2f",
+      "fits": true, "mockupUrl": "https://..." },
+    { "color": "White", "hex": "#ffffff", "minContrast": 1, "worstColor": "#ffffff",
+      "fits": false, "skipped": "design color #ffffff only reaches 1:1 against this garment" }
+  ],
+  "product": { "...": "the updated product, with the new images attached" },
+  "dryRun": false
+}
+```
+
+Each rendered image is stored with `optionValues: {"color": "Black"}` so a
+storefront can show the mockup matching the selected variant. Re-running
+replaces the images for the colors it renders, so it's safe to call again
+after revising a design.
+
+`opaqueRatio` near `1` means the background was never removed — the whole
+canvas counts as design, and every garment will fail contrast.
+
+**Start with `dryRun: true.`** It scores colors without spending provider
+render calls, and combined with `garments` it needs no provider
+credentials at all.
+
+Errors: `NO_MOCKUP_VARIANTS` (422, no variant has both a color option and
+a `providerVariantId`), `DESIGN_UNREADABLE` (422, the URL didn't fetch or
+decode), `EMPTY_DESIGN` (422, fully transparent), `NO_LEGIBLE_COLORS`
+(422, nothing met `minContrast`), `MISSING_CATALOG_PRODUCT` (422),
+`PROVIDER_ERROR` (502, upstream failure — the message carries the
+provider's own text, e.g. a missing API key).
+
+Logs a `"mockup"` activity entry with the colors rendered and skipped.
+
+> Mockup URLs point at the provider's CDN. Printful's are not guaranteed
+> to be permanent — for a long-lived catalog, download and re-host them.
+
 ## Collections
 
 ### `GET /api/agent/collections`

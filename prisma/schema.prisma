@@ -171,6 +171,11 @@ model ProductImage {
   url       String
   altText   String?
   position  Int      @default(0)
+  /// Which option combination this image shows, e.g. {"color":"Black"} for
+  /// a per-color mockup — null means a general product image that applies
+  /// to every variant. Same generic shape as ProductVariant.options (see
+  /// AGENTS.md #10): never add a `color` column here.
+  optionValues Json?
 }
 
 model ProductVariant {
