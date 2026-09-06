@@ -63,7 +63,22 @@ export const storeUpdateSchema = z.object({
   /// Merge this yourself (fetch current via GET /api/agent/briefing first)
   /// — a PATCH here replaces the whole object, it doesn't deep-merge.
   brief: z.record(z.string(), z.unknown()).optional(),
-  theme: z.object({ accent: z.string(), accentDark: z.string() }).partial().optional(),
+  theme: z
+    .object({
+      accent: z.string(),
+      accentDark: z.string(),
+      /// Either an absolute URL (an externally-hosted image) or a
+      /// same-origin path (an uploaded asset, e.g. "/api/assets/<id>")
+      /// — z.string().url() alone would reject the latter.
+      heroImageUrl: z
+        .string()
+        .refine(
+          (v) => v.startsWith("/") || /^https?:\/\//.test(v),
+          "Must be an absolute URL or a path starting with \"/\""
+        ),
+    })
+    .partial()
+    .optional(),
   nav: z.array(navLinkSchema).optional(),
   footerLinks: z.record(z.string(), z.array(navLinkSchema)).optional(),
   trustBadges: z.array(z.string()).optional(),
@@ -72,6 +87,14 @@ export const storeUpdateSchema = z.object({
   /// it. Trusted content (this store's own admin/agent), rendered
   /// unescaped — never fed from end-user input.
   bannerHtml: z.string().optional(),
+});
+
+/// Base64-encoded image upload — used to set the homepage hero image.
+/// JSON body (not multipart) so this stays a single zod-validated action,
+/// consistent with every other agent-facing endpoint (see AGENTS.md #13).
+export const heroImageUploadSchema = z.object({
+  data: z.string().min(1), // base64, no "data:image/...;base64," prefix
+  mimeType: z.enum(["image/png", "image/jpeg", "image/webp"]),
 });
 
 export const activityCreateSchema = z.object({
@@ -84,4 +107,5 @@ export type ProductCreateInput = z.infer<typeof productCreateSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 export type CollectionCreateInput = z.infer<typeof collectionCreateSchema>;
 export type StoreUpdateInput = z.infer<typeof storeUpdateSchema>;
+export type HeroImageUploadInput = z.infer<typeof heroImageUploadSchema>;
 export type ActivityCreateInput = z.infer<typeof activityCreateSchema>;

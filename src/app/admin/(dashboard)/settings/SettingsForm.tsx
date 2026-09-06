@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
-import { updateStoreSettings, type SettingsState } from "../actions";
+import { useActionState, useState, useTransition } from "react";
+import { updateStoreSettings, uploadHeroImage, type SettingsState } from "../actions";
 
 export type SettingsFormValues = {
   name: string;
@@ -15,6 +15,7 @@ export type SettingsFormValues = {
   briefAvoid: string;
   themeAccent: string;
   themeAccentDark: string;
+  themeHeroImageUrl: string;
   trustBadges: string;
   nav: string;
   footerLinks: string;
@@ -51,6 +52,28 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
     updateStoreSettings,
     initialState
   );
+
+  const [heroImageUrl, setHeroImageUrl] = useState(initial.themeHeroImageUrl);
+  const [uploadError, setUploadError] = useState<string>();
+  const [uploading, startUpload] = useTransition();
+
+  function handleHeroFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+
+    setUploadError(undefined);
+    startUpload(async () => {
+      const formData = new FormData();
+      formData.set("file", file);
+      const result = await uploadHeroImage(formData);
+      if (result.error) {
+        setUploadError(result.error);
+      } else if (result.url) {
+        setHeroImageUrl(result.url);
+      }
+    });
+  }
 
   return (
     <form action={formAction} className="mt-6 max-w-2xl space-y-8">
@@ -101,6 +124,49 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
             />
           </Field>
         </div>
+        <Field
+          label="Hero image URL"
+          hint="Shown beside the homepage hero text in its own cropped panel — any image works, no need to leave room for text. Leave blank to hide it and use the full-width text hero."
+        >
+          <input
+            name="theme_heroImageUrl"
+            type="text"
+            value={heroImageUrl}
+            onChange={(e) => setHeroImageUrl(e.target.value)}
+            placeholder="https://... or /api/assets/..."
+            className={inputClass}
+          />
+          {heroImageUrl && (
+            // Roughly matches the actual hero's image panel proportions
+            // (half-width, stretched to the text column's height — see
+            // src/app/page.tsx) so this preview isn't misleading about
+            // how much of the image will actually be visible/cropped.
+            // eslint-disable-next-line @next/next/no-img-element -- arbitrary/uploaded URL, see src/app/page.tsx
+            <img
+              src={heroImageUrl}
+              alt=""
+              className="mt-2 aspect-square w-48 rounded-lg border border-border object-cover"
+            />
+          )}
+        </Field>
+        <Field
+          label="Or upload an image"
+          hint="Uploads immediately and fills in the URL above — PNG, JPEG, or WebP, up to 8MB."
+        >
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            disabled={uploading}
+            onChange={handleHeroFileChange}
+            className="block w-full text-sm text-muted file:mr-3 file:rounded-full file:border-0 file:bg-accent file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-accent-dark disabled:opacity-50"
+          />
+          {uploading && <p className="mt-1 text-xs text-muted">Uploading…</p>}
+          {uploadError && (
+            <p className="mt-1 text-xs text-red-600" role="alert">
+              {uploadError}
+            </p>
+          )}
+        </Field>
       </section>
 
       <section className="space-y-4">

@@ -259,7 +259,12 @@ src/lib/store/                  Shared per-store business logic (used by
 src/lib/store/activity.ts       logActivity()/listActivity() — the
                                 recent-activity log (rule #12)
 src/lib/store/settings.ts       updateStoreBrand() — a store editing its
-                                own brand fields (name/brief/theme/etc.)
+                                own brand fields (name/brief/theme/etc.);
+                                setHeroImage() — upload + set in one step
+src/lib/store/assets.ts         uploadStoreAsset()/getStoreAsset() — binary
+                                image storage (currently just hero images),
+                                kept off Store itself so getCurrentStore()
+                                never pulls image bytes on every request
 src/lib/store/public.ts         toSafeStore() — the allow-listed Store
                                 shape returned by any agent-facing route,
                                 never the credential-hash fields
@@ -271,6 +276,10 @@ src/lib/agent-auth.ts           Bearer-token auth for /api/agent/*, checked
 src/app/api/agent/              JSON API surface for agents, store-scoped
                                 (see docs/AGENT_API.md)
 src/app/api/platform/           Store-creation API (see docs/AGENT_API.md)
+src/app/api/assets/[id]/        Public, unauthenticated GET for uploaded
+                                store assets (hero images) — not under
+                                /api/agent, since these are viewable on
+                                the public storefront like any image URL
 src/app/admin/                  Human dashboard for one store at a time —
                                 thin UI over src/lib/store/
 src/app/                       Storefront pages (home, products, cart,
