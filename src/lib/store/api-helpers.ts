@@ -12,7 +12,14 @@ import type { Store } from "@prisma/client";
 export function errorResponse(error: unknown): Response {
   if (error instanceof StoreError) {
     return Response.json(
-      { error: { code: error.code, message: error.message, field: error.field } },
+      {
+        error: {
+          code: error.code,
+          message: error.message,
+          field: error.field,
+          ...(error.details ? { details: error.details } : {}),
+        },
+      },
       { status: error.status }
     );
   }

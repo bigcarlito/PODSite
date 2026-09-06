@@ -394,6 +394,28 @@ decode), `EMPTY_DESIGN` (422, fully transparent), `NO_LEGIBLE_COLORS`
 `PROVIDER_ERROR` (502, upstream failure — the message carries the
 provider's own text, e.g. a missing API key).
 
+`NO_LEGIBLE_COLORS` carries the full scoring in `error.details`
+(`threshold`, `design`, `colors` — the same shapes as a success response)
+and names the closest miss in its message, so one call tells you both
+that it failed and what to change. No second `dryRun` needed:
+
+```json
+{
+  "error": {
+    "code": "NO_LEGIBLE_COLORS",
+    "message": "No garment color reaches the 2:1 contrast threshold for this design; the closest was Athletic Heather at 1.66:1, limited by design color #ffffff. Lower minContrast, offer different garment colors, or rework the artwork.",
+    "details": {
+      "threshold": 2,
+      "design": { "palette": [ "..." ], "opaqueRatio": 0.428 },
+      "colors": [ { "color": "Athletic Heather", "minContrast": 1.66, "worstColor": "#ffffff", "fits": false, "...": "" } ]
+    }
+  }
+}
+```
+
+Any error may carry a `details` object; only `NO_LEGIBLE_COLORS` does
+today. Treat it as diagnostic context, not a stable contract per code.
+
 Logs a `"mockup"` activity entry with the colors rendered and skipped.
 
 > Mockup URLs point at the provider's CDN. Printful's are not guaranteed

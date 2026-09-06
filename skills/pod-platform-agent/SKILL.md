@@ -196,9 +196,16 @@ you don't repeat a failed experiment.
   isn't called `"color"`. An `opaqueRatio` near 1 means the design's
   background was never removed.
 
+  Colors that fail the threshold are **skipped, not fatal** — you get
+  mockups for the ones that pass plus a reason for each that didn't. Only
+  when *nothing* passes does it fail, with `NO_LEGIBLE_COLORS`; that error
+  carries the whole scoring in `error.details` and names the closest miss
+  in its message, so retry with a lower `minContrast` straight from the
+  error rather than re-running a `dryRun` to find the numbers.
+
   Needs variants that have both a color option and a `providerVariantId`
   (`NO_MOCKUP_VARIANTS` otherwise). Other errors: `DESIGN_UNREADABLE`,
-  `EMPTY_DESIGN`, `NO_LEGIBLE_COLORS`, `PROVIDER_ERROR`.
+  `EMPTY_DESIGN`, `PROVIDER_ERROR`.
 
 ### Collections
 

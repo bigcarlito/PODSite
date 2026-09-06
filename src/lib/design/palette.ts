@@ -26,6 +26,11 @@ export type GarmentFit = {
   fits: boolean;
 };
 
+/** Minimum WCAG contrast for a design to count as legible on a garment. */
+export const DEFAULT_MIN_CONTRAST = 2;
+/** Design colors below this share of the artwork can't veto a garment. */
+export const DEFAULT_MIN_COVERAGE = 0.05;
+
 /** Pixels below this alpha are treated as background, not design. */
 const ALPHA_FLOOR = 128;
 /** Channel values are bucketed this coarsely so near-identical shades merge. */
@@ -157,8 +162,8 @@ export function scoreGarmentColors(
   garments: GarmentColor[],
   opts?: { minContrast?: number; minCoverage?: number }
 ): GarmentFit[] {
-  const minContrast = opts?.minContrast ?? 2;
-  const minCoverage = opts?.minCoverage ?? 0.05;
+  const minContrast = opts?.minContrast ?? DEFAULT_MIN_CONTRAST;
+  const minCoverage = opts?.minCoverage ?? DEFAULT_MIN_COVERAGE;
 
   // Ignore trace colors (antialiased edges, stray pixels) — otherwise a
   // handful of blended pixels would veto an otherwise fine garment.

@@ -3,7 +3,11 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma, Store } from "@prisma/client";
 import { getFulfillmentProvider } from "@/lib/fulfillment/registry";
 import type { GarmentColor } from "@/lib/design/palette";
-import { extractDesignPalette, scoreGarmentColors } from "@/lib/design/palette";
+import {
+  DEFAULT_MIN_CONTRAST,
+  extractDesignPalette,
+  scoreGarmentColors,
+} from "@/lib/design/palette";
 import { StoreError } from "./errors";
 import { logActivity, type ActivityActor } from "./activity";
 import { getProductById } from "./products";
@@ -159,11 +163,29 @@ export async function generateProductMockups(
 
   const wanted = report.filter((r) => r.fits);
   if (wanted.length === 0) {
+    // Carry the scoring back with the failure: the caller needs the actual
+    // numbers to pick a workable threshold, and making them re-run with
+    // dryRun just to see them would be a wasted round-trip.
+    const threshold = input.minContrast ?? DEFAULT_MIN_CONTRAST;
+    const closest = report
+      .filter((r) => r.hex)
+      .reduce<ColorReport | null>(
+        (best, r) => (best && best.minContrast >= r.minContrast ? best : r),
+        null
+      );
+
     throw new StoreError(
       "NO_LEGIBLE_COLORS",
-      "No garment color meets the contrast threshold for this design. " +
-        "Lower minContrast, pass different colors, or rework the artwork.",
-      { status: 422 }
+      `No garment color reaches the ${threshold}:1 contrast threshold for this design` +
+        (closest
+          ? `; the closest was ${closest.color} at ${closest.minContrast}:1, ` +
+            `limited by design color ${closest.worstColor}. ` +
+            `Lower minContrast, offer different garment colors, or rework the artwork.`
+          : ". No garment color could be scored — check that the colors have hexes."),
+      {
+        status: 422,
+        details: { threshold, design, colors: report },
+      }
     );
   }
 
