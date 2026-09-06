@@ -24,22 +24,42 @@ export default async function HomePage() {
   return (
     <div>
       <section className="relative overflow-hidden bg-accent/5">
-        <div className="mx-auto flex max-w-6xl flex-col items-start gap-6 px-4 py-16 sm:px-6 sm:py-24 lg:py-28">
-          <p className="text-xs font-semibold uppercase tracking-widest text-accent">
-            New season, new gear
-          </p>
-          <h1 className="max-w-2xl text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
-            {branding.tagline}
-          </h1>
-          <p className="max-w-xl text-base text-muted sm:text-lg">
-            {branding.description}
-          </p>
-          <Link
-            href="/products"
-            className="rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-dark sm:text-base"
-          >
-            Shop All Products
-          </Link>
+        <div
+          className={`mx-auto grid max-w-6xl grid-cols-1 ${
+            branding.theme.heroImageUrl ? "lg:grid-cols-2 lg:items-stretch" : ""
+          }`}
+        >
+          <div className="flex flex-col items-start justify-center gap-6 px-4 py-16 sm:px-6 sm:py-24 lg:py-28">
+            <p className="text-xs font-semibold uppercase tracking-widest text-accent">
+              New season, new gear
+            </p>
+            <h1 className="max-w-2xl text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
+              {branding.tagline}
+            </h1>
+            <p className="max-w-xl text-base text-muted sm:text-lg">
+              {branding.description}
+            </p>
+            <Link
+              href="/products"
+              className="rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-dark sm:text-base"
+            >
+              Shop All Products
+            </Link>
+          </div>
+
+          {branding.theme.heroImageUrl && (
+            <div className="order-first h-56 w-full sm:h-80 lg:order-last lg:h-auto">
+              {/* Plain <img>, not next/image: heroImageUrl can be any
+                  agent-supplied host, and next/image requires each host
+                  allowlisted in next.config.ts's images.remotePatterns. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={branding.theme.heroImageUrl}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            </div>
+          )}
         </div>
       </section>
 

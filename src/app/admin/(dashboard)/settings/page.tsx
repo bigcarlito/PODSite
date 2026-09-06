@@ -10,7 +10,8 @@ export default async function AdminSettingsPage() {
   const store = await requireCurrentStore();
 
   const brief = (store.brief as Record<string, unknown>) ?? {};
-  const theme = (store.theme as { accent?: string; accentDark?: string }) ?? {};
+  const theme =
+    (store.theme as { accent?: string; accentDark?: string; heroImageUrl?: string }) ?? {};
 
   return (
     <div>
@@ -36,6 +37,7 @@ export default async function AdminSettingsPage() {
           briefAvoid: Array.isArray(brief.avoid) ? (brief.avoid as string[]).join("\n") : "",
           themeAccent: theme.accent ?? "#3f4a2f",
           themeAccentDark: theme.accentDark ?? "#2c3420",
+          themeHeroImageUrl: theme.heroImageUrl ?? "",
           trustBadges: Array.isArray(store.trustBadges)
             ? (store.trustBadges as string[]).join("\n")
             : "",

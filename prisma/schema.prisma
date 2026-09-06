@@ -53,7 +53,8 @@ model Store {
   ///        "voiceExamples": ["..."], "avoid": ["..."] }
   brief       Json    @default("{}")
 
-  /// { "accent": "#...", "accentDark": "#...", "logoUrl": "..." }
+  /// { "accent": "#...", "accentDark": "#...", "logoUrl": "...",
+  ///   "heroImageUrl": "..." }
   theme       Json @default("{}")
   /// [{ "label": "...", "href": "..." }, ...]
   nav         Json @default("[]")
@@ -85,9 +86,32 @@ model Store {
   carts       Cart[]
   orders      Order[]
   activity    ActivityLogEntry[]
+  assets      StoreAsset[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// An uploaded binary asset (currently just the homepage hero image) owned
+/// by a store. Kept in its own table — never inline on Store — so that
+/// getCurrentStore() (called on every request) never pulls image bytes off
+/// disk; only GET /api/assets/[id] reads `data`. Storing bytes in Postgres
+/// rather than requiring S3/Cloudinary credentials keeps store creation a
+/// data insert (see AGENTS.md "north star") — no bucket to provision, no
+/// extra credentials for a store/agent to manage.
+model StoreAsset {
+  id       String @id @default(cuid())
+  storeId  String
+  store    Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  /// What this asset is used for, e.g. "hero-image". Free text on purpose —
+  /// a new asset kind is a data change, not a migration (see AGENTS.md #10).
+  kind     String
+  data     Bytes
+  mimeType String
+
+  createdAt DateTime @default(now())
+
+  @@index([storeId, kind])
 }
 
 /// A running history of what changed and why, per store — the "recent

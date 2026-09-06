@@ -5,8 +5,9 @@ import { revalidatePath } from "next/cache";
 import { destroyAdminSession } from "@/lib/admin-auth";
 import { requireCurrentStore } from "@/lib/store-context";
 import * as ordersStore from "@/lib/store/orders";
-import { updateStoreBrand } from "@/lib/store/settings";
+import { updateStoreBrand, setHeroImage } from "@/lib/store/settings";
 import { storeUpdateSchema } from "@/lib/store/schemas";
+import { StoreError } from "@/lib/store/errors";
 import { ZodError } from "zod";
 
 export async function logoutAdmin() {
@@ -61,6 +62,7 @@ export async function updateStoreSettings(
         ...currentTheme,
         accent: String(formData.get("theme_accent") ?? ""),
         accentDark: String(formData.get("theme_accentDark") ?? ""),
+        heroImageUrl: String(formData.get("theme_heroImageUrl") ?? "") || undefined,
       },
       trustBadges: linesOf(formData, "trustBadges"),
       nav: parseJsonField(formData, "nav", "Nav links"),
@@ -86,6 +88,43 @@ export async function updateStoreSettings(
   revalidatePath("/admin/settings");
   revalidatePath("/", "layout"); // banner/theme show on every page via RootLayout
   return { success: true };
+}
+
+export type HeroImageUploadState = { url?: string; error?: string };
+
+/**
+ * Uploads a hero image file and immediately sets it as the store's active
+ * homepage hero (see setHeroImage in src/lib/store/settings.ts — the same
+ * function POST /api/agent/store/hero-image calls). Called directly from
+ * SettingsForm's file input, not tied to the main settings form submit, so
+ * the "Hero image URL" field can auto-fill with the uploaded image's URL
+ * as soon as the upload finishes.
+ */
+export async function uploadHeroImage(formData: FormData): Promise<HeroImageUploadState> {
+  const store = await requireCurrentStore();
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Choose an image file first." };
+  }
+
+  try {
+    const data = Buffer.from(await file.arrayBuffer());
+    const updated = await setHeroImage(store, { data, mimeType: file.type }, "admin");
+    const theme = (updated.theme as { heroImageUrl?: string } | null) ?? {};
+
+    revalidatePath("/admin/settings");
+    revalidatePath("/", "layout"); // hero shows on the homepage
+
+    return { url: theme.heroImageUrl };
+  } catch (e) {
+    return {
+      error:
+        e instanceof StoreError
+          ? e.message
+          : "Couldn't upload image — try again.",
+    };
+  }
 }
 
 export async function submitOrderToFulfillment(orderId: string) {

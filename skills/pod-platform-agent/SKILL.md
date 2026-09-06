@@ -123,6 +123,17 @@ you don't repeat a failed experiment.
   on every page (background = `theme.accentDark`), empty/omitted to hide
   it — raw HTML, rendered unescaped, e.g.
   `{"bannerHtml": "Free shipping over $75 — <a href=\"/products\">shop now</a>"}`.
+  `theme.heroImageUrl` is an optional image shown beside the homepage
+  hero text in its own fixed-aspect-ratio panel (not behind the text),
+  so any image works at any resolution — no need to leave space for
+  text in the image itself. Set it to an already-hosted URL directly, or
+  see `POST /api/agent/store/hero-image` below to upload a generated one.
+- `POST /api/agent/store/hero-image` — uploads an image (you generated,
+  not hosted anywhere) and sets it as the hero in one step. Body:
+  `{"data": "<base64 image bytes>", "mimeType": "image/png"}` (`image/png`,
+  `image/jpeg`, or `image/webp`; max 8MB decoded). Returns the updated
+  store with `theme.heroImageUrl` already set — the platform hosts the
+  image itself at `/api/assets/<id>`, no S3/Cloudinary credentials needed.
 
 ### Activity log
 
