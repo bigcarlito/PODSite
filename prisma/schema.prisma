@@ -63,6 +63,11 @@ model Store {
   trustBadges Json @default("[]")
   /// [{ "label": "Instagram", "href": "..." }, ...]
   socialLinks Json @default("[]")
+  /// Optional announcement banner shown above the header on every page —
+  /// null/empty means no banner. Raw HTML, rendered unescaped: this is
+  /// trusted content set by the store's own admin/agent (never end-user
+  /// input), same trust level as theme/nav/footerLinks.
+  bannerHtml  String?
 
   /// scrypt hash ("salt:hash" hex) of this store's human /admin password.
   /// Never store or compare the plaintext password.

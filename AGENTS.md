@@ -177,7 +177,8 @@ for code that touches them:
   store A should get a 404, not a mutation, if it somehow references
   store B's record id.
 - Branding (name, tagline, theme colors, nav, footer, trust badges,
-  social links) lives on `Store` as small JSON fields — see
+  social links, announcement banner HTML) lives on `Store` as small JSON
+  fields — see
   `src/lib/store-branding.ts` — never hardcode brand copy/colors in a
   component. `src/lib/site-config.ts` doesn't exist anymore; if you find
   yourself wanting to add something like it, put the data on `Store`
