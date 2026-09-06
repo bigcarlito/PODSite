@@ -104,7 +104,7 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
         </div>
         <Field
           label="Hero image URL"
-          hint="Shown as the homepage hero background, with a dark gradient behind the tagline for readability. Leave blank to use the plain accent background."
+          hint="Shown beside the homepage hero text in its own cropped panel — any image works, no need to leave room for text. Leave blank to hide it and use the full-width text hero."
         >
           <input
             name="theme_heroImageUrl"

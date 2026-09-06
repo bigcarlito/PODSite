@@ -184,11 +184,12 @@ It's rendered as raw HTML, unescaped — this is trusted content set by the
 store's own admin/agent, the same trust level as `theme`/`nav`, never
 end-user input.
 
-`theme.heroImageUrl` is an optional background image for the homepage
-hero section — omitted/empty falls back to the plain accent-tinted
-background. The storefront renders a dark gradient scrim behind the
-tagline/description text automatically, so any image works without the
-agent needing to leave space for text itself:
+`theme.heroImageUrl` is an optional image shown beside the homepage
+hero text, in its own fixed-aspect-ratio panel — omitted/empty falls
+back to a full-width text-only hero. The image and text are independent
+boxes (not text-over-image), so any image works at any resolution
+without needing negative space reserved for text — the text always
+renders on its own plain background, never over the image:
 
 ```json
 { "theme": { "heroImageUrl": "https://..." } }
