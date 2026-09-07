@@ -15,6 +15,8 @@ export default async function NewProductPage() {
     productType: s.productType,
     colorCount: ((s.colors as unknown[]) ?? []).length,
   }));
+  const usableTypes = productTypes.filter((t) => t.colorCount > 0);
+  const colorlessTypes = productTypes.filter((t) => t.colorCount === 0);
 
   return (
     <div>
@@ -38,16 +40,31 @@ export default async function NewProductPage() {
         .
       </p>
 
-      {productTypes.length === 0 ? (
-        <p className="mt-6 text-sm text-muted">
-          No product types set up yet — add one on{" "}
+      {colorlessTypes.length > 0 && (
+        <p className="mt-6 rounded-lg border border-border bg-background px-4 py-3 text-sm text-muted">
+          {colorlessTypes.map((t) => `"${t.productType}"`).join(", ")}{" "}
+          {colorlessTypes.length === 1 ? "has" : "have"} no colors set yet —
+          add at least one on{" "}
           <Link href="/admin/mockup-scenes" className="underline">
             Mockup scenes
           </Link>{" "}
-          first (a scene photo plus its color lineup).
+          before {colorlessTypes.length === 1 ? "it can" : "they can"} be used
+          here.
         </p>
+      )}
+
+      {usableTypes.length === 0 ? (
+        productTypes.length === 0 && (
+          <p className="mt-6 text-sm text-muted">
+            No product types set up yet — add one on{" "}
+            <Link href="/admin/mockup-scenes" className="underline">
+              Mockup scenes
+            </Link>{" "}
+            first (a scene photo plus its color lineup).
+          </p>
+        )
       ) : (
-        <NewProductForm productTypes={productTypes} />
+        <NewProductForm productTypes={usableTypes} />
       )}
     </div>
   );

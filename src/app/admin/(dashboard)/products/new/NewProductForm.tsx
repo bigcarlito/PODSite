@@ -63,9 +63,8 @@ export function NewProductForm({
         <Field label="Product type">
           <select name="productType" required className={inputClass}>
             {productTypes.map((t) => (
-              <option key={t.productType} value={t.productType} disabled={t.colorCount === 0}>
-                {t.productType}
-                {t.colorCount === 0 ? " (no colors set)" : ` (${t.colorCount} colors)`}
+              <option key={t.productType} value={t.productType}>
+                {t.productType} ({t.colorCount} colors)
               </option>
             ))}
           </select>
