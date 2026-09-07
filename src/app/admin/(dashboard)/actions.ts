@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { destroyAdminSession } from "@/lib/admin-auth";
 import { requireCurrentStore } from "@/lib/store-context";
 import * as ordersStore from "@/lib/store/orders";
@@ -135,9 +136,11 @@ export type DesignUploadState = { url?: string; error?: string };
  * Uploads a design image for the mockup test form — same uploadStoreAsset
  * plumbing as uploadHeroImage, just tagged "design" instead of "hero-image"
  * (see src/lib/store/assets.ts). Unlike the hero image, this isn't set
- * anywhere on Store; it just returns a public /api/assets/[id] URL to fill
- * into the designUrl field, since generateProductMockups needs a publicly
- * reachable URL rather than raw bytes.
+ * anywhere on Store; it just returns a public URL to fill into the
+ * designUrl field. uploadStoreAsset's URL is host-relative, but
+ * generateProductMockups (and, downstream, Printful) fetch designUrl
+ * as an absolute URL from outside this request, so it's resolved against
+ * this request's own host here rather than handed back as-is.
  */
 export async function uploadDesignImage(formData: FormData): Promise<DesignUploadState> {
   const store = await requireCurrentStore();
@@ -150,7 +153,13 @@ export async function uploadDesignImage(formData: FormData): Promise<DesignUploa
   try {
     const data = Buffer.from(await file.arrayBuffer());
     const asset = await uploadStoreAsset(store.id, { kind: "design", data, mimeType: file.type }, "admin");
-    return { url: asset.url };
+
+    const requestHeaders = await headers();
+    const host = requestHeaders.get("host");
+    const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
+    const origin = host ? `${proto}://${host}` : "";
+
+    return { url: `${origin}${asset.url}` };
   } catch (e) {
     return {
       error: e instanceof StoreError ? e.message : "Couldn't upload image — try again.",
