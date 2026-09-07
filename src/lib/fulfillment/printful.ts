@@ -236,7 +236,12 @@ export class PrintfulProvider implements FulfillmentProvider {
     };
     type PrintfilesResponse = {
       printfiles: Array<{ printfile_id: number; width: number; height: number }>;
-      available_placements: Record<string, number>;
+      // Placement -> display label (e.g. "Front"), NOT a printfile id —
+      // the actual placement -> printfile mapping is per *variant*, in
+      // variant_printfiles, since different variants (e.g. youth vs adult
+      // sizes) can use different print files for the same placement.
+      available_placements: Record<string, string>;
+      variant_printfiles: Array<{ variant_id: number; placements: Record<string, number> }>;
     };
 
     // Some catalog products reject a file with no explicit `position`
@@ -246,13 +251,19 @@ export class PrintfulProvider implements FulfillmentProvider {
     const printfiles = await this.printfulFetch<PrintfilesResponse>(
       `/mockup-generator/printfiles/${request.catalogProductId}`
     );
-    const printfileId = printfiles.available_placements[request.placement];
+    const requestedIds = new Set(request.providerVariantIds.map(Number));
+    const variantPrintfiles = printfiles.variant_printfiles.find((vp) =>
+      requestedIds.has(vp.variant_id)
+    );
+    const printfileId = variantPrintfiles?.placements[request.placement];
     const printfile = printfiles.printfiles.find((p) => p.printfile_id === printfileId);
     if (!printfile) {
       throw new Error(
         `Printful catalog product "${request.catalogProductId}" has no print ` +
-          `area for placement "${request.placement}". Available placements: ` +
-          `${Object.keys(printfiles.available_placements).join(", ") || "(none)"}`
+          `area for placement "${request.placement}" on variant ` +
+          `${variantPrintfiles?.variant_id ?? request.providerVariantIds[0]}. ` +
+          `Available placements: ` +
+          `${Object.keys(variantPrintfiles?.placements ?? printfiles.available_placements).join(", ") || "(none)"}`
       );
     }
 
