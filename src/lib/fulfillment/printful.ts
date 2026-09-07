@@ -234,6 +234,27 @@ export class PrintfulProvider implements FulfillmentProvider {
         mockup_url: string;
       }>;
     };
+    type PrintfilesResponse = {
+      printfiles: Array<{ printfile_id: number; width: number; height: number }>;
+      available_placements: Record<string, number>;
+    };
+
+    // Some catalog products reject a file with no explicit `position`
+    // ("Position field is missing", MG-4) rather than defaulting to the
+    // full print area — look up that area's actual dimensions and place
+    // the file to fill it edge-to-edge.
+    const printfiles = await this.printfulFetch<PrintfilesResponse>(
+      `/mockup-generator/printfiles/${request.catalogProductId}`
+    );
+    const printfileId = printfiles.available_placements[request.placement];
+    const printfile = printfiles.printfiles.find((p) => p.printfile_id === printfileId);
+    if (!printfile) {
+      throw new Error(
+        `Printful catalog product "${request.catalogProductId}" has no print ` +
+          `area for placement "${request.placement}". Available placements: ` +
+          `${Object.keys(printfiles.available_placements).join(", ") || "(none)"}`
+      );
+    }
 
     const task = await this.printfulFetch<CreateTask>(
       `/mockup-generator/create-task/${request.catalogProductId}`,
@@ -242,10 +263,19 @@ export class PrintfulProvider implements FulfillmentProvider {
         body: JSON.stringify({
           variant_ids: request.providerVariantIds.map(Number),
           format: "jpg",
-          // No explicit `position`: let Printful place the file using the
-          // product's default print area rather than guessing dimensions.
           files: [
-            { placement: request.placement, image_url: request.imageUrl },
+            {
+              placement: request.placement,
+              image_url: request.imageUrl,
+              position: {
+                area_width: printfile.width,
+                area_height: printfile.height,
+                width: printfile.width,
+                height: printfile.height,
+                top: 0,
+                left: 0,
+              },
+            },
           ],
         }),
       }
