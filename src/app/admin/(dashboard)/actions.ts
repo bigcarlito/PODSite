@@ -8,8 +8,9 @@ import { requireCurrentStore } from "@/lib/store-context";
 import * as ordersStore from "@/lib/store/orders";
 import { updateStoreBrand, setHeroImage } from "@/lib/store/settings";
 import { generateProductMockups, type ColorReport } from "@/lib/store/mockups";
+import { updateProduct } from "@/lib/store/products";
 import { uploadStoreAsset } from "@/lib/store/assets";
-import { storeUpdateSchema, mockupGenerateSchema } from "@/lib/store/schemas";
+import { storeUpdateSchema, mockupGenerateSchema, productUpdateSchema } from "@/lib/store/schemas";
 import { StoreError } from "@/lib/store/errors";
 import { ZodError } from "zod";
 
@@ -227,6 +228,57 @@ export async function generateMockupsAction(
       error: e instanceof Error ? e.message : "Couldn't generate mockups — try again.",
     };
   }
+}
+
+export type VariantProviderIdsState = { error?: string; success?: boolean };
+
+/**
+ * Sets each variant's providerVariantId (the fulfillment provider's own
+ * variant id, e.g. a Printful catalog variant) — the same updateProduct
+ * function PATCH /api/agent/products/:id calls (rule #1). variantInputSchema
+ * requires a full variant record per entry (not a partial patch), so every
+ * other field is round-tripped from a hidden input rather than re-typed.
+ */
+export async function updateProviderVariantIds(
+  _prevState: VariantProviderIdsState,
+  formData: FormData
+): Promise<VariantProviderIdsState> {
+  const store = await requireCurrentStore();
+  const productId = String(formData.get("productId") ?? "");
+  const variantIds = formData.getAll("variantId").map(String);
+
+  try {
+    const variants = variantIds.map((id) => ({
+      id,
+      sku: String(formData.get(`sku_${id}`) ?? ""),
+      options: parseJsonField(formData, `options_${id}`, "Options"),
+      priceCents: Number(formData.get(`priceCents_${id}`)),
+      currency: String(formData.get(`currency_${id}`) ?? "USD"),
+      provider: String(formData.get(`provider_${id}`) ?? "PRINTFUL"),
+      providerVariantId:
+        String(formData.get(`providerVariantId_${id}`) ?? "").trim() || undefined,
+      inStock: formData.get(`inStock_${id}`) === "on",
+    }));
+
+    const input = productUpdateSchema.parse({ variants });
+    await updateProduct(store.id, productId, input, "admin");
+  } catch (e) {
+    if (e instanceof ZodError) {
+      const first = e.issues[0];
+      return { error: `${first.path.join(".")}: ${first.message}` };
+    }
+    return {
+      error:
+        e instanceof StoreError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "Couldn't save provider variant IDs — try again.",
+    };
+  }
+
+  revalidatePath(`/admin/products/${productId}`);
+  return { success: true };
 }
 
 export async function submitOrderToFulfillment(orderId: string) {

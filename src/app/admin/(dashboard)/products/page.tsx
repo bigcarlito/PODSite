@@ -46,12 +46,20 @@ export default async function AdminProductsPage() {
                   <td className="py-3 pr-4">{p.isActive ? "Yes" : "No"}</td>
                   <td className="py-3 pr-4">{p.isFeatured ? "Yes" : "No"}</td>
                   <td className="py-3">
-                    <Link
-                      href={`/admin/products/${p.id}/mockups`}
-                      className="text-sm text-accent underline"
-                    >
-                      Mockups
-                    </Link>
+                    <div className="flex gap-4">
+                      <Link
+                        href={`/admin/products/${p.id}`}
+                        className="text-sm text-accent underline"
+                      >
+                        Variants
+                      </Link>
+                      <Link
+                        href={`/admin/products/${p.id}/mockups`}
+                        className="text-sm text-accent underline"
+                      >
+                        Mockups
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}
