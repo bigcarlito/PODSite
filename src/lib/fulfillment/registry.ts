@@ -12,9 +12,14 @@ export function getFulfillmentProvider(
   name: FulfillmentProviderName,
   apiKey?: string | null
 ): FulfillmentProvider {
+  // A blank string (e.g. a store created with printfulApiKey: "" rather than
+  // omitted) must fall through to the provider's own env var default, same
+  // as a missing key — otherwise it silently shadows that fallback.
+  const resolvedApiKey = apiKey?.trim() || undefined;
+
   switch (name) {
     case "PRINTFUL":
-      return new PrintfulProvider(apiKey ?? undefined);
+      return new PrintfulProvider(resolvedApiKey);
     default:
       throw new Error(`No fulfillment provider registered for "${name}"`);
   }
