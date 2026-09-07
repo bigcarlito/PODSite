@@ -22,7 +22,8 @@ export async function generateAIProductMockups(
   store: Store,
   productId: string,
   input: AiMockupGenerateInput,
-  actor: ActivityActor = "agent"
+  actor: ActivityActor,
+  origin: string
 ) {
   const product = await getProductById(store.id, productId);
 
@@ -74,7 +75,13 @@ export async function generateAIProductMockups(
       // Generates and caches the base on first use — see
       // ensureMockupSceneBase — so this never hard-fails just because
       // nobody ran the bulk "generate bases" step first.
-      const baseImageUrl = await ensureMockupSceneBase(store, product.productType, sceneColor, actor);
+      const baseImageUrl = await ensureMockupSceneBase(
+        store,
+        product.productType,
+        sceneColor,
+        actor,
+        origin
+      );
 
       const { data, mimeType } = await compositeDesignOnScene({
         baseImageUrl,
@@ -82,7 +89,7 @@ export async function generateAIProductMockups(
         area: designArea,
       });
       const asset = await uploadStoreAsset(store.id, { kind: "ai-mockup", data, mimeType }, actor);
-      rendered.push({ color, mockupUrl: asset.url });
+      rendered.push({ color, mockupUrl: `${origin}${asset.url}` });
     } catch (cause) {
       failed.push({
         color,

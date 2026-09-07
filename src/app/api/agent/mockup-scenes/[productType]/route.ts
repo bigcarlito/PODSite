@@ -1,6 +1,7 @@
 import { withAgentAuth } from "@/lib/store/api-helpers";
 import { setMockupScene, deleteMockupScene } from "@/lib/store/mockup-scenes";
 import { mockupSceneUploadSchema } from "@/lib/store/schemas";
+import { originFromHeaders } from "@/lib/origin";
 
 export const dynamic = "force-dynamic";
 
@@ -11,10 +12,7 @@ export const PUT = withAgentAuth(async (request, store, ctx: Ctx) => {
   const body = await request.json();
   const input = mockupSceneUploadSchema.parse(body);
   const data = Buffer.from(input.data, "base64");
-
-  const host = request.headers.get("host");
-  const proto = request.headers.get("x-forwarded-proto") ?? "https";
-  const origin = host ? `${proto}://${host}` : "";
+  const origin = originFromHeaders(request.headers);
 
   const scene = await setMockupScene(
     store,
