@@ -268,6 +268,11 @@ src/lib/store/assets.ts         uploadStoreAsset()/getStoreAsset() — binary
 src/lib/store/public.ts         toSafeStore() — the allow-listed Store
                                 shape returned by any agent-facing route,
                                 never the credential-hash fields
+src/lib/store/mockups.ts        generateProductMockups() — renders a design
+                                on the garment colors it reads well on
+src/lib/design/palette.ts       Design palette extraction (opaque pixels
+                                only) + WCAG contrast scoring of a design
+                                against garment colors
 src/lib/fulfillment/            Pluggable POD provider interface + Printful
                                 impl — each call takes the calling store's
                                 own provider credentials
