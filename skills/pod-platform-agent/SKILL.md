@@ -219,10 +219,13 @@ you don't repeat a failed experiment.
   `EMPTY_DESIGN`, `PROVIDER_ERROR`.
 
 - `POST /api/agent/products/:id/mockups/ai` — alternative to the above for
-  a non-generic, non-white-background result: recolors a shared scene photo
-  (a blank garment in a real setting) to match each variant color and
-  composites the design onto it via an AI image-editing model, instead of
-  Printful's flat catalog render.
+  a non-generic, non-white-background result: composites the design onto
+  this product type's pre-generated, per-color **base mockup** (a blank
+  garment in a real scene, already AI-recolored), scaled to fit the
+  scene's `designArea` and blended on at 85% opacity. This is a
+  **deterministic local composite, not an AI call per design** — the only
+  AI step is the one-time base recolor, so placement is identical across
+  colors and runs instead of an image model re-deciding it each time.
   ```json
   { "designUrl": "https://.../design.png", "colors": ["Black", "White"] }
   ```
@@ -231,14 +234,23 @@ you don't repeat a failed experiment.
   `PUT /api/agent/mockup-scenes/:productType` with
   `{"data": "<base64>", "mimeType": "image/png", "colors": [{"name":"Black","hex":"#101010"}]}`
   — one photo + color lineup shared by every product of that type.
-  `GET /api/agent/mockup-scenes` lists what's set; `DELETE
-  /api/agent/mockup-scenes/:productType` removes one.
+  `GET /api/agent/mockup-scenes` lists what's set (including cached
+  `baseImages` and `designArea`); `DELETE /api/agent/mockup-scenes/:productType`
+  removes one.
+
+  A color with no cached base image gets one generated and cached
+  automatically on first use — `POST
+  /api/agent/mockup-scenes/:productType/generate-bases` pre-warms all of
+  them at once if you want to avoid that latency on the first real
+  mockup call. `PUT /api/agent/mockup-scenes/:productType/design-area`
+  sets `{x, y, width, height}` (fractions of the scene image) — best set
+  visually via the design-area editor in `/admin/mockup-scenes`, which
+  locks it to a reference design's aspect ratio while you drag/scale it;
+  unset, generation uses a centered default.
 
   Generation runs per color independently — one color's failure doesn't
   block the others (`rendered`/`failed` in the response); needs at least
-  one success. Optional `garments: [{name, hex}]` gives the model a precise
-  hex per color instead of just a name. `model` overrides the server's
-  default OpenRouter model slug for this call.
+  one success.
 
 - `POST /api/agent/products/generate-from-design` — creates a **whole
   product** from just a design: an AI text model writes the title/

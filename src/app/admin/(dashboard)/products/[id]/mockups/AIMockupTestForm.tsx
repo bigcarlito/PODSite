@@ -7,8 +7,6 @@ const initialState: AIMockupTestState = {};
 
 const inputClass =
   "w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent";
-const textareaClass = `${inputClass} font-mono text-xs`;
-
 function Field({
   label,
   hint,
@@ -111,24 +109,12 @@ export function AIMockupTestForm({ productId }: { productId: string }) {
           )}
         </Field>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Color option name">
-            <input name="colorOptionName" defaultValue="color" className={inputClass} />
-          </Field>
-          <Field label="Model" hint="OpenRouter slug — blank uses the server default.">
-            <input name="model" placeholder="google/gemini-2.5-flash-image" className={inputClass} />
-          </Field>
-        </div>
+        <Field label="Color option name">
+          <input name="colorOptionName" defaultValue="color" className={inputClass} />
+        </Field>
 
         <Field label="Colors" hint="Comma-separated; leave blank for every color the product has.">
           <input name="colors" placeholder="Black, White" className={inputClass} />
-        </Field>
-
-        <Field
-          label="Garments (optional)"
-          hint='Hexes to describe the target color more precisely to the model. JSON array: [{"name": "Black", "hex": "#101010"}]'
-        >
-          <textarea name="garments" rows={3} spellCheck={false} className={textareaClass} />
         </Field>
 
         {state.error && (

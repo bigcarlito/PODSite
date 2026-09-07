@@ -1,20 +1,22 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import type { Prisma, Store } from "@prisma/client";
-import { DEFAULT_MOCKUP_MODEL, editImageWithOpenRouter, parseDataUrl } from "@/lib/ai/openrouter";
+import { compositeDesignOnScene, type DesignArea } from "@/lib/design/compositor";
 import { StoreError } from "./errors";
 import { logActivity, type ActivityActor } from "./activity";
 import { getProductById } from "./products";
-import { getMockupScene } from "./mockup-scenes";
+import { getMockupScene, ensureMockupSceneBase, type MockupSceneColor } from "./mockup-scenes";
 import { uploadStoreAsset } from "./assets";
 import type { AiMockupGenerateInput } from "./schemas";
 
 /**
- * Generates one AI mockup per garment color by recoloring this product
- * type's shared scene photo (see mockup-scenes.ts) and compositing the
- * design onto it — an alternative to generateProductMockups (mockups.ts),
- * which renders Printful's flat, plain-background catalog mockups. Both
- * write to the same ProductImage rows, keyed by color.
+ * Generates one mockup per garment color by compositing the design onto
+ * this product type's pre-generated, color-specific base mockup (see
+ * mockup-scenes.ts) — a deterministic local image composite, not an AI
+ * call, so placement is identical every time rather than an image model
+ * re-deciding it per design. An alternative to generateProductMockups
+ * (mockups.ts), which renders Printful's flat, plain-background catalog
+ * mockups. Both write to the same ProductImage rows, keyed by color.
  */
 export async function generateAIProductMockups(
   store: Store,
@@ -35,6 +37,8 @@ export async function generateAIProductMockups(
   }
 
   const scene = await getMockupScene(store.id, product.productType);
+  const sceneColors = (scene.colors as unknown as MockupSceneColor[]) ?? [];
+  const designArea = (scene.designArea as unknown as DesignArea | null) ?? undefined;
 
   // One representative color per garment color, same collapsing as the
   // Printful path — S/M/L of the same color share one image.
@@ -55,40 +59,28 @@ export async function generateAIProductMockups(
     );
   }
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new StoreError(
-      "MISSING_PROVIDER_CREDENTIALS",
-      "OPENROUTER_API_KEY is not configured.",
-      { status: 422 }
-    );
-  }
-  const model = input.model || DEFAULT_MOCKUP_MODEL;
-  const hexByColor = new Map((input.garments ?? []).map((g) => [g.name, g.hex]));
-
   const rendered: Array<{ color: string; mockupUrl: string }> = [];
   const failed: Array<{ color: string; error: string }> = [];
 
   for (const color of colors) {
-    const hex = hexByColor.get(color);
-    const prompt =
-      `This first photo shows a blank t-shirt in a real scene. Recolor the ` +
-      `garment fabric to "${color}"${hex ? ` (hex ${hex})` : ""}, preserving ` +
-      `the exact wrinkles, shadows, lighting, and everything else in the photo ` +
-      `unchanged — do not alter the background or props. Then take the design ` +
-      `from the second image and print it onto the front chest area of the ` +
-      `shirt, centered, sized naturally for a garment print, following the ` +
-      `fabric's folds and lighting as if it were actually printed on the fabric. ` +
-      `Output only the final composited photo.`;
-
     try {
-      const resultDataUrl = await editImageWithOpenRouter({
-        apiKey,
-        model,
-        prompt,
-        images: [scene.imageUrl, input.designUrl],
+      const sceneColor = sceneColors.find((c) => c.name === color);
+      if (!sceneColor) {
+        throw new Error(
+          `"${color}" isn't one of this product type's colors (${sceneColors.map((c) => c.name).join(", ") || "none set"})`
+        );
+      }
+
+      // Generates and caches the base on first use — see
+      // ensureMockupSceneBase — so this never hard-fails just because
+      // nobody ran the bulk "generate bases" step first.
+      const baseImageUrl = await ensureMockupSceneBase(store, product.productType, sceneColor, actor);
+
+      const { data, mimeType } = await compositeDesignOnScene({
+        baseImageUrl,
+        designUrl: input.designUrl,
+        area: designArea,
       });
-      const { data, mimeType } = parseDataUrl(resultDataUrl);
       const asset = await uploadStoreAsset(store.id, { kind: "ai-mockup", data, mimeType }, actor);
       rendered.push({ color, mockupUrl: asset.url });
     } catch (cause) {
@@ -102,7 +94,7 @@ export async function generateAIProductMockups(
   if (rendered.length === 0) {
     throw new StoreError(
       "AI_PROVIDER_ERROR",
-      `The image model failed for every requested color. First error: ` +
+      `Mockup generation failed for every requested color. First error: ` +
         `${failed[0]?.error ?? "unknown"}`,
       { status: 502, details: { failed } }
     );
@@ -142,7 +134,6 @@ export async function generateAIProductMockups(
     details: {
       productId,
       designUrl: input.designUrl,
-      model,
       rendered: rendered.map((r) => r.color),
       failed,
     },

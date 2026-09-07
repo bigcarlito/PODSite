@@ -84,13 +84,21 @@ export const aiMockupGenerateSchema = z.object({
   colorOptionName: z.string().default("color"),
   /// Restrict to these garment colors; omitted means every color the product has.
   colors: z.array(z.string()).optional(),
-  /// Hex per color, for a more precise recolor instruction than the color
-  /// name alone. Colors omitted here are described to the model by name only.
-  garments: z
-    .array(z.object({ name: z.string().min(1), hex: z.string().min(4) }))
-    .optional(),
-  /// Overrides OPENROUTER_MOCKUP_MODEL for this call — any OpenRouter model
-  /// slug that supports image output (e.g. "google/gemini-2.5-flash-image").
+});
+
+/// Sets the rectangle a design gets placed into on a MockupScene, as
+/// fractions of the scene image's own pixel dimensions (each 0-1).
+export const designAreaSchema = z.object({
+  x: z.number().min(0).max(1),
+  y: z.number().min(0).max(1),
+  width: z.number().min(0).max(1),
+  height: z.number().min(0).max(1),
+});
+
+/// Generates every color's design-free "blank" base mockup for a product
+/// type — see POST /api/agent/mockup-scenes/:productType/generate-bases.
+export const generateMockupSceneBasesSchema = z.object({
+  /// Overrides OPENROUTER_MOCKUP_MODEL for this call.
   model: z.string().optional(),
 });
 
@@ -121,8 +129,6 @@ export const aiProductCreateSchema = z.object({
   sizeOptionName: z.string().default("size"),
   /// Overrides OPENROUTER_TEXT_MODEL for the title/description call.
   textModel: z.string().optional(),
-  /// Overrides OPENROUTER_MOCKUP_MODEL for the mockup image calls.
-  model: z.string().optional(),
 });
 
 export const collectionCreateSchema = z.object({
@@ -185,6 +191,8 @@ export const activityCreateSchema = z.object({
 
 export type MockupGenerateInput = z.infer<typeof mockupGenerateSchema>;
 export type AiMockupGenerateInput = z.infer<typeof aiMockupGenerateSchema>;
+export type DesignAreaInput = z.infer<typeof designAreaSchema>;
+export type GenerateMockupSceneBasesInput = z.infer<typeof generateMockupSceneBasesSchema>;
 export type MockupSceneUploadInput = z.infer<typeof mockupSceneUploadSchema>;
 export type AiProductCreateInput = z.infer<typeof aiProductCreateSchema>;
 export type ProductCreateInput = z.infer<typeof productCreateSchema>;
