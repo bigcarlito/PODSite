@@ -342,7 +342,9 @@ Print variants at different sizes, each with its own `priceCents`:
 ```
 
 Returns `201` with `{ "product": {...} }`, or `409 SLUG_TAKEN` if the slug
-is already used.
+is already used, or `409 SKU_TAKEN` if any variant's `sku` collides with
+an existing one for this store (`sku` uniqueness is per store, independent
+of the product slug — see `@@unique([storeId, sku])`).
 
 ### `PATCH /api/agent/products/:id`
 

@@ -1,4 +1,5 @@
 import "server-only";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { StoreError, notFound } from "./errors";
 import { logActivity, type ActivityActor } from "./activity";
@@ -52,43 +53,64 @@ export async function createProduct(
     );
   }
 
-  const product = await prisma.product.create({
-    data: {
-      storeId,
-      slug: input.slug,
-      title: input.title,
-      description: input.description,
-      optionNames: input.optionNames,
-      isFeatured: input.isFeatured,
-      isActive: input.isActive,
-      productType: input.productType,
-      collections: {
-        create: input.collectionIds.map((collectionId) => ({
-          collectionId,
-        })),
+  let product;
+  try {
+    product = await prisma.product.create({
+      data: {
+        storeId,
+        slug: input.slug,
+        title: input.title,
+        description: input.description,
+        optionNames: input.optionNames,
+        isFeatured: input.isFeatured,
+        isActive: input.isActive,
+        productType: input.productType,
+        collections: {
+          create: input.collectionIds.map((collectionId) => ({
+            collectionId,
+          })),
+        },
+        images: {
+          create: input.images.map((img, position) => ({
+            url: img.url,
+            altText: img.altText,
+            position,
+          })),
+        },
+        variants: {
+          create: input.variants.map((v) => ({
+            storeId,
+            sku: v.sku,
+            options: v.options,
+            priceCents: v.priceCents,
+            currency: v.currency,
+            provider: v.provider,
+            providerVariantId: v.providerVariantId,
+            inStock: v.inStock,
+          })),
+        },
       },
-      images: {
-        create: input.images.map((img, position) => ({
-          url: img.url,
-          altText: img.altText,
-          position,
-        })),
-      },
-      variants: {
-        create: input.variants.map((v) => ({
-          storeId,
-          sku: v.sku,
-          options: v.options,
-          priceCents: v.priceCents,
-          currency: v.currency,
-          provider: v.provider,
-          providerVariantId: v.providerVariantId,
-          inStock: v.inStock,
-        })),
-      },
-    },
-    include: productInclude,
-  });
+      include: productInclude,
+    });
+  } catch (cause) {
+    // A variant's sku is only checked for uniqueness by the DB constraint
+    // (@@unique([storeId, sku])) — the slug pre-check above doesn't cover
+    // it — so surface a collision here as a structured error instead of
+    // letting Prisma's raw P2002 leak to the caller (rule #2).
+    if (
+      cause instanceof Prisma.PrismaClientKnownRequestError &&
+      cause.code === "P2002" &&
+      (cause.meta?.target as string[] | undefined)?.includes("sku")
+    ) {
+      const clashing = input.variants.map((v) => v.sku).join(", ");
+      throw new StoreError(
+        "SKU_TAKEN",
+        `One or more variant SKUs already exist for this store (${clashing})`,
+        { field: "variants", status: 409 }
+      );
+    }
+    throw cause;
+  }
 
   await logActivity(storeId, {
     actor,

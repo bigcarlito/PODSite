@@ -89,16 +89,23 @@ export async function generateProductFromDesign(
   }
 
   const baseSlug = slugify(title);
-  const variants = colors.flatMap((color) =>
-    input.sizes.map((size) => ({
-      sku: `${baseSlug}-${slugify(size)}-${slugify(color.name)}`,
-      options: { [input.sizeOptionName]: size, [input.colorOptionName]: color.name },
-      priceCents: input.priceCents,
-      currency: input.currency,
-      provider: "PRINTFUL" as const,
-      inStock: true,
-    }))
-  );
+
+  // SKUs are derived from `slug`, so they must be rebuilt inside the retry
+  // loop alongside it — building them once from the fixed baseSlug would
+  // mean a slug retry (a new product with the same generated title) still
+  // collided on every SKU, since those never changed.
+  function buildVariants(slug: string) {
+    return colors.flatMap((color) =>
+      input.sizes.map((size) => ({
+        sku: `${slug}-${slugify(size)}-${slugify(color.name)}`,
+        options: { [input.sizeOptionName]: size, [input.colorOptionName]: color.name },
+        priceCents: input.priceCents,
+        currency: input.currency,
+        provider: "PRINTFUL" as const,
+        inStock: true,
+      }))
+    );
+  }
 
   let product;
   let attempt = 0;
@@ -117,14 +124,16 @@ export async function generateProductFromDesign(
           productType: input.productType,
           collectionIds: [],
           images: [],
-          variants,
+          variants: buildVariants(slug),
         },
         actor
       );
       break;
     } catch (cause) {
       attempt += 1;
-      if (!(cause instanceof StoreError) || cause.code !== "SLUG_TAKEN" || attempt >= 20) {
+      const retryable =
+        cause instanceof StoreError && (cause.code === "SLUG_TAKEN" || cause.code === "SKU_TAKEN");
+      if (!retryable || attempt >= 20) {
         throw cause;
       }
       slug = `${baseSlug}-${attempt + 1}`;
