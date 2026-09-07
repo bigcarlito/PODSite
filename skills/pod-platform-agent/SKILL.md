@@ -81,7 +81,7 @@ store never works against another store's host.
   the effect from the response, don't issue a separate read.
 - Errors are always JSON: `{"error":{"code","message","field?"}}`. Common
   codes: `VALIDATION_ERROR` (400), `NOT_FOUND` (404), `SLUG_TAKEN` /
-  `ALREADY_SUBMITTED` (409), `MISSING_PROVIDER_VARIANT` (422).
+  `SKU_TAKEN` / `ALREADY_SUBMITTED` (409), `MISSING_PROVIDER_VARIANT` (422).
 - IDs are `cuid()` strings. Orders also accept their human-readable
   `orderNumber` anywhere an order ID is expected.
 - Variant properties are **generic**, not fixed size/color columns. Each
