@@ -6,7 +6,8 @@ import { destroyAdminSession } from "@/lib/admin-auth";
 import { requireCurrentStore } from "@/lib/store-context";
 import * as ordersStore from "@/lib/store/orders";
 import { updateStoreBrand, setHeroImage } from "@/lib/store/settings";
-import { storeUpdateSchema } from "@/lib/store/schemas";
+import { generateProductMockups, type ColorReport } from "@/lib/store/mockups";
+import { storeUpdateSchema, mockupGenerateSchema } from "@/lib/store/schemas";
 import { StoreError } from "@/lib/store/errors";
 import { ZodError } from "zod";
 
@@ -123,6 +124,68 @@ export async function uploadHeroImage(formData: FormData): Promise<HeroImageUplo
         e instanceof StoreError
           ? e.message
           : "Couldn't upload image — try again.",
+    };
+  }
+}
+
+export type MockupTestState = {
+  error?: string;
+  result?: {
+    dryRun: boolean;
+    design: { palette: { hex: string; coverage: number }[]; opaqueRatio: number };
+    colors: ColorReport[];
+  };
+};
+
+/**
+ * Admin-side form wrapper over generateProductMockups (the same function
+ * POST /api/agent/products/:id/mockups calls) so the mockup feature can be
+ * tried from a browser instead of curl. See MockupTestForm.
+ */
+export async function generateMockupsAction(
+  _prevState: MockupTestState,
+  formData: FormData
+): Promise<MockupTestState> {
+  const store = await requireCurrentStore();
+  const productId = String(formData.get("productId") ?? "");
+
+  try {
+    const colorsRaw = String(formData.get("colors") ?? "").trim();
+    const garmentsRaw = String(formData.get("garments") ?? "").trim();
+    const minContrastRaw = String(formData.get("minContrast") ?? "").trim();
+    const minCoverageRaw = String(formData.get("minCoverage") ?? "").trim();
+    const catalogProductId = String(formData.get("catalogProductId") ?? "").trim();
+
+    const input = mockupGenerateSchema.parse({
+      designUrl: String(formData.get("designUrl") ?? ""),
+      placement: String(formData.get("placement") ?? "") || undefined,
+      colorOptionName: String(formData.get("colorOptionName") ?? "") || undefined,
+      colors: colorsRaw
+        ? colorsRaw.split(",").map((c) => c.trim()).filter(Boolean)
+        : undefined,
+      garments: garmentsRaw ? parseJsonField(formData, "garments", "Garments") : undefined,
+      catalogProductId: catalogProductId || undefined,
+      minContrast: minContrastRaw ? Number(minContrastRaw) : undefined,
+      minCoverage: minCoverageRaw ? Number(minCoverageRaw) : undefined,
+      dryRun: formData.get("dryRun") === "on",
+    });
+
+    const result = await generateProductMockups(store, productId, input, "admin");
+    if (!result.dryRun) {
+      revalidatePath(`/admin/products/${productId}/mockups`);
+      revalidatePath("/admin/products");
+    }
+    return { result: { dryRun: result.dryRun, design: result.design, colors: result.colors } };
+  } catch (e) {
+    if (e instanceof ZodError) {
+      const first = e.issues[0];
+      return { error: `${first.path.join(".")}: ${first.message}` };
+    }
+    if (e instanceof StoreError) {
+      return { error: e.message };
+    }
+    return {
+      error: e instanceof Error ? e.message : "Couldn't generate mockups — try again.",
     };
   }
 }
