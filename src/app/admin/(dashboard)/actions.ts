@@ -2,11 +2,15 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { destroyAdminSession } from "@/lib/admin-auth";
 import { requireCurrentStore } from "@/lib/store-context";
 import * as ordersStore from "@/lib/store/orders";
 import { updateStoreBrand, setHeroImage } from "@/lib/store/settings";
-import { storeUpdateSchema } from "@/lib/store/schemas";
+import { generateProductMockups, type ColorReport } from "@/lib/store/mockups";
+import { updateProduct } from "@/lib/store/products";
+import { uploadStoreAsset } from "@/lib/store/assets";
+import { storeUpdateSchema, mockupGenerateSchema, productUpdateSchema } from "@/lib/store/schemas";
 import { StoreError } from "@/lib/store/errors";
 import { ZodError } from "zod";
 
@@ -125,6 +129,156 @@ export async function uploadHeroImage(formData: FormData): Promise<HeroImageUplo
           : "Couldn't upload image — try again.",
     };
   }
+}
+
+export type DesignUploadState = { url?: string; error?: string };
+
+/**
+ * Uploads a design image for the mockup test form — same uploadStoreAsset
+ * plumbing as uploadHeroImage, just tagged "design" instead of "hero-image"
+ * (see src/lib/store/assets.ts). Unlike the hero image, this isn't set
+ * anywhere on Store; it just returns a public URL to fill into the
+ * designUrl field. uploadStoreAsset's URL is host-relative, but
+ * generateProductMockups (and, downstream, Printful) fetch designUrl
+ * as an absolute URL from outside this request, so it's resolved against
+ * this request's own host here rather than handed back as-is.
+ */
+export async function uploadDesignImage(formData: FormData): Promise<DesignUploadState> {
+  const store = await requireCurrentStore();
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Choose an image file first." };
+  }
+
+  try {
+    const data = Buffer.from(await file.arrayBuffer());
+    const asset = await uploadStoreAsset(store.id, { kind: "design", data, mimeType: file.type }, "admin");
+
+    const requestHeaders = await headers();
+    const host = requestHeaders.get("host");
+    const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
+    const origin = host ? `${proto}://${host}` : "";
+
+    return { url: `${origin}${asset.url}` };
+  } catch (e) {
+    return {
+      error: e instanceof StoreError ? e.message : "Couldn't upload image — try again.",
+    };
+  }
+}
+
+export type MockupTestState = {
+  error?: string;
+  result?: {
+    dryRun: boolean;
+    design: { palette: { hex: string; coverage: number }[]; opaqueRatio: number };
+    colors: ColorReport[];
+  };
+};
+
+/**
+ * Admin-side form wrapper over generateProductMockups (the same function
+ * POST /api/agent/products/:id/mockups calls) so the mockup feature can be
+ * tried from a browser instead of curl. See MockupTestForm.
+ */
+export async function generateMockupsAction(
+  _prevState: MockupTestState,
+  formData: FormData
+): Promise<MockupTestState> {
+  const store = await requireCurrentStore();
+  const productId = String(formData.get("productId") ?? "");
+
+  try {
+    const colorsRaw = String(formData.get("colors") ?? "").trim();
+    const garmentsRaw = String(formData.get("garments") ?? "").trim();
+    const minContrastRaw = String(formData.get("minContrast") ?? "").trim();
+    const minCoverageRaw = String(formData.get("minCoverage") ?? "").trim();
+    const catalogProductId = String(formData.get("catalogProductId") ?? "").trim();
+
+    const input = mockupGenerateSchema.parse({
+      designUrl: String(formData.get("designUrl") ?? ""),
+      placement: String(formData.get("placement") ?? "") || undefined,
+      colorOptionName: String(formData.get("colorOptionName") ?? "") || undefined,
+      colors: colorsRaw
+        ? colorsRaw.split(",").map((c) => c.trim()).filter(Boolean)
+        : undefined,
+      garments: garmentsRaw ? parseJsonField(formData, "garments", "Garments") : undefined,
+      catalogProductId: catalogProductId || undefined,
+      minContrast: minContrastRaw ? Number(minContrastRaw) : undefined,
+      minCoverage: minCoverageRaw ? Number(minCoverageRaw) : undefined,
+      dryRun: formData.get("dryRun") === "on",
+    });
+
+    const result = await generateProductMockups(store, productId, input, "admin");
+    if (!result.dryRun) {
+      revalidatePath(`/admin/products/${productId}/mockups`);
+      revalidatePath("/admin/products");
+    }
+    return { result: { dryRun: result.dryRun, design: result.design, colors: result.colors } };
+  } catch (e) {
+    if (e instanceof ZodError) {
+      const first = e.issues[0];
+      return { error: `${first.path.join(".")}: ${first.message}` };
+    }
+    if (e instanceof StoreError) {
+      return { error: e.message };
+    }
+    return {
+      error: e instanceof Error ? e.message : "Couldn't generate mockups — try again.",
+    };
+  }
+}
+
+export type VariantProviderIdsState = { error?: string; success?: boolean };
+
+/**
+ * Sets each variant's providerVariantId (the fulfillment provider's own
+ * variant id, e.g. a Printful catalog variant) — the same updateProduct
+ * function PATCH /api/agent/products/:id calls (rule #1). variantInputSchema
+ * requires a full variant record per entry (not a partial patch), so every
+ * other field is round-tripped from a hidden input rather than re-typed.
+ */
+export async function updateProviderVariantIds(
+  _prevState: VariantProviderIdsState,
+  formData: FormData
+): Promise<VariantProviderIdsState> {
+  const store = await requireCurrentStore();
+  const productId = String(formData.get("productId") ?? "");
+  const variantIds = formData.getAll("variantId").map(String);
+
+  try {
+    const variants = variantIds.map((id) => ({
+      id,
+      sku: String(formData.get(`sku_${id}`) ?? ""),
+      options: parseJsonField(formData, `options_${id}`, "Options"),
+      priceCents: Number(formData.get(`priceCents_${id}`)),
+      currency: String(formData.get(`currency_${id}`) ?? "USD"),
+      provider: String(formData.get(`provider_${id}`) ?? "PRINTFUL"),
+      providerVariantId:
+        String(formData.get(`providerVariantId_${id}`) ?? "").trim() || undefined,
+      inStock: formData.get(`inStock_${id}`) === "on",
+    }));
+
+    const input = productUpdateSchema.parse({ variants });
+    await updateProduct(store.id, productId, input, "admin");
+  } catch (e) {
+    if (e instanceof ZodError) {
+      const first = e.issues[0];
+      return { error: `${first.path.join(".")}: ${first.message}` };
+    }
+    return {
+      error:
+        e instanceof StoreError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "Couldn't save provider variant IDs — try again.",
+    };
+  }
+
+  revalidatePath(`/admin/products/${productId}`);
+  return { success: true };
 }
 
 export async function submitOrderToFulfillment(orderId: string) {

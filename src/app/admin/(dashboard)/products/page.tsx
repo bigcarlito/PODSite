@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { listProducts } from "@/lib/store/products";
 import { requireCurrentStore } from "@/lib/store-context";
 import { formatCents } from "@/lib/money";
@@ -31,7 +32,8 @@ export default async function AdminProductsPage() {
                 <th className="pb-2 pr-4 font-medium">Title</th>
                 <th className="pb-2 pr-4 font-medium">Price</th>
                 <th className="pb-2 pr-4 font-medium">Active</th>
-                <th className="pb-2 font-medium">Featured</th>
+                <th className="pb-2 pr-4 font-medium">Featured</th>
+                <th className="pb-2 font-medium"></th>
               </tr>
             </thead>
             <tbody>
@@ -42,7 +44,23 @@ export default async function AdminProductsPage() {
                     {formatCents(p.variants[0]?.priceCents ?? 0)}
                   </td>
                   <td className="py-3 pr-4">{p.isActive ? "Yes" : "No"}</td>
-                  <td className="py-3">{p.isFeatured ? "Yes" : "No"}</td>
+                  <td className="py-3 pr-4">{p.isFeatured ? "Yes" : "No"}</td>
+                  <td className="py-3">
+                    <div className="flex gap-4">
+                      <Link
+                        href={`/admin/products/${p.id}`}
+                        className="text-sm text-accent underline"
+                      >
+                        Variants
+                      </Link>
+                      <Link
+                        href={`/admin/products/${p.id}/mockups`}
+                        className="text-sm text-accent underline"
+                      >
+                        Mockups
+                      </Link>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

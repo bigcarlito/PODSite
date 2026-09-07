@@ -42,6 +42,7 @@ export async function createStore(input: StoreCreateInput) {
       trustBadges: input.trustBadges ?? [],
       socialLinks: input.socialLinks ?? [],
       printfulApiKey: input.printfulApiKey,
+      printfulStoreId: input.printfulStoreId,
       adminPasswordHash: hashPassword(adminPassword),
       agentApiKeyHash: hashApiKey(agentApiKey),
     },

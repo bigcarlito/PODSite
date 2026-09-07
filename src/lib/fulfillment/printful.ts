@@ -23,7 +23,10 @@ const PRINTFUL_API_BASE = "https://api.printful.com";
 export class PrintfulProvider implements FulfillmentProvider {
   readonly name = "PRINTFUL" as const;
 
-  constructor(private readonly apiKey?: string) {}
+  constructor(
+    private readonly apiKey?: string,
+    private readonly storeId?: string
+  ) {}
 
   private getApiKey(): string {
     const key = this.apiKey ?? process.env.PRINTFUL_API_KEY;
@@ -34,11 +37,18 @@ export class PrintfulProvider implements FulfillmentProvider {
   }
 
   private async printfulFetch<T>(path: string, init?: RequestInit): Promise<T> {
+    // A modern (OAuth/multi-store) Printful token rejects most endpoints
+    // with a 400 "This endpoint requires `store_id`!" unless the target
+    // store is named explicitly — a legacy single-store token ignores this
+    // header, so it's safe to always send it when we have one.
+    const storeId = this.storeId ?? process.env.PRINTFUL_STORE_ID;
+
     const res = await fetch(`${PRINTFUL_API_BASE}${path}`, {
       ...init,
       headers: {
         Authorization: `Bearer ${this.getApiKey()}`,
         "Content-Type": "application/json",
+        ...(storeId ? { "X-PF-Store-Id": storeId } : {}),
         ...(init?.headers ?? {}),
       },
     });
@@ -224,6 +234,38 @@ export class PrintfulProvider implements FulfillmentProvider {
         mockup_url: string;
       }>;
     };
+    type PrintfilesResponse = {
+      printfiles: Array<{ printfile_id: number; width: number; height: number }>;
+      // Placement -> display label (e.g. "Front"), NOT a printfile id —
+      // the actual placement -> printfile mapping is per *variant*, in
+      // variant_printfiles, since different variants (e.g. youth vs adult
+      // sizes) can use different print files for the same placement.
+      available_placements: Record<string, string>;
+      variant_printfiles: Array<{ variant_id: number; placements: Record<string, number> }>;
+    };
+
+    // Some catalog products reject a file with no explicit `position`
+    // ("Position field is missing", MG-4) rather than defaulting to the
+    // full print area — look up that area's actual dimensions and place
+    // the file to fill it edge-to-edge.
+    const printfiles = await this.printfulFetch<PrintfilesResponse>(
+      `/mockup-generator/printfiles/${request.catalogProductId}`
+    );
+    const requestedIds = new Set(request.providerVariantIds.map(Number));
+    const variantPrintfiles = printfiles.variant_printfiles.find((vp) =>
+      requestedIds.has(vp.variant_id)
+    );
+    const printfileId = variantPrintfiles?.placements[request.placement];
+    const printfile = printfiles.printfiles.find((p) => p.printfile_id === printfileId);
+    if (!printfile) {
+      throw new Error(
+        `Printful catalog product "${request.catalogProductId}" has no print ` +
+          `area for placement "${request.placement}" on variant ` +
+          `${variantPrintfiles?.variant_id ?? request.providerVariantIds[0]}. ` +
+          `Available placements: ` +
+          `${Object.keys(variantPrintfiles?.placements ?? printfiles.available_placements).join(", ") || "(none)"}`
+      );
+    }
 
     const task = await this.printfulFetch<CreateTask>(
       `/mockup-generator/create-task/${request.catalogProductId}`,
@@ -232,10 +274,19 @@ export class PrintfulProvider implements FulfillmentProvider {
         body: JSON.stringify({
           variant_ids: request.providerVariantIds.map(Number),
           format: "jpg",
-          // No explicit `position`: let Printful place the file using the
-          // product's default print area rather than guessing dimensions.
           files: [
-            { placement: request.placement, image_url: request.imageUrl },
+            {
+              placement: request.placement,
+              image_url: request.imageUrl,
+              position: {
+                area_width: printfile.width,
+                area_height: printfile.height,
+                width: printfile.width,
+                height: printfile.height,
+                top: 0,
+                left: 0,
+              },
+            },
           ],
         }),
       }
