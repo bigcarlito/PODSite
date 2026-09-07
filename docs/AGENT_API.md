@@ -489,16 +489,77 @@ Lists every scene this store has set.
 #### `PUT /api/agent/mockup-scenes/:productType`
 
 ```json
-{ "data": "<base64, no data: prefix>", "mimeType": "image/png" }
+{
+  "data": "<base64, no data: prefix>",
+  "mimeType": "image/png",
+  "colors": [{ "name": "Black", "hex": "#101010" }, { "name": "White", "hex": "#ffffff" }]
+}
 ```
 
 Uploads/replaces the scene photo for that product type. JSON body with
 base64 image data (not multipart), same shape as the hero-image upload
 below. `:productType` is free text and doesn't need to exist yet.
 
+`colors` is the garment color lineup for this product type — used both to
+recolor this scene per color (above) and as the color axis for a whole
+product auto-generated from a design (below). Omit `colors` when just
+replacing the photo to keep the existing lineup; at least one color is
+required before `POST /api/agent/products/generate-from-design` can use
+this type.
+
 #### `DELETE /api/agent/mockup-scenes/:productType`
 
 Removes the scene for that product type.
+
+### `POST /api/agent/products/generate-from-design`
+
+Creates a whole product from just a design image: an AI text model writes
+the title/description, one variant is created per (color × size) using the
+product type's `MockupScene` color lineup, then an AI mockup is generated
+and attached for every color (same as `POST /api/agent/products/:id/mockups/ai`
+below) — the "pick a type, upload a design, get a finished product" flow.
+
+```json
+{
+  "productType": "tshirt",
+  "designUrl": "https://.../design.png",
+  "priceCents": 2499,
+  "sizes": ["S", "M", "L", "XL"]
+}
+```
+
+| field | default | meaning |
+| --- | --- | --- |
+| `productType` | *required* | Must have a `MockupScene` with at least one color set. |
+| `designUrl` | *required* | Publicly reachable transparent PNG print file. |
+| `priceCents` | *required* | Applied to every variant. |
+| `currency` | `"USD"` | |
+| `sizes` | `["S","M","L","XL"]` | Applied to every color. |
+| `colorOptionName` | `"color"` | |
+| `sizeOptionName` | `"size"` | |
+| `textModel` | `OPENROUTER_TEXT_MODEL` env var | Overrides the model used for the title/description call. |
+| `model` | `OPENROUTER_MOCKUP_MODEL` env var | Overrides the model used for the mockup image calls. |
+
+Fails with `NO_MOCKUP_SCENE` (422, no scene for this type) or
+`NO_MOCKUP_SCENE_COLORS` (422, scene exists but has no colors set) before
+attempting anything. `AI_PROVIDER_ERROR` (502) covers both a failed title/
+description call and (via the same code as the mockups endpoint) every
+color's mockup call failing. New variants have no `providerVariantId` —
+set that via `PATCH /api/agent/products/:id` (per product/color/size,
+looked up from your fulfillment provider's catalog) before the product can
+be fulfilled.
+
+Response shape matches the mockups-only endpoint plus the generated copy:
+
+```json
+{
+  "product": { "...": "the created product, with variants and mockup images attached" },
+  "title": "...",
+  "description": "...",
+  "rendered": [{ "color": "Black", "mockupUrl": "https://..." }],
+  "failed": []
+}
+```
 
 ### `POST /api/agent/products/:id/mockups/ai`
 

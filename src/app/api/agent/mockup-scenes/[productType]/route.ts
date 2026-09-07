@@ -21,7 +21,8 @@ export const PUT = withAgentAuth(async (request, store, ctx: Ctx) => {
     decodeURIComponent(productType),
     { data, mimeType: input.mimeType },
     "agent",
-    origin
+    origin,
+    input.colors
   );
   return Response.json({ scene });
 });

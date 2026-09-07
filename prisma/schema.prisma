@@ -134,6 +134,13 @@ model MockupScene {
   storeId     String
   productType String
   imageUrl    String
+  /// The garment colors this product type comes in, e.g.
+  /// [{"name":"Black","hex":"#101010"}] — used both to recolor this scene
+  /// per color and, for auto-generated products (see AGENTS.md), as the
+  /// color axis for every variant a new product of this type gets created
+  /// with. Free-form JSON on purpose (see AGENTS.md #10) — a new color
+  /// lineup is a data change, not a migration.
+  colors      Json     @default("[]")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

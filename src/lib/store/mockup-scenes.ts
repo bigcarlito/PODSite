@@ -1,9 +1,11 @@
 import "server-only";
-import type { Store } from "@prisma/client";
+import type { Prisma, Store } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { StoreError, notFound } from "./errors";
 import { logActivity, type ActivityActor } from "./activity";
 import { uploadStoreAsset } from "./assets";
+
+export type MockupSceneColor = { name: string; hex: string };
 
 export function listMockupScenes(storeId: string) {
   return prisma.mockupScene.findMany({
@@ -43,22 +45,30 @@ export async function setMockupScene(
   productType: string,
   input: { data: Buffer; mimeType: string },
   actor: ActivityActor,
-  origin: string
+  origin: string,
+  colors?: MockupSceneColor[]
 ) {
   const asset = await uploadStoreAsset(store.id, { kind: "mockup-scene", ...input }, actor);
   const imageUrl = `${origin}${asset.url}`;
 
   const scene = await prisma.mockupScene.upsert({
     where: { storeId_productType: { storeId: store.id, productType } },
-    create: { storeId: store.id, productType, imageUrl },
-    update: { imageUrl },
+    create: {
+      storeId: store.id,
+      productType,
+      imageUrl,
+      colors: (colors ?? []) as Prisma.InputJsonValue,
+    },
+    // Only touch colors if the caller actually supplied them, so replacing
+    // just the photo doesn't wipe out a previously-set color lineup.
+    update: { imageUrl, ...(colors ? { colors: colors as Prisma.InputJsonValue } : {}) },
   });
 
   await logActivity(store.id, {
     actor,
     category: "mockup-scene",
     summary: `Set AI mockup scene for product type "${productType}"`,
-    details: { productType, imageUrl },
+    details: { productType, imageUrl, colors },
   });
 
   return scene;

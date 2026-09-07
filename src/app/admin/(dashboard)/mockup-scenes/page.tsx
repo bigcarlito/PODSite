@@ -34,6 +34,10 @@ export default async function MockupScenesPage() {
                 className="h-48 w-48 rounded-lg border border-border object-cover"
               />
               <p className="mt-1 font-medium">{s.productType}</p>
+              <p className="mt-1 text-muted">
+                {((s.colors as { name: string }[]) ?? []).map((c) => c.name).join(", ") ||
+                  "No colors set"}
+              </p>
               <DeleteMockupSceneButton productType={s.productType} />
             </div>
           ))}

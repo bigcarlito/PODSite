@@ -275,16 +275,24 @@ src/lib/design/palette.ts       Design palette extraction (opaque pixels
                                 only) + WCAG contrast scoring of a design
                                 against garment colors
 src/lib/store/mockup-scenes.ts  MockupScene CRUD — one shared "blank
-                                garment in a real setting" photo per
-                                Product.productType (e.g. "tshirt")
+                                garment in a real setting" photo *and*
+                                color lineup per Product.productType
+                                (e.g. "tshirt")
 src/lib/store/ai-mockups.ts     generateAIProductMockups() — AI-recolors a
                                 MockupScene to match each variant color and
                                 composites the design onto it, as a
                                 non-generic/non-white-background
                                 alternative to mockups.ts above
-src/lib/ai/openrouter.ts        Thin OpenRouter client for image-editing
-                                models (chat completions, modalities:
-                                ["image"]) — used by ai-mockups.ts
+src/lib/store/ai-product-create.ts generateProductFromDesign() — the
+                                "upload a design, get a finished product"
+                                flow: AI-writes title/description, builds
+                                one variant per (color x size) from the
+                                product type's MockupScene colors, then
+                                calls ai-mockups.ts for every color
+src/lib/ai/openrouter.ts        Thin OpenRouter client — image-editing
+                                (chat completions, modalities: ["image"],
+                                used by ai-mockups.ts) and plain text
+                                generation (used by ai-product-create.ts)
 src/lib/fulfillment/            Pluggable POD provider interface + Printful
                                 impl — each call takes the calling store's
                                 own provider credentials

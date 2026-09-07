@@ -9,6 +9,7 @@ import * as ordersStore from "@/lib/store/orders";
 import { updateStoreBrand, setHeroImage } from "@/lib/store/settings";
 import { generateProductMockups, type ColorReport } from "@/lib/store/mockups";
 import { generateAIProductMockups } from "@/lib/store/ai-mockups";
+import { generateProductFromDesign } from "@/lib/store/ai-product-create";
 import { updateProduct } from "@/lib/store/products";
 import { uploadStoreAsset } from "@/lib/store/assets";
 import { setMockupScene, deleteMockupScene } from "@/lib/store/mockup-scenes";
@@ -16,6 +17,7 @@ import {
   storeUpdateSchema,
   mockupGenerateSchema,
   aiMockupGenerateSchema,
+  aiProductCreateSchema,
   productUpdateSchema,
 } from "@/lib/store/schemas";
 import { StoreError } from "@/lib/store/errors";
@@ -315,14 +317,17 @@ export async function uploadMockupScene(
     return { error: "Choose an image file first." };
   }
 
+  const colorsRaw = String(formData.get("colors") ?? "").trim();
+
   try {
+    const colors = colorsRaw ? parseJsonField(formData, "colors", "Colors") : undefined;
     const data = Buffer.from(await file.arrayBuffer());
     const requestHeaders = await headers();
     const host = requestHeaders.get("host");
     const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
     const origin = host ? `${proto}://${host}` : "";
 
-    await setMockupScene(store, productType, { data, mimeType: file.type }, "admin", origin);
+    await setMockupScene(store, productType, { data, mimeType: file.type }, "admin", origin, colors);
   } catch (e) {
     return {
       error: e instanceof StoreError ? e.message : "Couldn't upload scene photo — try again.",
@@ -337,6 +342,70 @@ export async function deleteMockupSceneAction(productType: string) {
   const store = await requireCurrentStore();
   await deleteMockupScene(store.id, productType, "admin");
   revalidatePath("/admin/mockup-scenes");
+}
+
+export type GenerateProductState = {
+  error?: string;
+  result?: {
+    productId: string;
+    slug: string;
+    title: string;
+    description: string;
+    rendered: Array<{ color: string; mockupUrl: string }>;
+    failed: Array<{ color: string; error: string }>;
+  };
+};
+
+/**
+ * Admin-side form wrapper over generateProductFromDesign (the same
+ * function POST /api/agent/products/generate-from-design calls) — the
+ * "pick a type, upload a design, get a finished product" flow. Title,
+ * description, and every color's mockup are generated automatically.
+ */
+export async function generateProductAction(
+  _prevState: GenerateProductState,
+  formData: FormData
+): Promise<GenerateProductState> {
+  const store = await requireCurrentStore();
+
+  try {
+    const priceDollars = Number(formData.get("price") ?? "0");
+    const sizesRaw = String(formData.get("sizes") ?? "").trim();
+
+    const input = aiProductCreateSchema.parse({
+      productType: String(formData.get("productType") ?? ""),
+      designUrl: String(formData.get("designUrl") ?? ""),
+      priceCents: Math.round(priceDollars * 100),
+      sizes: sizesRaw
+        ? sizesRaw.split(",").map((s) => s.trim()).filter(Boolean)
+        : undefined,
+    });
+
+    const result = await generateProductFromDesign(store, input, "admin");
+    revalidatePath("/admin/products");
+
+    return {
+      result: {
+        productId: result.product.id,
+        slug: result.product.slug,
+        title: result.title,
+        description: result.description,
+        rendered: result.rendered,
+        failed: result.failed,
+      },
+    };
+  } catch (e) {
+    if (e instanceof ZodError) {
+      const first = e.issues[0];
+      return { error: `${first.path.join(".")}: ${first.message}` };
+    }
+    if (e instanceof StoreError) {
+      return { error: e.message };
+    }
+    return {
+      error: e instanceof Error ? e.message : "Couldn't generate product — try again.",
+    };
+  }
 }
 
 export type ProductTypeState = { error?: string; success?: boolean };
