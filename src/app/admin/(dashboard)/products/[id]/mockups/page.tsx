@@ -3,6 +3,8 @@ import Link from "next/link";
 import { getProductById } from "@/lib/store/products";
 import { requireCurrentStore } from "@/lib/store-context";
 import { MockupTestForm } from "./MockupTestForm";
+import { AIMockupTestForm } from "./AIMockupTestForm";
+import { ProductTypeForm } from "../ProductTypeForm";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +58,28 @@ export default async function ProductMockupsPage({
       </p>
 
       <MockupTestForm productId={product.id} />
+
+      <hr className="my-10 border-border" />
+
+      <h2 className="text-lg font-semibold">AI mockup (custom scene)</h2>
+      <p className="mt-1 text-xs text-muted">
+        Recolors a shared scene photo for this product&apos;s type and
+        composites the design onto it via OpenRouter — an alternative to the
+        Printful mockup above for a non-generic, non-white-background result.
+        Calls the same <code>generateAIProductMockups</code> function as{" "}
+        <code>POST /api/agent/products/{id}/mockups/ai</code>. Manage scene
+        photos per product type on{" "}
+        <Link href="/admin/mockup-scenes" className="underline">
+          Mockup scenes
+        </Link>
+        .
+      </p>
+
+      <div className="mt-4">
+        <ProductTypeForm productId={product.id} productType={product.productType ?? ""} />
+      </div>
+
+      <AIMockupTestForm productId={product.id} />
     </div>
   );
 }

@@ -218,6 +218,44 @@ you don't repeat a failed experiment.
   (`NO_MOCKUP_VARIANTS` otherwise). Other errors: `DESIGN_UNREADABLE`,
   `EMPTY_DESIGN`, `PROVIDER_ERROR`.
 
+- `POST /api/agent/products/:id/mockups/ai` — alternative to the above for
+  a non-generic, non-white-background result: recolors a shared scene photo
+  (a blank garment in a real setting) to match each variant color and
+  composites the design onto it via an AI image-editing model, instead of
+  Printful's flat catalog render.
+  ```json
+  { "designUrl": "https://.../design.png", "colors": ["Black", "White"] }
+  ```
+  Needs `Product.productType` set (`PATCH /api/agent/products/:id`, e.g.
+  `"tshirt"`) and a scene uploaded for that type first:
+  `PUT /api/agent/mockup-scenes/:productType` with
+  `{"data": "<base64>", "mimeType": "image/png", "colors": [{"name":"Black","hex":"#101010"}]}`
+  — one photo + color lineup shared by every product of that type.
+  `GET /api/agent/mockup-scenes` lists what's set; `DELETE
+  /api/agent/mockup-scenes/:productType` removes one.
+
+  Generation runs per color independently — one color's failure doesn't
+  block the others (`rendered`/`failed` in the response); needs at least
+  one success. Optional `garments: [{name, hex}]` gives the model a precise
+  hex per color instead of just a name. `model` overrides the server's
+  default OpenRouter model slug for this call.
+
+- `POST /api/agent/products/generate-from-design` — creates a **whole
+  product** from just a design: an AI text model writes the title/
+  description, one variant per (color × size) is created from the product
+  type's `MockupScene` color lineup, then a mockup is generated and
+  attached per color (same mechanism as the endpoint above).
+  ```json
+  { "productType": "tshirt", "designUrl": "https://.../design.png", "priceCents": 2499 }
+  ```
+  Needs a `MockupScene` with colors set for `productType` first
+  (`NO_MOCKUP_SCENE`/`NO_MOCKUP_SCENE_COLORS` otherwise, both 422).
+  `sizes` defaults to `["S","M","L","XL"]`, applied to every color.
+  New variants have no `providerVariantId` — set that via `PATCH
+  /api/agent/products/:id` afterward, per (product, color, size), before
+  the product can be fulfilled. Response: `{product, title, description,
+  rendered, failed}`.
+
 ### Collections
 
 - `GET /api/agent/collections` — list, with product counts.
@@ -252,6 +290,13 @@ variant per size/color (each with its `providerVariantId`), then
 `POST /api/agent/products/:id/mockups` with `dryRun: true` to see which
 garment colors the design survives on, then the same call without
 `dryRun` to render and attach the real product photos.
+
+**"Turn this design into a listed product"** (no product to build around
+yet) → one call, `POST /api/agent/products/generate-from-design` with
+`productType` + `designUrl` + `priceCents` — creates the product (AI
+writes the title/description), its variants (one per color × size from
+the product type's `MockupScene`), and a mockup per color, all at once.
+Needs that type's colors set first (`PUT /api/agent/mockup-scenes/:productType`).
 
 **"Raise/lower prices on X"** → `GET /api/agent/products` (or fetch the
 one product), find the variant(s), `PATCH` with updated `priceCents`.

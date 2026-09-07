@@ -25,6 +25,9 @@ export const productCreateSchema = z.object({
   optionNames: z.array(z.string()).default([]),
   isFeatured: z.boolean().default(false),
   isActive: z.boolean().default(true),
+  /// Category for scene-based AI mockups, e.g. "tshirt" — matches a
+  /// MockupScene.productType. See POST /api/agent/products/:id/mockups/ai.
+  productType: z.string().min(1).optional(),
   collectionIds: z.array(z.string()).default([]),
   images: z
     .array(z.object({ url: z.string().url(), altText: z.string().optional() }))
@@ -38,6 +41,7 @@ export const productUpdateSchema = z.object({
   optionNames: z.array(z.string()).optional(),
   isFeatured: z.boolean().optional(),
   isActive: z.boolean().optional(),
+  productType: z.string().min(1).optional(),
   collectionIds: z.array(z.string()).optional(),
   images: z
     .array(z.object({ url: z.string().url(), altText: z.string().optional() }))
@@ -67,6 +71,58 @@ export const mockupGenerateSchema = z.object({
   minCoverage: z.number().min(0).max(1).optional(),
   /// Score colors and report, without calling the provider or writing images.
   dryRun: z.boolean().default(false),
+});
+
+/// Generate per-garment-color mockups by AI-recoloring a shared scene photo
+/// (this product's MockupScene, keyed by Product.productType) and
+/// compositing the design onto it — an alternative to the Printful
+/// mockup-generator above, for a non-generic/non-white-background result.
+export const aiMockupGenerateSchema = z.object({
+  /// Publicly reachable print file — a transparent PNG at print resolution.
+  designUrl: z.string().url(),
+  /// Which of the product's optionNames carries the garment color.
+  colorOptionName: z.string().default("color"),
+  /// Restrict to these garment colors; omitted means every color the product has.
+  colors: z.array(z.string()).optional(),
+  /// Hex per color, for a more precise recolor instruction than the color
+  /// name alone. Colors omitted here are described to the model by name only.
+  garments: z
+    .array(z.object({ name: z.string().min(1), hex: z.string().min(4) }))
+    .optional(),
+  /// Overrides OPENROUTER_MOCKUP_MODEL for this call — any OpenRouter model
+  /// slug that supports image output (e.g. "google/gemini-2.5-flash-image").
+  model: z.string().optional(),
+});
+
+/// Uploads/replaces the shared scene photo for a product type. JSON body
+/// (not multipart), same reasoning as heroImageUploadSchema below.
+export const mockupSceneUploadSchema = z.object({
+  data: z.string().min(1), // base64, no "data:image/...;base64," prefix
+  mimeType: z.enum(["image/png", "image/jpeg", "image/webp"]),
+  /// The garment colors this product type comes in. Omit to keep the
+  /// existing lineup when just replacing the photo; required at least
+  /// once before this product type can be used to auto-generate a product.
+  colors: z.array(z.object({ name: z.string().min(1), hex: z.string().min(4) })).optional(),
+});
+
+/// Auto-creates a product from a design: generates a title/description
+/// with an AI text model, builds one variant per color (x size) using the
+/// product type's MockupScene color lineup, then generates AI mockups for
+/// every color — see POST /api/agent/products/generate-from-design.
+export const aiProductCreateSchema = z.object({
+  productType: z.string().min(1),
+  /// Publicly reachable print file — a transparent PNG at print resolution.
+  designUrl: z.string().url(),
+  priceCents: z.number().int().positive(),
+  currency: z.string().length(3).default("USD"),
+  /// Applied to every color. Defaults to a standard apparel size run.
+  sizes: z.array(z.string().min(1)).default(["S", "M", "L", "XL"]),
+  colorOptionName: z.string().default("color"),
+  sizeOptionName: z.string().default("size"),
+  /// Overrides OPENROUTER_TEXT_MODEL for the title/description call.
+  textModel: z.string().optional(),
+  /// Overrides OPENROUTER_MOCKUP_MODEL for the mockup image calls.
+  model: z.string().optional(),
 });
 
 export const collectionCreateSchema = z.object({
@@ -128,6 +184,9 @@ export const activityCreateSchema = z.object({
 });
 
 export type MockupGenerateInput = z.infer<typeof mockupGenerateSchema>;
+export type AiMockupGenerateInput = z.infer<typeof aiMockupGenerateSchema>;
+export type MockupSceneUploadInput = z.infer<typeof mockupSceneUploadSchema>;
+export type AiProductCreateInput = z.infer<typeof aiProductCreateSchema>;
 export type ProductCreateInput = z.infer<typeof productCreateSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 export type CollectionCreateInput = z.infer<typeof collectionCreateSchema>;

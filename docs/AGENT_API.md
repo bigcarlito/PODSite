@@ -301,6 +301,7 @@ Create a product with its variants.
   "optionNames": ["size", "color"],
   "isFeatured": false,
   "isActive": true,
+  "productType": "tshirt",
   "collectionIds": ["clx...collectionId"],
   "images": [{ "url": "https://...", "altText": "Front view" }],
   "variants": [
@@ -316,6 +317,11 @@ Create a product with its variants.
   ]
 }
 ```
+
+`productType` is free text (e.g. `"tshirt"`, `"hoodie"`, `"poster"`) used
+only by the AI mockup path (`POST /api/agent/products/:id/mockups/ai`) to
+pick which shared `MockupScene` photo to recolor/composite onto — optional,
+and irrelevant to the Printful mockup path.
 
 `optionNames` can be any list of keys appropriate to the product — e.g.
 `["printType", "size"]` for a wall-art product with Poster/Canvas/Framed
@@ -468,6 +474,144 @@ Logs a `"mockup"` activity entry with the colors rendered and skipped.
 > `Store.printfulStoreId` (or the platform-wide `PRINTFUL_STORE_ID` env
 > var), found via `GET https://api.printful.com/stores` against that
 > token. A legacy single-store token doesn't hit this.
+
+### Mockup scenes (for AI mockups)
+
+A `MockupScene` is one shared photo of a blank garment in a real setting
+(not a plain white background), keyed by `Product.productType` (free text,
+e.g. `"tshirt"`) — every product of that type reuses the same scene photo,
+rather than uploading one per product.
+
+#### `GET /api/agent/mockup-scenes`
+
+Lists every scene this store has set.
+
+#### `PUT /api/agent/mockup-scenes/:productType`
+
+```json
+{
+  "data": "<base64, no data: prefix>",
+  "mimeType": "image/png",
+  "colors": [{ "name": "Black", "hex": "#101010" }, { "name": "White", "hex": "#ffffff" }]
+}
+```
+
+Uploads/replaces the scene photo for that product type. JSON body with
+base64 image data (not multipart), same shape as the hero-image upload
+below. `:productType` is free text and doesn't need to exist yet.
+
+`colors` is the garment color lineup for this product type — used both to
+recolor this scene per color (above) and as the color axis for a whole
+product auto-generated from a design (below). Omit `colors` when just
+replacing the photo to keep the existing lineup; at least one color is
+required before `POST /api/agent/products/generate-from-design` can use
+this type.
+
+#### `DELETE /api/agent/mockup-scenes/:productType`
+
+Removes the scene for that product type.
+
+### `POST /api/agent/products/generate-from-design`
+
+Creates a whole product from just a design image: an AI text model writes
+the title/description, one variant is created per (color × size) using the
+product type's `MockupScene` color lineup, then an AI mockup is generated
+and attached for every color (same as `POST /api/agent/products/:id/mockups/ai`
+below) — the "pick a type, upload a design, get a finished product" flow.
+
+```json
+{
+  "productType": "tshirt",
+  "designUrl": "https://.../design.png",
+  "priceCents": 2499,
+  "sizes": ["S", "M", "L", "XL"]
+}
+```
+
+| field | default | meaning |
+| --- | --- | --- |
+| `productType` | *required* | Must have a `MockupScene` with at least one color set. |
+| `designUrl` | *required* | Publicly reachable transparent PNG print file. |
+| `priceCents` | *required* | Applied to every variant. |
+| `currency` | `"USD"` | |
+| `sizes` | `["S","M","L","XL"]` | Applied to every color. |
+| `colorOptionName` | `"color"` | |
+| `sizeOptionName` | `"size"` | |
+| `textModel` | `OPENROUTER_TEXT_MODEL` env var | Overrides the model used for the title/description call. |
+| `model` | `OPENROUTER_MOCKUP_MODEL` env var | Overrides the model used for the mockup image calls. |
+
+Fails with `NO_MOCKUP_SCENE` (422, no scene for this type) or
+`NO_MOCKUP_SCENE_COLORS` (422, scene exists but has no colors set) before
+attempting anything. `AI_PROVIDER_ERROR` (502) covers both a failed title/
+description call and (via the same code as the mockups endpoint) every
+color's mockup call failing. New variants have no `providerVariantId` —
+set that via `PATCH /api/agent/products/:id` (per product/color/size,
+looked up from your fulfillment provider's catalog) before the product can
+be fulfilled.
+
+Response shape matches the mockups-only endpoint plus the generated copy:
+
+```json
+{
+  "product": { "...": "the created product, with variants and mockup images attached" },
+  "title": "...",
+  "description": "...",
+  "rendered": [{ "color": "Black", "mockupUrl": "https://..." }],
+  "failed": []
+}
+```
+
+### `POST /api/agent/products/:id/mockups/ai`
+
+An alternative to the Printful mockup generator above: recolors this
+product's `productType` scene photo to match each variant color and
+composites the design onto it via an AI image-editing model, instead of
+Printful's flat, plain-background catalog render.
+
+```json
+{
+  "designUrl": "https://.../design.png",
+  "colorOptionName": "color",
+  "colors": ["Black", "White"],
+  "garments": [{ "name": "Black", "hex": "#101010" }],
+  "model": "google/gemini-2.5-flash-image"
+}
+```
+
+| field | default | meaning |
+| --- | --- | --- |
+| `designUrl` | *required* | Publicly reachable transparent PNG print file. |
+| `colorOptionName` | `"color"` | Which of the product's `optionNames` carries the garment color. |
+| `colors` | all | Restrict to these garment colors. |
+| `garments` | none | `[{name, hex}]` — hex per color for a more precise recolor instruction; colors without a hex here are described to the model by name only. |
+| `model` | `OPENROUTER_MOCKUP_MODEL` env var | Any OpenRouter model slug that supports image output. |
+
+Requires `Product.productType` to be set (via `PATCH /api/agent/products/:id`)
+and a scene uploaded for that type — fails with `MISSING_PRODUCT_TYPE` or
+`NO_MOCKUP_SCENE` (both 422) otherwise. Also fails with `NO_MOCKUP_VARIANTS`
+(422, no variant has the color option set) or `AI_PROVIDER_ERROR` (502, every
+color's generation call failed — `error.details.failed` lists each color's
+error).
+
+Generation runs **per color independently**: a failure on one color doesn't
+block the others — the response's `rendered`/`failed` arrays report each
+outcome, and at least one success is required for a 200. Uses
+`OPENROUTER_API_KEY` (platform-wide only today — no per-store override yet,
+unlike the Printful credentials above). Logs an `"ai-mockup"` activity entry.
+
+Response:
+
+```json
+{
+  "product": { "...": "the updated product, with the new images attached" },
+  "rendered": [{ "color": "Black", "mockupUrl": "https://..." }],
+  "failed": []
+}
+```
+
+Unlike the Printful path, the generated image is uploaded to this store's
+own asset store (`/api/assets/:id`) rather than a temporary provider CDN
+URL, so it doesn't need re-hosting later.
 
 ## Collections
 

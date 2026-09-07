@@ -61,6 +61,7 @@ export async function createProduct(
       optionNames: input.optionNames,
       isFeatured: input.isFeatured,
       isActive: input.isActive,
+      productType: input.productType,
       collections: {
         create: input.collectionIds.map((collectionId) => ({
           collectionId,
@@ -117,6 +118,7 @@ export async function updateProduct(
         optionNames: input.optionNames,
         isFeatured: input.isFeatured,
         isActive: input.isActive,
+        productType: input.productType,
       },
     });
 

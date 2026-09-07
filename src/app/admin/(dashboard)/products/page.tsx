@@ -16,11 +16,17 @@ export default async function AdminProductsPage() {
     <div>
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Products</h1>
-        <p className="text-xs text-muted">
-          Manage products via the seed script, Prisma Studio, or the{" "}
-          <code>/api/agent/products</code> API (see docs/AGENT_API.md).
-        </p>
+        <Link
+          href="/admin/products/new"
+          className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-dark"
+        >
+          New product
+        </Link>
       </div>
+      <p className="mt-1 text-xs text-muted">
+        Or manage products via the seed script, Prisma Studio, or the{" "}
+        <code>/api/agent/products</code> API (see docs/AGENT_API.md).
+      </p>
 
       {products.length === 0 ? (
         <p className="mt-6 text-sm text-muted">No products yet.</p>
