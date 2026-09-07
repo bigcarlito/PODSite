@@ -23,7 +23,10 @@ const PRINTFUL_API_BASE = "https://api.printful.com";
 export class PrintfulProvider implements FulfillmentProvider {
   readonly name = "PRINTFUL" as const;
 
-  constructor(private readonly apiKey?: string) {}
+  constructor(
+    private readonly apiKey?: string,
+    private readonly storeId?: string
+  ) {}
 
   private getApiKey(): string {
     const key = this.apiKey ?? process.env.PRINTFUL_API_KEY;
@@ -34,11 +37,18 @@ export class PrintfulProvider implements FulfillmentProvider {
   }
 
   private async printfulFetch<T>(path: string, init?: RequestInit): Promise<T> {
+    // A modern (OAuth/multi-store) Printful token rejects most endpoints
+    // with a 400 "This endpoint requires `store_id`!" unless the target
+    // store is named explicitly — a legacy single-store token ignores this
+    // header, so it's safe to always send it when we have one.
+    const storeId = this.storeId ?? process.env.PRINTFUL_STORE_ID;
+
     const res = await fetch(`${PRINTFUL_API_BASE}${path}`, {
       ...init,
       headers: {
         Authorization: `Bearer ${this.getApiKey()}`,
         "Content-Type": "application/json",
+        ...(storeId ? { "X-PF-Store-Id": storeId } : {}),
         ...(init?.headers ?? {}),
       },
     });

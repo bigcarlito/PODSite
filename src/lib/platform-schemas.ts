@@ -24,6 +24,10 @@ export const storeCreateSchema = z.object({
   trustBadges: z.array(z.string()).optional(),
   socialLinks: z.array(navLinkSchema).optional(),
   printfulApiKey: z.string().optional(),
+  /// Printful "store" id within that account — required by modern
+  /// (OAuth/multi-store) Printful tokens on most endpoints. Find it via
+  /// GET /stores against the token above.
+  printfulStoreId: z.string().optional(),
 });
 
 export type StoreCreateInput = z.infer<typeof storeCreateSchema>;

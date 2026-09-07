@@ -79,6 +79,13 @@ model Store {
   /// This store's own Printful account key, if different from the
   /// platform default. Falls back to PRINTFUL_API_KEY when unset.
   printfulApiKey    String?
+  /// Printful "store" id within that account — required by Printful's
+  /// modern (OAuth/multi-store) API tokens on most endpoints, rejected
+  /// with a plain "This endpoint requires `store_id`!" 400 if omitted.
+  /// A legacy single-store token doesn't need this. Falls back to
+  /// PRINTFUL_STORE_ID when unset. Find it via GET /stores against your
+  /// Printful token.
+  printfulStoreId   String?
 
   products    Product[]
   variants    ProductVariant[]

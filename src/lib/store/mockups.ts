@@ -96,7 +96,11 @@ export async function generateProductMockups(
     );
   }
 
-  const provider = getFulfillmentProvider("PRINTFUL", store.printfulApiKey);
+  const provider = getFulfillmentProvider(
+    "PRINTFUL",
+    store.printfulApiKey,
+    store.printfulStoreId
+  );
 
   // Garment hexes come from the caller when supplied (lets an agent preview
   // color fit with no provider credentials), otherwise from the provider.

@@ -90,7 +90,8 @@ export async function submitOrderToFulfillment(
 
   const provider = getFulfillmentProvider(
     order.items[0].variant.provider,
-    store.printfulApiKey
+    store.printfulApiKey,
+    store.printfulStoreId
   );
 
   const result = await provider.submitOrder(

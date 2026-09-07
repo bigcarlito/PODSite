@@ -53,17 +53,24 @@ Creates a new store from a brand brief:
   "trustBadges": ["30-day happiness guarantee"],
   "socialLinks": [{ "label": "Instagram", "href": "https://instagram.com/..." }],
   "domain": "firstavailable.com",
-  "printfulApiKey": "optional — this store's own Printful account"
+  "printfulApiKey": "optional — this store's own Printful account",
+  "printfulStoreId": "optional — required by a modern/multi-store Printful token, or most calls 400 with \"This endpoint requires `store_id`!\"; find it via GET https://api.printful.com/stores"
 }
 ```
 
 Only `slug`, `name`, `tagline`, and `description` are required — `tone`,
 `audience`, and `brief` are for whichever agent generates this store's
-copy/products next, not rendered on the storefront. Everything else
-defaults to empty and can be refined later with the new store's own key
+copy/products next, not rendered on the storefront. Brand/copy fields
+default to empty and can be refined later with the new store's own key
 via `PATCH /api/agent/store` (see "Store brand & settings" below) —
 there's no platform-level `PATCH /api/platform/stores/:id`, since brand
 edits are naturally a store managing itself, not a platform operation.
+`printfulApiKey` and `printfulStoreId` are the exception: they're
+credentials, not brand fields, and `storeUpdateSchema` deliberately
+excludes them, so today they can only be set at creation — changing
+them afterward means editing the `Store` row directly (or relying on
+the platform-wide `PRINTFUL_API_KEY`/`PRINTFUL_STORE_ID` env var
+fallbacks instead of a per-store value).
 
 Returns `201`:
 
@@ -455,6 +462,12 @@ Logs a `"mockup"` activity entry with the colors rendered and skipped.
 
 > Mockup URLs point at the provider's CDN. Printful's are not guaranteed
 > to be permanent — for a long-lived catalog, download and re-host them.
+
+> A `PROVIDER_ERROR` reading `This endpoint requires \`store_id\`!` means
+> the store's Printful token is a modern (OAuth/multi-store) one — set
+> `Store.printfulStoreId` (or the platform-wide `PRINTFUL_STORE_ID` env
+> var), found via `GET https://api.printful.com/stores` against that
+> token. A legacy single-store token doesn't hit this.
 
 ## Collections
 
