@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "files.cdn.printful.com" },
+      // Freshly-generated mockups (mockup-generator task results) come back
+      // from Printful's temp upload bucket, a different host from their CDN
+      // — not guaranteed permanent, see docs/AGENT_API.md's mockups section.
+      { protocol: "https", hostname: "printful-upload.s3-accelerate.amazonaws.com" },
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "picsum.photos" },
     ],
