@@ -7,6 +7,7 @@ import { requireCurrentStore } from "@/lib/store-context";
 import * as ordersStore from "@/lib/store/orders";
 import { updateStoreBrand, setHeroImage } from "@/lib/store/settings";
 import { generateProductMockups, type ColorReport } from "@/lib/store/mockups";
+import { uploadStoreAsset } from "@/lib/store/assets";
 import { storeUpdateSchema, mockupGenerateSchema } from "@/lib/store/schemas";
 import { StoreError } from "@/lib/store/errors";
 import { ZodError } from "zod";
@@ -124,6 +125,35 @@ export async function uploadHeroImage(formData: FormData): Promise<HeroImageUplo
         e instanceof StoreError
           ? e.message
           : "Couldn't upload image — try again.",
+    };
+  }
+}
+
+export type DesignUploadState = { url?: string; error?: string };
+
+/**
+ * Uploads a design image for the mockup test form — same uploadStoreAsset
+ * plumbing as uploadHeroImage, just tagged "design" instead of "hero-image"
+ * (see src/lib/store/assets.ts). Unlike the hero image, this isn't set
+ * anywhere on Store; it just returns a public /api/assets/[id] URL to fill
+ * into the designUrl field, since generateProductMockups needs a publicly
+ * reachable URL rather than raw bytes.
+ */
+export async function uploadDesignImage(formData: FormData): Promise<DesignUploadState> {
+  const store = await requireCurrentStore();
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Choose an image file first." };
+  }
+
+  try {
+    const data = Buffer.from(await file.arrayBuffer());
+    const asset = await uploadStoreAsset(store.id, { kind: "design", data, mimeType: file.type }, "admin");
+    return { url: asset.url };
+  } catch (e) {
+    return {
+      error: e instanceof StoreError ? e.message : "Couldn't upload image — try again.",
     };
   }
 }
