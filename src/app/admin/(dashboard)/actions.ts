@@ -12,12 +12,18 @@ import { generateAIProductMockups } from "@/lib/store/ai-mockups";
 import { generateProductFromDesign } from "@/lib/store/ai-product-create";
 import { updateProduct } from "@/lib/store/products";
 import { uploadStoreAsset } from "@/lib/store/assets";
-import { setMockupScene, deleteMockupScene } from "@/lib/store/mockup-scenes";
+import {
+  setMockupScene,
+  deleteMockupScene,
+  generateMockupSceneBases,
+  setDesignArea,
+} from "@/lib/store/mockup-scenes";
 import {
   storeUpdateSchema,
   mockupGenerateSchema,
   aiMockupGenerateSchema,
   aiProductCreateSchema,
+  designAreaSchema,
   productUpdateSchema,
 } from "@/lib/store/schemas";
 import { StoreError } from "@/lib/store/errors";
@@ -262,8 +268,6 @@ export async function generateAIMockupsAction(
 
   try {
     const colorsRaw = String(formData.get("colors") ?? "").trim();
-    const garmentsRaw = String(formData.get("garments") ?? "").trim();
-    const model = String(formData.get("model") ?? "").trim();
 
     const input = aiMockupGenerateSchema.parse({
       designUrl: String(formData.get("designUrl") ?? ""),
@@ -271,8 +275,6 @@ export async function generateAIMockupsAction(
       colors: colorsRaw
         ? colorsRaw.split(",").map((c) => c.trim()).filter(Boolean)
         : undefined,
-      garments: garmentsRaw ? parseJsonField(formData, "garments", "Garments") : undefined,
-      model: model || undefined,
     });
 
     const result = await generateAIProductMockups(store, productId, input, "admin");
@@ -342,6 +344,68 @@ export async function deleteMockupSceneAction(productType: string) {
   const store = await requireCurrentStore();
   await deleteMockupScene(store.id, productType, "admin");
   revalidatePath("/admin/mockup-scenes");
+}
+
+export type GenerateBasesState = {
+  error?: string;
+  result?: { generated: Record<string, string>; failed: Array<{ color: string; error: string }> };
+};
+
+/**
+ * Admin-side form wrapper over generateMockupSceneBases (the same
+ * function POST /api/agent/mockup-scenes/:productType/generate-bases
+ * calls) — pre-renders every color's design-free base mockup so later
+ * per-design generation is a fast local composite instead of an AI call.
+ */
+export async function generateMockupSceneBasesAction(
+  _prevState: GenerateBasesState,
+  formData: FormData
+): Promise<GenerateBasesState> {
+  const store = await requireCurrentStore();
+  const productType = String(formData.get("productType") ?? "");
+
+  try {
+    const result = await generateMockupSceneBases(store, productType, "admin");
+    revalidatePath("/admin/mockup-scenes");
+    return { result: { generated: result.generated, failed: result.failed } };
+  } catch (e) {
+    return {
+      error:
+        e instanceof StoreError ? e.message : "Couldn't generate base mockups — try again.",
+    };
+  }
+}
+
+export type DesignAreaState = { error?: string; success?: boolean };
+
+/** Sets the rectangle a design gets placed into for a product type's scene. */
+export async function setDesignAreaAction(
+  _prevState: DesignAreaState,
+  formData: FormData
+): Promise<DesignAreaState> {
+  const store = await requireCurrentStore();
+  const productType = String(formData.get("productType") ?? "");
+
+  try {
+    const area = designAreaSchema.parse({
+      x: Number(formData.get("x")),
+      y: Number(formData.get("y")),
+      width: Number(formData.get("width")),
+      height: Number(formData.get("height")),
+    });
+    await setDesignArea(store.id, productType, area, "admin");
+  } catch (e) {
+    if (e instanceof ZodError) {
+      const first = e.issues[0];
+      return { error: `${first.path.join(".")}: ${first.message}` };
+    }
+    return {
+      error: e instanceof StoreError ? e.message : "Couldn't save the design area — try again.",
+    };
+  }
+
+  revalidatePath(`/admin/mockup-scenes/${productType}/design-area`);
+  return { success: true };
 }
 
 export type GenerateProductState = {

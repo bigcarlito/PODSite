@@ -137,7 +137,6 @@ export async function generateProductFromDesign(
     {
       designUrl: input.designUrl,
       colorOptionName: input.colorOptionName,
-      model: input.model,
     },
     actor
   );

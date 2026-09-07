@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { listMockupScenes } from "@/lib/store/mockup-scenes";
 import { requireCurrentStore } from "@/lib/store-context";
 import { MockupSceneForm } from "./MockupSceneForm";
-import { DeleteMockupSceneButton } from "./DeleteMockupSceneButton";
+import { MockupSceneCard } from "./MockupSceneCard";
 
 export const dynamic = "force-dynamic";
 
@@ -18,28 +18,26 @@ export default async function MockupScenesPage() {
       <p className="mt-1 text-xs text-muted">
         One shared scene photo per product type (e.g. &quot;tshirt&quot;) — a
         blank garment in a real setting. Every product with that{" "}
-        <code>productType</code> uses this same photo for AI mockup
-        generation: the garment gets recolored to match each variant, and the
-        design is composited onto it.
+        <code>productType</code> uses this same photo: each color gets a
+        pre-generated, design-free base mockup (recolored once, reused for
+        every design), and each design gets deterministically placed into
+        the design area you define below — no AI call needed per design.
       </p>
 
       {scenes.length > 0 && (
         <div className="mt-6 flex flex-wrap gap-4">
           {scenes.map((s) => (
-            <div key={s.id} className="w-48 text-center text-xs">
-              {/* eslint-disable-next-line @next/next/no-img-element -- our own asset URL */}
-              <img
-                src={s.imageUrl}
-                alt={s.productType}
-                className="h-48 w-48 rounded-lg border border-border object-cover"
-              />
-              <p className="mt-1 font-medium">{s.productType}</p>
-              <p className="mt-1 text-muted">
-                {((s.colors as { name: string }[]) ?? []).map((c) => c.name).join(", ") ||
-                  "No colors set"}
-              </p>
-              <DeleteMockupSceneButton productType={s.productType} />
-            </div>
+            <MockupSceneCard
+              key={s.id}
+              scene={{
+                id: s.id,
+                productType: s.productType,
+                imageUrl: s.imageUrl,
+                colors: (s.colors as { name: string; hex: string }[]) ?? [],
+                baseImages: (s.baseImages as Record<string, string>) ?? {},
+                hasDesignArea: s.designArea != null,
+              }}
+            />
           ))}
         </div>
       )}

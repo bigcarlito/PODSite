@@ -480,11 +480,21 @@ Logs a `"mockup"` activity entry with the colors rendered and skipped.
 A `MockupScene` is one shared photo of a blank garment in a real setting
 (not a plain white background), keyed by `Product.productType` (free text,
 e.g. `"tshirt"`) — every product of that type reuses the same scene photo,
-rather than uploading one per product.
+rather than uploading one per product. A scene also holds two more things
+that make design placement deterministic instead of asking an image model
+to "place it naturally" on every call:
+
+- **`baseImages`** — one pre-generated, *design-free* recolor of the scene
+  per color (AI-generated once, cached, reused for every design a product
+  of this type ever gets — see `generate-bases` below).
+- **`designArea`** — the rectangle (as fractions of the scene image's own
+  pixel dimensions) a design gets scaled to fit inside and composited onto,
+  set via the design-area editor in `/admin/mockup-scenes`. If unset,
+  generation falls back to a centered default rather than failing.
 
 #### `GET /api/agent/mockup-scenes`
 
-Lists every scene this store has set.
+Lists every scene this store has set, including `baseImages` and `designArea`.
 
 #### `PUT /api/agent/mockup-scenes/:productType`
 
@@ -501,11 +511,41 @@ base64 image data (not multipart), same shape as the hero-image upload
 below. `:productType` is free text and doesn't need to exist yet.
 
 `colors` is the garment color lineup for this product type — used both to
-recolor this scene per color (above) and as the color axis for a whole
-product auto-generated from a design (below). Omit `colors` when just
-replacing the photo to keep the existing lineup; at least one color is
-required before `POST /api/agent/products/generate-from-design` can use
-this type.
+recolor this scene per color and as the color axis for a whole product
+auto-generated from a design (below). Omit `colors` when just replacing
+the photo to keep the existing lineup; at least one color is required
+before `generate-bases` or `generate-from-design` can use this type.
+Replacing the photo always clears `baseImages` — a base rendered from the
+old photo no longer matches this one.
+
+#### `POST /api/agent/mockup-scenes/:productType/generate-bases`
+
+```json
+{ "model": "google/gemini-2.5-flash-image" }
+```
+
+Generates (or regenerates) every color's design-free base mockup — one AI
+recolor call per color, no design composited. Optional; a missing base is
+also generated and cached automatically the first time a design needs it
+(see the mockups endpoint below), so this is for pre-warming the cache or
+forcing a refresh (e.g. after tweaking colors), not a required step.
+
+Fails with `NO_MOCKUP_SCENE_COLORS` (422) if the scene has no colors.
+Response: `{ "scene": {...}, "generated": {"Black": "https://..."}, "failed": [] }`.
+A partial failure doesn't erase bases from a previous successful run.
+
+#### `PUT /api/agent/mockup-scenes/:productType/design-area`
+
+```json
+{ "x": 0.32, "y": 0.22, "width": 0.36, "height": 0.42 }
+```
+
+Sets the rectangle a design gets placed into, as fractions (0-1) of the
+scene image's own pixel dimensions — `x`/`y` is the top-left corner. Best
+set visually via the design-area editor in `/admin/mockup-scenes`, which
+locks the rectangle to a reference design's aspect ratio while you
+drag/scale it; calling this directly means computing that aspect ratio
+yourself.
 
 #### `DELETE /api/agent/mockup-scenes/:productType`
 
@@ -515,8 +555,8 @@ Removes the scene for that product type.
 
 Creates a whole product from just a design image: an AI text model writes
 the title/description, one variant is created per (color × size) using the
-product type's `MockupScene` color lineup, then an AI mockup is generated
-and attached for every color (same as `POST /api/agent/products/:id/mockups/ai`
+product type's `MockupScene` color lineup, then a mockup is generated and
+attached for every color (same as `POST /api/agent/products/:id/mockups/ai`
 below) — the "pick a type, upload a design, get a finished product" flow.
 
 ```json
@@ -538,7 +578,6 @@ below) — the "pick a type, upload a design, get a finished product" flow.
 | `colorOptionName` | `"color"` | |
 | `sizeOptionName` | `"size"` | |
 | `textModel` | `OPENROUTER_TEXT_MODEL` env var | Overrides the model used for the title/description call. |
-| `model` | `OPENROUTER_MOCKUP_MODEL` env var | Overrides the model used for the mockup image calls. |
 
 Fails with `NO_MOCKUP_SCENE` (422, no scene for this type) or
 `NO_MOCKUP_SCENE_COLORS` (422, scene exists but has no colors set) before
@@ -563,18 +602,21 @@ Response shape matches the mockups-only endpoint plus the generated copy:
 
 ### `POST /api/agent/products/:id/mockups/ai`
 
-An alternative to the Printful mockup generator above: recolors this
-product's `productType` scene photo to match each variant color and
-composites the design onto it via an AI image-editing model, instead of
-Printful's flat, plain-background catalog render.
+An alternative to the Printful mockup generator above, for a non-generic,
+non-white-background result: composites the design onto this product
+type's pre-generated, per-color base mockup (see mockup scenes above),
+scaling it to fit the scene's `designArea` and blending it on at 85%
+opacity so a little of the garment's own shading still reads through. This
+is a **deterministic local image composite, not an AI call** — the only AI
+step (recoloring the blank scene per color) happened once already, when
+the base was generated, so placement is identical across colors and runs
+instead of an image model re-deciding it each time.
 
 ```json
 {
   "designUrl": "https://.../design.png",
   "colorOptionName": "color",
-  "colors": ["Black", "White"],
-  "garments": [{ "name": "Black", "hex": "#101010" }],
-  "model": "google/gemini-2.5-flash-image"
+  "colors": ["Black", "White"]
 }
 ```
 
@@ -583,21 +625,21 @@ Printful's flat, plain-background catalog render.
 | `designUrl` | *required* | Publicly reachable transparent PNG print file. |
 | `colorOptionName` | `"color"` | Which of the product's `optionNames` carries the garment color. |
 | `colors` | all | Restrict to these garment colors. |
-| `garments` | none | `[{name, hex}]` — hex per color for a more precise recolor instruction; colors without a hex here are described to the model by name only. |
-| `model` | `OPENROUTER_MOCKUP_MODEL` env var | Any OpenRouter model slug that supports image output. |
 
 Requires `Product.productType` to be set (via `PATCH /api/agent/products/:id`)
 and a scene uploaded for that type — fails with `MISSING_PRODUCT_TYPE` or
-`NO_MOCKUP_SCENE` (both 422) otherwise. Also fails with `NO_MOCKUP_VARIANTS`
-(422, no variant has the color option set) or `AI_PROVIDER_ERROR` (502, every
-color's generation call failed — `error.details.failed` lists each color's
-error).
+`NO_MOCKUP_SCENE` (both 422) otherwise. A color with no cached base image
+gets one generated and cached on the fly (one AI call), so this only needs
+`OPENROUTER_API_KEY` configured, not a prior `generate-bases` call. Also
+fails with `NO_MOCKUP_VARIANTS` (422, no variant has the color option set)
+or `AI_PROVIDER_ERROR` (502, every color failed — `error.details.failed`
+lists each color's error, whether from the on-demand base render or the
+composite step).
 
 Generation runs **per color independently**: a failure on one color doesn't
 block the others — the response's `rendered`/`failed` arrays report each
-outcome, and at least one success is required for a 200. Uses
-`OPENROUTER_API_KEY` (platform-wide only today — no per-store override yet,
-unlike the Printful credentials above). Logs an `"ai-mockup"` activity entry.
+outcome, and at least one success is required for a 200. Logs an
+`"ai-mockup"` activity entry.
 
 Response:
 
@@ -609,9 +651,9 @@ Response:
 }
 ```
 
-Unlike the Printful path, the generated image is uploaded to this store's
-own asset store (`/api/assets/:id`) rather than a temporary provider CDN
-URL, so it doesn't need re-hosting later.
+The generated image is uploaded to this store's own asset store
+(`/api/assets/:id`), not a temporary provider CDN URL, so it doesn't need
+re-hosting later.
 
 ## Collections
 

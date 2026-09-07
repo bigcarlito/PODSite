@@ -141,6 +141,20 @@ model MockupScene {
   /// with. Free-form JSON on purpose (see AGENTS.md #10) — a new color
   /// lineup is a data change, not a migration.
   colors      Json     @default("[]")
+  /// Pre-generated, design-free "blank" mockups — one per color, keyed by
+  /// color name, e.g. {"Black": "https://...", "White": "https://..."}.
+  /// Generated once (AI recolor, no design) and reused for every design a
+  /// product of this type ever gets, rather than re-recoloring the scene
+  /// on every mockup run. Cleared whenever the scene photo is replaced,
+  /// since a base generated from the old photo is stale.
+  baseImages  Json     @default("{}")
+  /// Where a design gets placed on the (recolored) scene, as fractions of
+  /// the scene image's own pixel dimensions — {x, y, width, height}, each
+  /// 0-1, (x,y) is the top-left corner. Set via the design-area editor
+  /// (drag/scale a rectangle over the scene photo, locked to a reference
+  /// design's aspect ratio). Null means unset — generation falls back to
+  /// a centered default area rather than failing.
+  designArea  Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

@@ -275,24 +275,39 @@ src/lib/design/palette.ts       Design palette extraction (opaque pixels
                                 only) + WCAG contrast scoring of a design
                                 against garment colors
 src/lib/store/mockup-scenes.ts  MockupScene CRUD — one shared "blank
-                                garment in a real setting" photo *and*
-                                color lineup per Product.productType
-                                (e.g. "tshirt")
-src/lib/store/ai-mockups.ts     generateAIProductMockups() — AI-recolors a
-                                MockupScene to match each variant color and
-                                composites the design onto it, as a
+                                garment in a real setting" photo, color
+                                lineup, pre-generated per-color base
+                                mockups (baseImages), and design
+                                placement rectangle (designArea) per
+                                Product.productType (e.g. "tshirt")
+src/lib/store/ai-mockups.ts     generateAIProductMockups() — composites a
+                                design onto a MockupScene's pre-generated
+                                base for each variant color (a
+                                deterministic local image composite, not
+                                an AI call — see compositor.ts), as a
                                 non-generic/non-white-background
                                 alternative to mockups.ts above
+src/lib/design/design-area.ts  DesignArea type + default rectangle —
+                                plain constants (no server-only) shared by
+                                the server compositor and the client-side
+                                design-area editor UI
+src/lib/design/compositor.ts    compositeDesignOnScene() — scales a design
+                                to fit a DesignArea rectangle and alpha-
+                                blends it onto a base mockup at 85%
+                                opacity (sharp, no AI call); also reads an
+                                image's pixel dimensions for the editor
 src/lib/store/ai-product-create.ts generateProductFromDesign() — the
                                 "upload a design, get a finished product"
                                 flow: AI-writes title/description, builds
                                 one variant per (color x size) from the
                                 product type's MockupScene colors, then
                                 calls ai-mockups.ts for every color
-src/lib/ai/openrouter.ts        Thin OpenRouter client — image-editing
-                                (chat completions, modalities: ["image"],
-                                used by ai-mockups.ts) and plain text
-                                generation (used by ai-product-create.ts)
+src/lib/ai/openrouter.ts        Thin OpenRouter client — image editing
+                                (chat completions, modalities: ["image"] —
+                                used only to pre-generate a MockupScene's
+                                per-color base images, not per mockup) and
+                                plain text generation (used by
+                                ai-product-create.ts)
 src/lib/fulfillment/            Pluggable POD provider interface + Printful
                                 impl — each call takes the calling store's
                                 own provider credentials
