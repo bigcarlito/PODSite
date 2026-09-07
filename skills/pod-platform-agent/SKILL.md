@@ -218,6 +218,27 @@ you don't repeat a failed experiment.
   (`NO_MOCKUP_VARIANTS` otherwise). Other errors: `DESIGN_UNREADABLE`,
   `EMPTY_DESIGN`, `PROVIDER_ERROR`.
 
+- `POST /api/agent/products/:id/mockups/ai` — alternative to the above for
+  a non-generic, non-white-background result: recolors a shared scene photo
+  (a blank garment in a real setting) to match each variant color and
+  composites the design onto it via an AI image-editing model, instead of
+  Printful's flat catalog render.
+  ```json
+  { "designUrl": "https://.../design.png", "colors": ["Black", "White"] }
+  ```
+  Needs `Product.productType` set (`PATCH /api/agent/products/:id`, e.g.
+  `"tshirt"`) and a scene uploaded for that type first:
+  `PUT /api/agent/mockup-scenes/:productType` with
+  `{"data": "<base64>", "mimeType": "image/png"}` — one photo shared by
+  every product of that type. `GET /api/agent/mockup-scenes` lists what's
+  set; `DELETE /api/agent/mockup-scenes/:productType` removes one.
+
+  Generation runs per color independently — one color's failure doesn't
+  block the others (`rendered`/`failed` in the response); needs at least
+  one success. Optional `garments: [{name, hex}]` gives the model a precise
+  hex per color instead of just a name. `model` overrides the server's
+  default OpenRouter model slug for this call.
+
 ### Collections
 
 - `GET /api/agent/collections` — list, with product counts.

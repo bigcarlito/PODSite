@@ -94,6 +94,7 @@ model Store {
   orders      Order[]
   activity    ActivityLogEntry[]
   assets      StoreAsset[]
+  mockupScenes MockupScene[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -119,6 +120,24 @@ model StoreAsset {
   createdAt DateTime @default(now())
 
   @@index([storeId, kind])
+}
+
+/// One reusable scene photo per product type (e.g. "tshirt") — a blank
+/// garment in a real setting (see AGENTS.md's AI mockup section). Shared
+/// across every product of that type in the store: an AI mockup run
+/// recolors the garment in this photo to the requested variant color and
+/// composites the design onto it, rather than each product needing its
+/// own scene upload.
+model MockupScene {
+  id          String   @id @default(cuid())
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId     String
+  productType String
+  imageUrl    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([storeId, productType])
 }
 
 /// A running history of what changed and why, per store — the "recent
@@ -180,6 +199,12 @@ model Product {
   collections ProductCollection[]
   isFeatured  Boolean             @default(false)
   isActive    Boolean             @default(true)
+  /// Free-text category this product belongs to for scene-based AI mockups,
+  /// e.g. "tshirt", "hoodie", "poster" — matches a MockupScene.productType
+  /// so every product of the same type shares one scene photo. Free text on
+  /// purpose (see AGENTS.md #10): a new product type is a data change, not
+  /// a migration. Null means this product has no AI mockup scene assigned.
+  productType String?
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
 

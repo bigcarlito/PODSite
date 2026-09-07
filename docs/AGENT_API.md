@@ -301,6 +301,7 @@ Create a product with its variants.
   "optionNames": ["size", "color"],
   "isFeatured": false,
   "isActive": true,
+  "productType": "tshirt",
   "collectionIds": ["clx...collectionId"],
   "images": [{ "url": "https://...", "altText": "Front view" }],
   "variants": [
@@ -316,6 +317,11 @@ Create a product with its variants.
   ]
 }
 ```
+
+`productType` is free text (e.g. `"tshirt"`, `"hoodie"`, `"poster"`) used
+only by the AI mockup path (`POST /api/agent/products/:id/mockups/ai`) to
+pick which shared `MockupScene` photo to recolor/composite onto — optional,
+and irrelevant to the Printful mockup path.
 
 `optionNames` can be any list of keys appropriate to the product — e.g.
 `["printType", "size"]` for a wall-art product with Poster/Canvas/Framed
@@ -468,6 +474,83 @@ Logs a `"mockup"` activity entry with the colors rendered and skipped.
 > `Store.printfulStoreId` (or the platform-wide `PRINTFUL_STORE_ID` env
 > var), found via `GET https://api.printful.com/stores` against that
 > token. A legacy single-store token doesn't hit this.
+
+### Mockup scenes (for AI mockups)
+
+A `MockupScene` is one shared photo of a blank garment in a real setting
+(not a plain white background), keyed by `Product.productType` (free text,
+e.g. `"tshirt"`) — every product of that type reuses the same scene photo,
+rather than uploading one per product.
+
+#### `GET /api/agent/mockup-scenes`
+
+Lists every scene this store has set.
+
+#### `PUT /api/agent/mockup-scenes/:productType`
+
+```json
+{ "data": "<base64, no data: prefix>", "mimeType": "image/png" }
+```
+
+Uploads/replaces the scene photo for that product type. JSON body with
+base64 image data (not multipart), same shape as the hero-image upload
+below. `:productType` is free text and doesn't need to exist yet.
+
+#### `DELETE /api/agent/mockup-scenes/:productType`
+
+Removes the scene for that product type.
+
+### `POST /api/agent/products/:id/mockups/ai`
+
+An alternative to the Printful mockup generator above: recolors this
+product's `productType` scene photo to match each variant color and
+composites the design onto it via an AI image-editing model, instead of
+Printful's flat, plain-background catalog render.
+
+```json
+{
+  "designUrl": "https://.../design.png",
+  "colorOptionName": "color",
+  "colors": ["Black", "White"],
+  "garments": [{ "name": "Black", "hex": "#101010" }],
+  "model": "google/gemini-2.5-flash-image"
+}
+```
+
+| field | default | meaning |
+| --- | --- | --- |
+| `designUrl` | *required* | Publicly reachable transparent PNG print file. |
+| `colorOptionName` | `"color"` | Which of the product's `optionNames` carries the garment color. |
+| `colors` | all | Restrict to these garment colors. |
+| `garments` | none | `[{name, hex}]` — hex per color for a more precise recolor instruction; colors without a hex here are described to the model by name only. |
+| `model` | `OPENROUTER_MOCKUP_MODEL` env var | Any OpenRouter model slug that supports image output. |
+
+Requires `Product.productType` to be set (via `PATCH /api/agent/products/:id`)
+and a scene uploaded for that type — fails with `MISSING_PRODUCT_TYPE` or
+`NO_MOCKUP_SCENE` (both 422) otherwise. Also fails with `NO_MOCKUP_VARIANTS`
+(422, no variant has the color option set) or `AI_PROVIDER_ERROR` (502, every
+color's generation call failed — `error.details.failed` lists each color's
+error).
+
+Generation runs **per color independently**: a failure on one color doesn't
+block the others — the response's `rendered`/`failed` arrays report each
+outcome, and at least one success is required for a 200. Uses
+`OPENROUTER_API_KEY` (platform-wide only today — no per-store override yet,
+unlike the Printful credentials above). Logs an `"ai-mockup"` activity entry.
+
+Response:
+
+```json
+{
+  "product": { "...": "the updated product, with the new images attached" },
+  "rendered": [{ "color": "Black", "mockupUrl": "https://..." }],
+  "failed": []
+}
+```
+
+Unlike the Printful path, the generated image is uploaded to this store's
+own asset store (`/api/assets/:id`) rather than a temporary provider CDN
+URL, so it doesn't need re-hosting later.
 
 ## Collections
 

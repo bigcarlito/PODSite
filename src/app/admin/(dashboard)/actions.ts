@@ -8,9 +8,16 @@ import { requireCurrentStore } from "@/lib/store-context";
 import * as ordersStore from "@/lib/store/orders";
 import { updateStoreBrand, setHeroImage } from "@/lib/store/settings";
 import { generateProductMockups, type ColorReport } from "@/lib/store/mockups";
+import { generateAIProductMockups } from "@/lib/store/ai-mockups";
 import { updateProduct } from "@/lib/store/products";
 import { uploadStoreAsset } from "@/lib/store/assets";
-import { storeUpdateSchema, mockupGenerateSchema, productUpdateSchema } from "@/lib/store/schemas";
+import { setMockupScene, deleteMockupScene } from "@/lib/store/mockup-scenes";
+import {
+  storeUpdateSchema,
+  mockupGenerateSchema,
+  aiMockupGenerateSchema,
+  productUpdateSchema,
+} from "@/lib/store/schemas";
 import { StoreError } from "@/lib/store/errors";
 import { ZodError } from "zod";
 
@@ -228,6 +235,131 @@ export async function generateMockupsAction(
       error: e instanceof Error ? e.message : "Couldn't generate mockups — try again.",
     };
   }
+}
+
+export type AIMockupTestState = {
+  error?: string;
+  result?: {
+    rendered: Array<{ color: string; mockupUrl: string }>;
+    failed: Array<{ color: string; error: string }>;
+  };
+};
+
+/**
+ * Admin-side form wrapper over generateAIProductMockups (the same function
+ * POST /api/agent/products/:id/mockups/ai calls) — recolors this product's
+ * MockupScene and composites the design onto it via OpenRouter, as an
+ * alternative to generateMockupsAction's Printful flat-mockup path.
+ */
+export async function generateAIMockupsAction(
+  _prevState: AIMockupTestState,
+  formData: FormData
+): Promise<AIMockupTestState> {
+  const store = await requireCurrentStore();
+  const productId = String(formData.get("productId") ?? "");
+
+  try {
+    const colorsRaw = String(formData.get("colors") ?? "").trim();
+    const garmentsRaw = String(formData.get("garments") ?? "").trim();
+    const model = String(formData.get("model") ?? "").trim();
+
+    const input = aiMockupGenerateSchema.parse({
+      designUrl: String(formData.get("designUrl") ?? ""),
+      colorOptionName: String(formData.get("colorOptionName") ?? "") || undefined,
+      colors: colorsRaw
+        ? colorsRaw.split(",").map((c) => c.trim()).filter(Boolean)
+        : undefined,
+      garments: garmentsRaw ? parseJsonField(formData, "garments", "Garments") : undefined,
+      model: model || undefined,
+    });
+
+    const result = await generateAIProductMockups(store, productId, input, "admin");
+    if (result.rendered.length > 0) {
+      revalidatePath(`/admin/products/${productId}/mockups`);
+      revalidatePath("/admin/products");
+    }
+    return { result: { rendered: result.rendered, failed: result.failed } };
+  } catch (e) {
+    if (e instanceof ZodError) {
+      const first = e.issues[0];
+      return { error: `${first.path.join(".")}: ${first.message}` };
+    }
+    if (e instanceof StoreError) {
+      return { error: e.message };
+    }
+    return {
+      error: e instanceof Error ? e.message : "Couldn't generate AI mockups — try again.",
+    };
+  }
+}
+
+export type MockupSceneUploadState = { error?: string; success?: boolean };
+
+/**
+ * Uploads a scene photo and sets it as the shared AI-mockup template for a
+ * product type — same uploadStoreAsset plumbing as uploadHeroImage/
+ * uploadDesignImage, tagged "mockup-scene" (see mockup-scenes.ts).
+ */
+export async function uploadMockupScene(
+  _prevState: MockupSceneUploadState,
+  formData: FormData
+): Promise<MockupSceneUploadState> {
+  const store = await requireCurrentStore();
+
+  const file = formData.get("file");
+  const productType = String(formData.get("productType") ?? "").trim();
+  if (!productType) {
+    return { error: "Enter a product type (e.g. \"tshirt\") first." };
+  }
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Choose an image file first." };
+  }
+
+  try {
+    const data = Buffer.from(await file.arrayBuffer());
+    const requestHeaders = await headers();
+    const host = requestHeaders.get("host");
+    const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
+    const origin = host ? `${proto}://${host}` : "";
+
+    await setMockupScene(store, productType, { data, mimeType: file.type }, "admin", origin);
+  } catch (e) {
+    return {
+      error: e instanceof StoreError ? e.message : "Couldn't upload scene photo — try again.",
+    };
+  }
+
+  revalidatePath("/admin/mockup-scenes");
+  return { success: true };
+}
+
+export async function deleteMockupSceneAction(productType: string) {
+  const store = await requireCurrentStore();
+  await deleteMockupScene(store.id, productType, "admin");
+  revalidatePath("/admin/mockup-scenes");
+}
+
+export type ProductTypeState = { error?: string; success?: boolean };
+
+/** Sets Product.productType — which MockupScene this product uses for AI mockups. */
+export async function updateProductType(
+  _prevState: ProductTypeState,
+  formData: FormData
+): Promise<ProductTypeState> {
+  const store = await requireCurrentStore();
+  const productId = String(formData.get("productId") ?? "");
+  const productType = String(formData.get("productType") ?? "").trim();
+
+  try {
+    await updateProduct(store.id, productId, { productType: productType || undefined }, "admin");
+  } catch (e) {
+    return {
+      error: e instanceof StoreError ? e.message : "Couldn't save product type — try again.",
+    };
+  }
+
+  revalidatePath(`/admin/products/${productId}/mockups`);
+  return { success: true };
 }
 
 export type VariantProviderIdsState = { error?: string; success?: boolean };

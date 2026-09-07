@@ -270,9 +270,21 @@ src/lib/store/public.ts         toSafeStore() — the allow-listed Store
                                 never the credential-hash fields
 src/lib/store/mockups.ts        generateProductMockups() — renders a design
                                 on the garment colors it reads well on
+                                (Printful's flat, plain-background mockup)
 src/lib/design/palette.ts       Design palette extraction (opaque pixels
                                 only) + WCAG contrast scoring of a design
                                 against garment colors
+src/lib/store/mockup-scenes.ts  MockupScene CRUD — one shared "blank
+                                garment in a real setting" photo per
+                                Product.productType (e.g. "tshirt")
+src/lib/store/ai-mockups.ts     generateAIProductMockups() — AI-recolors a
+                                MockupScene to match each variant color and
+                                composites the design onto it, as a
+                                non-generic/non-white-background
+                                alternative to mockups.ts above
+src/lib/ai/openrouter.ts        Thin OpenRouter client for image-editing
+                                models (chat completions, modalities:
+                                ["image"]) — used by ai-mockups.ts
 src/lib/fulfillment/            Pluggable POD provider interface + Printful
                                 impl — each call takes the calling store's
                                 own provider credentials
