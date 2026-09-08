@@ -34,7 +34,8 @@ export async function Header() {
               <img
                 src={branding.theme.logoUrl}
                 alt={branding.name}
-                className="h-9 w-auto max-w-[10rem] object-contain sm:h-10"
+                className="w-auto object-contain"
+                style={{ height: 45 }}
               />
             ) : (
               <span className="text-lg font-semibold tracking-tight sm:text-xl">
