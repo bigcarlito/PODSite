@@ -205,6 +205,11 @@ export async function generateMockupSceneBases(
  * on demand if missing — the self-healing counterpart to
  * generateMockupSceneBases, so an agent calling straight through to a
  * product mockup never has to remember a separate "pre-generate" step.
+ *
+ * Also self-heals a cached value that isn't a fetchable absolute URL (e.g.
+ * one written before the origin fix that resolves it — see origin.ts —
+ * existed): trusting it blindly here would just re-fail downstream, so a
+ * malformed cache entry is treated the same as a missing one.
  */
 export async function ensureMockupSceneBase(
   store: Store,
@@ -216,7 +221,7 @@ export async function ensureMockupSceneBase(
 ): Promise<string> {
   const scene = await getMockupScene(store.id, productType);
   const existing = (scene.baseImages as Record<string, string> | null)?.[color.name];
-  if (existing) return existing;
+  if (existing && /^https?:\/\//.test(existing)) return existing;
 
   const apiKey = apiKeyOrThrow();
   const { data, mimeType } = await renderMockupSceneBase({
