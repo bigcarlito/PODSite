@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentStore } from "@/lib/store-context";
-import { Gallery } from "@/components/Gallery";
-import { VariantPicker } from "@/components/VariantPicker";
+import { ProductPurchasePanel } from "@/components/ProductPurchasePanel";
 import { ProductCard } from "@/components/ProductCard";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +39,15 @@ export default async function ProductPage({
 
   if (!product) notFound();
 
+  const colorSwatches: Record<string, string> = {};
+  if (product.productType) {
+    const scene = await prisma.mockupScene.findUnique({
+      where: { storeId_productType: { storeId: store.id, productType: product.productType } },
+    });
+    const colors = (scene?.colors as unknown as { name: string; hex: string }[]) ?? [];
+    for (const c of colors) colorSwatches[c.name] = c.hex;
+  }
+
   const related = await prisma.product.findMany({
     where: { storeId: store.id, isActive: true, id: { not: product.id } },
     include: {
@@ -51,35 +59,24 @@ export default async function ProductPage({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
-        <Gallery images={product.images} title={product.title} />
-
-        <div className="lg:sticky lg:top-24 lg:self-start">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            {product.title}
-          </h1>
-
-          <div className="mt-6">
-            <VariantPicker
-              optionNames={product.optionNames}
-              variants={product.variants.map((v) => ({
-                id: v.id,
-                options: v.options as Record<string, string>,
-                priceCents: v.priceCents,
-                currency: v.currency,
-                inStock: v.inStock,
-              }))}
-            />
-          </div>
-
-          <div className="mt-8 border-t border-border pt-6">
-            <p className="text-sm font-medium">Description</p>
-            <p className="mt-2 whitespace-pre-line text-sm text-muted">
-              {product.description}
-            </p>
-          </div>
-        </div>
-      </div>
+      <ProductPurchasePanel
+        title={product.title}
+        description={product.description}
+        images={product.images.map((img) => ({
+          url: img.url,
+          altText: img.altText,
+          optionValues: img.optionValues as Record<string, string> | null,
+        }))}
+        optionNames={product.optionNames}
+        variants={product.variants.map((v) => ({
+          id: v.id,
+          options: v.options as Record<string, string>,
+          priceCents: v.priceCents,
+          currency: v.currency,
+          inStock: v.inStock,
+        }))}
+        colorSwatches={colorSwatches}
+      />
 
       {related.length > 0 && (
         <section className="mt-16 sm:mt-20">
