@@ -134,6 +134,11 @@ you don't repeat a failed experiment.
   `image/jpeg`, or `image/webp`; max 8MB decoded). Returns the updated
   store with `theme.heroImageUrl` already set — the platform hosts the
   image itself at `/api/assets/<id>`, no S3/Cloudinary credentials needed.
+  `theme.logoUrl` is an optional image shown in the header in place of
+  the store name text — the name becomes its hover tooltip, and it still
+  links to `/`. Set it directly via `PATCH /api/agent/store`, or
+  `POST /api/agent/store/logo-image` (same body/behavior as
+  `hero-image` above) to upload a generated one.
 
 ### Activity log
 

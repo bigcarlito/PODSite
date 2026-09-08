@@ -41,10 +41,30 @@ export async function setHeroImage(
 ) {
   const asset = await uploadStoreAsset(store.id, { kind: "hero-image", ...input }, actor);
   const currentTheme =
-    (store.theme as { accent?: string; accentDark?: string; heroImageUrl?: string } | null) ?? {};
+    (store.theme as { accent?: string; accentDark?: string; heroImageUrl?: string; logoUrl?: string } | null) ?? {};
   return updateStoreBrand(
     store.id,
     { theme: { ...currentTheme, heroImageUrl: asset.url } },
+    actor
+  );
+}
+
+/**
+ * Uploads an image and sets it as this store's header logo in one step —
+ * same pattern as setHeroImage above. The header shows this image in place
+ * of the store name text (with the name as its hover tooltip) once set.
+ */
+export async function setLogoImage(
+  store: Store,
+  input: { data: Buffer; mimeType: string },
+  actor: ActivityActor
+) {
+  const asset = await uploadStoreAsset(store.id, { kind: "logo", ...input }, actor);
+  const currentTheme =
+    (store.theme as { accent?: string; accentDark?: string; heroImageUrl?: string; logoUrl?: string } | null) ?? {};
+  return updateStoreBrand(
+    store.id,
+    { theme: { ...currentTheme, logoUrl: asset.url } },
     actor
   );
 }

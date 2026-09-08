@@ -7,7 +7,7 @@ import { originFromHeaders } from "@/lib/origin";
 import { destroyAdminSession } from "@/lib/admin-auth";
 import { requireCurrentStore } from "@/lib/store-context";
 import * as ordersStore from "@/lib/store/orders";
-import { updateStoreBrand, setHeroImage } from "@/lib/store/settings";
+import { updateStoreBrand, setHeroImage, setLogoImage } from "@/lib/store/settings";
 import { generateProductMockups, type ColorReport } from "@/lib/store/mockups";
 import { generateAIProductMockups } from "@/lib/store/ai-mockups";
 import { generateProductFromDesign } from "@/lib/store/ai-product-create";
@@ -84,6 +84,7 @@ export async function updateStoreSettings(
         accent: String(formData.get("theme_accent") ?? ""),
         accentDark: String(formData.get("theme_accentDark") ?? ""),
         heroImageUrl: String(formData.get("theme_heroImageUrl") ?? "") || undefined,
+        logoUrl: String(formData.get("theme_logoUrl") ?? "") || undefined,
       },
       trustBadges: linesOf(formData, "trustBadges"),
       nav: parseJsonField(formData, "nav", "Nav links"),
@@ -138,6 +139,40 @@ export async function uploadHeroImage(formData: FormData): Promise<HeroImageUplo
     revalidatePath("/", "layout"); // hero shows on the homepage
 
     return { url: theme.heroImageUrl };
+  } catch (e) {
+    return {
+      error:
+        e instanceof StoreError
+          ? e.message
+          : "Couldn't upload image — try again.",
+    };
+  }
+}
+
+export type LogoImageUploadState = { url?: string; error?: string };
+
+/**
+ * Uploads a logo image file and immediately sets it as the store's header
+ * logo (see setLogoImage in src/lib/store/settings.ts — the same function
+ * POST /api/agent/store/logo-image calls). Same pattern as uploadHeroImage.
+ */
+export async function uploadLogoImage(formData: FormData): Promise<LogoImageUploadState> {
+  const store = await requireCurrentStore();
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Choose an image file first." };
+  }
+
+  try {
+    const data = Buffer.from(await file.arrayBuffer());
+    const updated = await setLogoImage(store, { data, mimeType: file.type }, "admin");
+    const theme = (updated.theme as { logoUrl?: string } | null) ?? {};
+
+    revalidatePath("/admin/settings");
+    revalidatePath("/", "layout"); // logo shows in the header on every page
+
+    return { url: theme.logoUrl };
   } catch (e) {
     return {
       error:

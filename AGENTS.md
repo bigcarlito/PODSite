@@ -260,7 +260,8 @@ src/lib/store/activity.ts       logActivity()/listActivity() — the
                                 recent-activity log (rule #12)
 src/lib/store/settings.ts       updateStoreBrand() — a store editing its
                                 own brand fields (name/brief/theme/etc.);
-                                setHeroImage() — upload + set in one step
+                                setHeroImage()/setLogoImage() — upload +
+                                set in one step
 src/lib/store/assets.ts         uploadStoreAsset()/getStoreAsset() — binary
                                 image storage (hero images, uploaded
                                 designs, mockup scenes/bases, generated

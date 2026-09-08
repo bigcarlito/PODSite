@@ -28,11 +28,19 @@ export async function Header() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex items-center gap-2">
           <MobileNav nav={branding.nav} />
-          <Link
-            href="/"
-            className="text-lg font-semibold tracking-tight sm:text-xl"
-          >
-            {branding.name}
+          <Link href="/" title={branding.name} aria-label={branding.name}>
+            {branding.theme.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- arbitrary store-hosted URL, not allow-listable (see next.config.ts remotePatterns notes)
+              <img
+                src={branding.theme.logoUrl}
+                alt={branding.name}
+                className="h-9 w-auto max-w-[10rem] object-contain sm:h-10"
+              />
+            ) : (
+              <span className="text-lg font-semibold tracking-tight sm:text-xl">
+                {branding.name}
+              </span>
+            )}
           </Link>
         </div>
 
