@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { originFromHeaders } from "@/lib/origin";
 import { destroyAdminSession } from "@/lib/admin-auth";
 import { requireCurrentStore } from "@/lib/store-context";
 import * as ordersStore from "@/lib/store/orders";
@@ -169,11 +170,7 @@ export async function uploadDesignImage(formData: FormData): Promise<DesignUploa
   try {
     const data = Buffer.from(await file.arrayBuffer());
     const asset = await uploadStoreAsset(store.id, { kind: "design", data, mimeType: file.type }, "admin");
-
-    const requestHeaders = await headers();
-    const host = requestHeaders.get("host");
-    const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
-    const origin = host ? `${proto}://${host}` : "";
+    const origin = originFromHeaders(await headers());
 
     return { url: `${origin}${asset.url}` };
   } catch (e) {
@@ -277,7 +274,8 @@ export async function generateAIMockupsAction(
         : undefined,
     });
 
-    const result = await generateAIProductMockups(store, productId, input, "admin");
+    const origin = originFromHeaders(await headers());
+    const result = await generateAIProductMockups(store, productId, input, "admin", origin);
     if (result.rendered.length > 0) {
       revalidatePath(`/admin/products/${productId}/mockups`);
       revalidatePath("/admin/products");
@@ -324,10 +322,7 @@ export async function uploadMockupScene(
   try {
     const colors = colorsRaw ? parseJsonField(formData, "colors", "Colors") : undefined;
     const data = Buffer.from(await file.arrayBuffer());
-    const requestHeaders = await headers();
-    const host = requestHeaders.get("host");
-    const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
-    const origin = host ? `${proto}://${host}` : "";
+    const origin = originFromHeaders(await headers());
 
     await setMockupScene(store, productType, { data, mimeType: file.type }, "admin", origin, colors);
   } catch (e) {
@@ -365,7 +360,8 @@ export async function generateMockupSceneBasesAction(
   const productType = String(formData.get("productType") ?? "");
 
   try {
-    const result = await generateMockupSceneBases(store, productType, "admin");
+    const origin = originFromHeaders(await headers());
+    const result = await generateMockupSceneBases(store, productType, "admin", origin);
     revalidatePath("/admin/mockup-scenes");
     return { result: { generated: result.generated, failed: result.failed } };
   } catch (e) {
@@ -445,7 +441,8 @@ export async function generateProductAction(
         : undefined,
     });
 
-    const result = await generateProductFromDesign(store, input, "admin");
+    const origin = originFromHeaders(await headers());
+    const result = await generateProductFromDesign(store, input, "admin", origin);
     revalidatePath("/admin/products");
 
     return {

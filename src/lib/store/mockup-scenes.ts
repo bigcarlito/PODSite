@@ -130,11 +130,17 @@ async function renderMockupSceneBase(input: {
  * Safe to call repeatedly — each run replaces every color's base with a
  * fresh render (e.g. after tweaking the scene photo, though setMockupScene
  * already clears these on a photo swap).
+ *
+ * `origin` resolves uploadStoreAsset's host-relative URL to an absolute
+ * one before caching it — compositeDesignOnScene later fetches this URL
+ * from server-side code with no request/browser to resolve a relative
+ * path against, same requirement as setMockupScene's imageUrl.
  */
 export async function generateMockupSceneBases(
   store: Store,
   productType: string,
   actor: ActivityActor,
+  origin: string,
   model?: string
 ) {
   const scene = await getMockupScene(store.id, productType);
@@ -163,7 +169,7 @@ export async function generateMockupSceneBases(
         color,
       });
       const asset = await uploadStoreAsset(store.id, { kind: "mockup-scene-base", data, mimeType }, actor);
-      baseImages[color.name] = asset.url;
+      baseImages[color.name] = `${origin}${asset.url}`;
     } catch (cause) {
       failed.push({
         color: color.name,
@@ -205,6 +211,7 @@ export async function ensureMockupSceneBase(
   productType: string,
   color: MockupSceneColor,
   actor: ActivityActor,
+  origin: string,
   model?: string
 ): Promise<string> {
   const scene = await getMockupScene(store.id, productType);
@@ -219,18 +226,19 @@ export async function ensureMockupSceneBase(
     color,
   });
   const asset = await uploadStoreAsset(store.id, { kind: "mockup-scene-base", data, mimeType }, actor);
+  const imageUrl = `${origin}${asset.url}`;
 
   await prisma.mockupScene.update({
     where: { id: scene.id },
     data: {
       baseImages: {
         ...((scene.baseImages as Record<string, string>) ?? {}),
-        [color.name]: asset.url,
+        [color.name]: imageUrl,
       } as Prisma.InputJsonValue,
     },
   });
 
-  return asset.url;
+  return imageUrl;
 }
 
 /** Sets the rectangle (fractions of the scene image) a design gets placed

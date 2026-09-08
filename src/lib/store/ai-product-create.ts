@@ -34,7 +34,8 @@ function extractJson(text: string): string {
 export async function generateProductFromDesign(
   store: Store,
   input: AiProductCreateInput,
-  actor: ActivityActor = "agent"
+  actor: ActivityActor,
+  origin: string
 ) {
   const scene = await getMockupScene(store.id, input.productType);
   const colors = (scene.colors as unknown as MockupSceneColor[]) ?? [];
@@ -147,7 +148,8 @@ export async function generateProductFromDesign(
       designUrl: input.designUrl,
       colorOptionName: input.colorOptionName,
     },
-    actor
+    actor,
+    origin
   );
 
   return {
