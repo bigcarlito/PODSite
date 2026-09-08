@@ -189,6 +189,12 @@ export const activityCreateSchema = z.object({
   details: z.record(z.string(), z.unknown()).optional(),
 });
 
+/// Shared by both prune endpoints — dryRun defaults true so a caller must
+/// explicitly ask for the real, destructive thing.
+export const pruneSchema = z.object({
+  dryRun: z.boolean().default(true),
+});
+
 export type MockupGenerateInput = z.infer<typeof mockupGenerateSchema>;
 export type AiMockupGenerateInput = z.infer<typeof aiMockupGenerateSchema>;
 export type DesignAreaInput = z.infer<typeof designAreaSchema>;
@@ -201,3 +207,4 @@ export type CollectionCreateInput = z.infer<typeof collectionCreateSchema>;
 export type StoreUpdateInput = z.infer<typeof storeUpdateSchema>;
 export type HeroImageUploadInput = z.infer<typeof heroImageUploadSchema>;
 export type ActivityCreateInput = z.infer<typeof activityCreateSchema>;
+export type PruneInput = z.infer<typeof pruneSchema>;
