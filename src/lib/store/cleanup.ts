@@ -19,8 +19,9 @@ async function collectReferencedAssetIds(storeId: string): Promise<Set<string>> 
   ]);
 
   const urls: string[] = [];
-  const theme = (store.theme as { heroImageUrl?: string } | null) ?? {};
+  const theme = (store.theme as { heroImageUrl?: string; logoUrl?: string } | null) ?? {};
   if (theme.heroImageUrl) urls.push(theme.heroImageUrl);
+  if (theme.logoUrl) urls.push(theme.logoUrl);
   for (const scene of scenes) {
     urls.push(scene.imageUrl);
     urls.push(...Object.values((scene.baseImages as Record<string, string> | null) ?? {}));

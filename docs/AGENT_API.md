@@ -205,6 +205,18 @@ renders on its own plain background, never over the image:
 To set it from a generated image (rather than an already-hosted URL),
 use `POST /api/agent/store/hero-image` instead — see below.
 
+`theme.logoUrl` is an optional image shown in the header in place of the
+store name text — the name becomes the image's hover tooltip (and its
+`alt` text), and clicking it still links to `/`. Omitted/empty falls
+back to the store name as plain text:
+
+```json
+{ "theme": { "logoUrl": "https://..." } }
+```
+
+To set it from a generated image, use `POST /api/agent/store/logo-image`
+instead — see below.
+
 **This replaces the field, it does not deep-merge.** If you're only
 adding one key to `brief`, `GET /api/agent/store` first, edit the object
 client-side, then `PATCH` the whole thing back. Never touches `slug`,
@@ -233,6 +245,16 @@ equivalent to hosting the image yourself and calling `PATCH
 /api/agent/store` with `{"theme": {"heroImageUrl": "..."}}`, except the
 platform does the hosting. Logs an `"assets"` activity entry
 automatically.
+
+### `POST /api/agent/store/logo-image`
+
+Uploads an image and sets it as this store's header logo in one step —
+same shape and behavior as `POST /api/agent/store/hero-image` above,
+except it sets `theme.logoUrl` instead of `theme.heroImageUrl`:
+
+```json
+{ "data": "<base64-encoded image bytes>", "mimeType": "image/png" }
+```
 
 ## Activity log
 
@@ -744,8 +766,9 @@ Every uploaded design, scene photo, base mockup, and generated mockup is
 stored permanently (see `src/lib/store/assets.ts` — nothing currently
 deletes an asset when the thing referencing it gets replaced). This finds
 every `StoreAsset` nothing currently points to — not `Store.theme.
-heroImageUrl`, not any `MockupScene.imageUrl`/`baseImages` entry, not any
-`ProductImage.url` — and, unless `dryRun`, deletes them.
+heroImageUrl`, not `Store.theme.logoUrl`, not any `MockupScene.imageUrl`/
+`baseImages` entry, not any `ProductImage.url` — and, unless `dryRun`,
+deletes them.
 
 ```json
 {

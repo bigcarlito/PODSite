@@ -162,6 +162,14 @@ export const storeUpdateSchema = z.object({
           (v) => v.startsWith("/") || /^https?:\/\//.test(v),
           "Must be an absolute URL or a path starting with \"/\""
         ),
+      /// Shown in the header in place of the store name text (name becomes
+      /// its hover tooltip) — same URL-shape rule as heroImageUrl above.
+      logoUrl: z
+        .string()
+        .refine(
+          (v) => v.startsWith("/") || /^https?:\/\//.test(v),
+          "Must be an absolute URL or a path starting with \"/\""
+        ),
     })
     .partial()
     .optional(),
@@ -179,6 +187,12 @@ export const storeUpdateSchema = z.object({
 /// JSON body (not multipart) so this stays a single zod-validated action,
 /// consistent with every other agent-facing endpoint (see AGENTS.md #13).
 export const heroImageUploadSchema = z.object({
+  data: z.string().min(1), // base64, no "data:image/...;base64," prefix
+  mimeType: z.enum(["image/png", "image/jpeg", "image/webp"]),
+});
+
+/// Base64-encoded image upload — used to set the header logo image.
+export const logoImageUploadSchema = z.object({
   data: z.string().min(1), // base64, no "data:image/...;base64," prefix
   mimeType: z.enum(["image/png", "image/jpeg", "image/webp"]),
 });
@@ -206,5 +220,6 @@ export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 export type CollectionCreateInput = z.infer<typeof collectionCreateSchema>;
 export type StoreUpdateInput = z.infer<typeof storeUpdateSchema>;
 export type HeroImageUploadInput = z.infer<typeof heroImageUploadSchema>;
+export type LogoImageUploadInput = z.infer<typeof logoImageUploadSchema>;
 export type ActivityCreateInput = z.infer<typeof activityCreateSchema>;
 export type PruneInput = z.infer<typeof pruneSchema>;

@@ -14,7 +14,7 @@ const DEFAULT_THEME = { accent: "#3f4a2f", accentDark: "#2c3420" };
 export function getStoreBranding(store: Store) {
   const theme =
     (store.theme as
-      | { accent?: string; accentDark?: string; heroImageUrl?: string }
+      | { accent?: string; accentDark?: string; heroImageUrl?: string; logoUrl?: string }
       | null) ?? {};
   return {
     name: store.name,
@@ -28,6 +28,7 @@ export function getStoreBranding(store: Store) {
       accent: theme.accent ?? DEFAULT_THEME.accent,
       accentDark: theme.accentDark ?? DEFAULT_THEME.accentDark,
       heroImageUrl: theme.heroImageUrl,
+      logoUrl: theme.logoUrl,
     },
   };
 }

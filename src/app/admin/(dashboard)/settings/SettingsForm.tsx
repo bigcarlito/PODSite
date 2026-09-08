@@ -1,7 +1,12 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { updateStoreSettings, uploadHeroImage, type SettingsState } from "../actions";
+import {
+  updateStoreSettings,
+  uploadHeroImage,
+  uploadLogoImage,
+  type SettingsState,
+} from "../actions";
 
 export type SettingsFormValues = {
   name: string;
@@ -16,6 +21,7 @@ export type SettingsFormValues = {
   themeAccent: string;
   themeAccentDark: string;
   themeHeroImageUrl: string;
+  themeLogoUrl: string;
   trustBadges: string;
   nav: string;
   footerLinks: string;
@@ -57,6 +63,10 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
   const [uploadError, setUploadError] = useState<string>();
   const [uploading, startUpload] = useTransition();
 
+  const [logoUrl, setLogoUrl] = useState(initial.themeLogoUrl);
+  const [logoUploadError, setLogoUploadError] = useState<string>();
+  const [uploadingLogo, startLogoUpload] = useTransition();
+
   function handleHeroFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-selecting the same file later
@@ -71,6 +81,24 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
         setUploadError(result.error);
       } else if (result.url) {
         setHeroImageUrl(result.url);
+      }
+    });
+  }
+
+  function handleLogoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+
+    setLogoUploadError(undefined);
+    startLogoUpload(async () => {
+      const formData = new FormData();
+      formData.set("file", file);
+      const result = await uploadLogoImage(formData);
+      if (result.error) {
+        setLogoUploadError(result.error);
+      } else if (result.url) {
+        setLogoUrl(result.url);
       }
     });
   }
@@ -164,6 +192,45 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
           {uploadError && (
             <p className="mt-1 text-xs text-red-600" role="alert">
               {uploadError}
+            </p>
+          )}
+        </Field>
+        <Field
+          label="Header logo URL"
+          hint="Shown in the header in place of the store name text, with the name as a hover tooltip. Leave blank to show the store name as text."
+        >
+          <input
+            name="theme_logoUrl"
+            type="text"
+            value={logoUrl}
+            onChange={(e) => setLogoUrl(e.target.value)}
+            placeholder="https://... or /api/assets/..."
+            className={inputClass}
+          />
+          {logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- arbitrary/uploaded URL, see Header.tsx
+            <img
+              src={logoUrl}
+              alt=""
+              className="mt-2 h-10 w-auto rounded border border-border object-contain p-1"
+            />
+          )}
+        </Field>
+        <Field
+          label="Or upload a logo"
+          hint="Uploads immediately and fills in the URL above — PNG, JPEG, or WebP, up to 8MB."
+        >
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            disabled={uploadingLogo}
+            onChange={handleLogoFileChange}
+            className="block w-full text-sm text-muted file:mr-3 file:rounded-full file:border-0 file:bg-accent file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-accent-dark disabled:opacity-50"
+          />
+          {uploadingLogo && <p className="mt-1 text-xs text-muted">Uploading…</p>}
+          {logoUploadError && (
+            <p className="mt-1 text-xs text-red-600" role="alert">
+              {logoUploadError}
             </p>
           )}
         </Field>

@@ -11,7 +11,12 @@ export default async function AdminSettingsPage() {
 
   const brief = (store.brief as Record<string, unknown>) ?? {};
   const theme =
-    (store.theme as { accent?: string; accentDark?: string; heroImageUrl?: string }) ?? {};
+    (store.theme as {
+      accent?: string;
+      accentDark?: string;
+      heroImageUrl?: string;
+      logoUrl?: string;
+    }) ?? {};
 
   return (
     <div>
@@ -38,6 +43,7 @@ export default async function AdminSettingsPage() {
           themeAccent: theme.accent ?? "#3f4a2f",
           themeAccentDark: theme.accentDark ?? "#2c3420",
           themeHeroImageUrl: theme.heroImageUrl ?? "",
+          themeLogoUrl: theme.logoUrl ?? "",
           trustBadges: Array.isArray(store.trustBadges)
             ? (store.trustBadges as string[]).join("\n")
             : "",
