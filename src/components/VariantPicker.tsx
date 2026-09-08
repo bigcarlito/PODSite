@@ -22,9 +22,11 @@ function humanize(optionName: string) {
 export function VariantPicker({
   optionNames,
   variants,
+  colorSwatches,
 }: {
   optionNames: string[];
   variants: VariantOption[];
+  colorSwatches?: Record<string, string>;
 }) {
   const valuesByOption = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -62,26 +64,45 @@ export function VariantPicker({
       {optionNames.map((name) => {
         const values = valuesByOption.get(name) ?? [];
         if (values.length === 0) return null;
+        const isColor = name.toLowerCase().includes("color");
         return (
           <div key={name}>
             <p className="mb-2 text-sm font-medium">{humanize(name)}</p>
             <div className="flex flex-wrap gap-2">
-              {values.map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() =>
-                    setSelection((prev) => ({ ...prev, [name]: value }))
-                  }
-                  className={`min-w-11 rounded-full border px-4 py-2 text-sm transition-colors ${
-                    selection[name] === value
-                      ? "border-accent bg-accent text-white"
-                      : "border-border hover:border-accent"
-                  }`}
-                >
-                  {value}
-                </button>
-              ))}
+              {values.map((value) =>
+                isColor ? (
+                  <button
+                    key={value}
+                    type="button"
+                    title={value}
+                    aria-label={value}
+                    onClick={() =>
+                      setSelection((prev) => ({ ...prev, [name]: value }))
+                    }
+                    style={{ backgroundColor: colorSwatches?.[value] ?? value.toLowerCase() }}
+                    className={`h-9 w-9 rounded-full border-2 transition-shadow ${
+                      selection[name] === value
+                        ? "border-accent shadow-[0_0_0_2px_rgba(0,0,0,0.05)]"
+                        : "border-border hover:border-accent"
+                    }`}
+                  />
+                ) : (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() =>
+                      setSelection((prev) => ({ ...prev, [name]: value }))
+                    }
+                    className={`min-w-11 rounded-full border px-4 py-2 text-sm transition-colors ${
+                      selection[name] === value
+                        ? "border-accent bg-accent text-white"
+                        : "border-border hover:border-accent"
+                    }`}
+                  >
+                    {value}
+                  </button>
+                )
+              )}
             </div>
           </div>
         );

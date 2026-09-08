@@ -40,6 +40,15 @@ export default async function ProductPage({
 
   if (!product) notFound();
 
+  const colorSwatches: Record<string, string> = {};
+  if (product.productType) {
+    const scene = await prisma.mockupScene.findUnique({
+      where: { storeId_productType: { storeId: store.id, productType: product.productType } },
+    });
+    const colors = (scene?.colors as unknown as { name: string; hex: string }[]) ?? [];
+    for (const c of colors) colorSwatches[c.name] = c.hex;
+  }
+
   const related = await prisma.product.findMany({
     where: { storeId: store.id, isActive: true, id: { not: product.id } },
     include: {
@@ -69,6 +78,7 @@ export default async function ProductPage({
                 currency: v.currency,
                 inStock: v.inStock,
               }))}
+              colorSwatches={colorSwatches}
             />
           </div>
 
