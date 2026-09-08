@@ -11,7 +11,7 @@ import { updateStoreBrand, setHeroImage } from "@/lib/store/settings";
 import { generateProductMockups, type ColorReport } from "@/lib/store/mockups";
 import { generateAIProductMockups } from "@/lib/store/ai-mockups";
 import { generateProductFromDesign } from "@/lib/store/ai-product-create";
-import { updateProduct } from "@/lib/store/products";
+import { updateProduct, deactivateProduct } from "@/lib/store/products";
 import { uploadStoreAsset } from "@/lib/store/assets";
 import {
   setMockupScene,
@@ -339,6 +339,18 @@ export async function deleteMockupSceneAction(productType: string) {
   const store = await requireCurrentStore();
   await deleteMockupScene(store.id, productType, "admin");
   revalidatePath("/admin/mockup-scenes");
+}
+
+/**
+ * Soft-deletes a product — the same deactivateProduct function DELETE
+ * /api/agent/products/:id calls (rule #1). Products are never hard-deleted
+ * since past orders reference their variants; this just sets isActive:
+ * false so it drops off the storefront.
+ */
+export async function deleteProductAction(productId: string) {
+  const store = await requireCurrentStore();
+  await deactivateProduct(store.id, productId, "admin");
+  revalidatePath("/admin/products");
 }
 
 export type GenerateBasesState = {
