@@ -89,7 +89,12 @@ export async function generateAIProductMockups(
         area: designArea,
       });
       const asset = await uploadStoreAsset(store.id, { kind: "ai-mockup", data, mimeType }, actor);
-      rendered.push({ color, mockupUrl: `${origin}${asset.url}` });
+      // Stored relative — ProductImage.url is only ever rendered by
+      // next/image on our own storefront, and next.config.ts can't (and
+      // architecturally shouldn't) allow-list every store's own domain.
+      // Absolute URLs are only needed for external fetches (Printful,
+      // OpenRouter) and for agent-facing API responses, added below.
+      rendered.push({ color, mockupUrl: asset.url });
     } catch (cause) {
       failed.push({
         color,
@@ -148,7 +153,7 @@ export async function generateAIProductMockups(
 
   return {
     product: await getProductById(store.id, productId),
-    rendered,
+    rendered: rendered.map((r) => ({ ...r, mockupUrl: `${origin}${r.mockupUrl}` })),
     failed,
   };
 }
