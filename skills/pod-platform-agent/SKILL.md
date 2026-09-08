@@ -185,7 +185,9 @@ you don't repeat a failed experiment.
   partial patch of just one field — fetch the product first if you need
   its current values); omit `id` to add a new variant.
 - `DELETE /api/agent/products/:id` — soft-delete (`isActive: false`).
-  Products are never hard-deleted (past orders reference their variants).
+  Products are normally never hard-deleted (past orders reference their
+  variants) — see `POST /api/agent/store/prune-products` below for the
+  one safe exception.
 - `POST /api/agent/products/:id/mockups` — render product photos of a
   design on the garment colors it reads well on, and attach them:
   ```json
@@ -285,6 +287,23 @@ you don't repeat a failed experiment.
   `SUBMITTED_TO_FULFILLMENT`. Fails `422 MISSING_PROVIDER_VARIANT` if any
   line item's variant lacks a `providerVariantId` — set that via `PATCH
   /api/agent/products/:id` first.
+
+### Cleanup
+
+Both take `{"dryRun": false}` — default is `dryRun: true`, so a caller
+must explicitly opt into actually deleting anything.
+
+- `POST /api/agent/store/prune-assets` — deletes every uploaded design/
+  scene/mockup image nothing references anymore (not `Store.theme.
+  heroImageUrl`, any `MockupScene.imageUrl`/`baseImages`, or any
+  `ProductImage.url`). Nothing else currently cleans these up, so they
+  accumulate on every replace/regenerate. Response: `{total, orphaned,
+  deleted, dryRun}`.
+- `POST /api/agent/store/prune-products` — hard-deletes **inactive**
+  products with zero `CartItem`/`OrderItem` references on any variant —
+  the one safe exception to "products are never hard-deleted." Cascades
+  to the product's variants/images/collection links. Response: `{total,
+  eligible, skipped, deleted, failed, dryRun}`.
 
 ## Typical flows
 

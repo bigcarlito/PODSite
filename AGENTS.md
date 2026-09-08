@@ -262,9 +262,21 @@ src/lib/store/settings.ts       updateStoreBrand() — a store editing its
                                 own brand fields (name/brief/theme/etc.);
                                 setHeroImage() — upload + set in one step
 src/lib/store/assets.ts         uploadStoreAsset()/getStoreAsset() — binary
-                                image storage (currently just hero images),
-                                kept off Store itself so getCurrentStore()
-                                never pulls image bytes on every request
+                                image storage (hero images, uploaded
+                                designs, mockup scenes/bases, generated
+                                mockups — see `kind`), kept off Store
+                                itself so getCurrentStore() never pulls
+                                image bytes on every request. Nothing
+                                deletes a StoreAsset row on its own when
+                                whatever referenced it gets replaced — see
+                                cleanup.ts below.
+src/lib/store/cleanup.ts        pruneOrphanedAssets() — deletes any
+                                StoreAsset nothing references anymore;
+                                deleteOrphanedInactiveProducts() — hard-
+                                deletes inactive products with zero
+                                cart/order references (the one safe
+                                exception to "never hard-delete a
+                                product"). Both default to a dry run.
 src/lib/store/public.ts         toSafeStore() — the allow-listed Store
                                 shape returned by any agent-facing route,
                                 never the credential-hash fields

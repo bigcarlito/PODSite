@@ -368,8 +368,10 @@ Returns `{ "product": {...} }` with the full updated product.
 
 ### `DELETE /api/agent/products/:id`
 
-Soft-delete: sets `isActive: false`. Products are never hard-deleted
-because past orders reference their variants.
+Soft-delete: sets `isActive: false`. Products are normally never
+hard-deleted because past orders reference their variants — the one
+exception is `POST /api/agent/store/prune-products` below, which only
+targets inactive products with zero such references.
 
 ### `POST /api/agent/products/:id/mockups`
 
@@ -725,6 +727,59 @@ A single-call snapshot built for "what should I do next?" decisions:
 Use this before making changes — it's the fastest way to find what's
 worth optimizing (stuck orders, dead stock, missing prices) without
 crawling every product/order endpoint individually.
+
+## Cleanup
+
+Housekeeping for data nothing else cleans up automatically. Both
+endpoints below take the same body and default to a dry run — a caller
+must explicitly pass `"dryRun": false` to actually delete anything.
+
+```json
+{ "dryRun": false }
+```
+
+### `POST /api/agent/store/prune-assets`
+
+Every uploaded design, scene photo, base mockup, and generated mockup is
+stored permanently (see `src/lib/store/assets.ts` — nothing currently
+deletes an asset when the thing referencing it gets replaced). This finds
+every `StoreAsset` nothing currently points to — not `Store.theme.
+heroImageUrl`, not any `MockupScene.imageUrl`/`baseImages` entry, not any
+`ProductImage.url` — and, unless `dryRun`, deletes them.
+
+```json
+{
+  "total": 42,
+  "orphaned": [{ "id": "...", "kind": "mockup-scene-base", "mimeType": "image/png", "createdAt": "..." }],
+  "deleted": 12,
+  "dryRun": false
+}
+```
+
+Doesn't scan `Store.bannerHtml` for asset links — that field is meant for
+externally-hosted images, and it's free-form admin/agent-authored HTML.
+
+### `POST /api/agent/store/prune-products`
+
+Hard-deletes **inactive** products whose variants have zero `CartItem`/
+`OrderItem` references — the one case where hard-deleting a product is
+actually safe, unlike the normal soft-delete-only rule above. A product
+with even one variant still referenced is left alone (the DB's own
+foreign-key constraint would reject that delete regardless).
+
+```json
+{
+  "total": 5,
+  "eligible": [{ "id": "...", "title": "...", "slug": "..." }],
+  "skipped": [{ "id": "...", "title": "...", "slug": "..." }],
+  "deleted": 3,
+  "failed": [],
+  "dryRun": false
+}
+```
+
+Deleting a product cascades to its `ProductVariant`, `ProductImage`, and
+`ProductCollection` rows.
 
 ## What's not here yet
 

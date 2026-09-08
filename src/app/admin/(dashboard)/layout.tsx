@@ -27,6 +27,7 @@ export default async function AdminDashboardLayout({
             <Link href="/admin/products">Products</Link>
             <Link href="/admin/mockup-scenes">Mockup scenes</Link>
             <Link href="/admin/settings">Settings</Link>
+            <Link href="/admin/cleanup">Cleanup</Link>
           </nav>
         </div>
         <form action={logoutAdmin}>

@@ -13,6 +13,7 @@ import { generateAIProductMockups } from "@/lib/store/ai-mockups";
 import { generateProductFromDesign } from "@/lib/store/ai-product-create";
 import { updateProduct } from "@/lib/store/products";
 import { uploadStoreAsset } from "@/lib/store/assets";
+import { pruneOrphanedAssets, deleteOrphanedInactiveProducts } from "@/lib/store/cleanup";
 import {
   setMockupScene,
   deleteMockupScene,
@@ -553,4 +554,51 @@ export async function markOrderPaid(orderId: string) {
   const store = await requireCurrentStore();
   await ordersStore.markOrderPaid(store.id, orderId, "admin");
   revalidatePath("/admin");
+}
+
+export type PruneAssetsState = {
+  error?: string;
+  result?: { total: number; deleted: number };
+};
+
+/**
+ * Actually prunes orphaned assets (dryRun: false) — the admin page always
+ * shows a dry-run preview first (server-rendered), so by the time this
+ * runs the admin has already seen what it's about to delete.
+ */
+export async function pruneAssetsAction(): Promise<PruneAssetsState> {
+  const store = await requireCurrentStore();
+
+  try {
+    const result = await pruneOrphanedAssets(store.id, "admin", false);
+    revalidatePath("/admin/cleanup");
+    return { result: { total: result.total, deleted: result.deleted } };
+  } catch (e) {
+    return { error: e instanceof StoreError ? e.message : "Couldn't prune assets — try again." };
+  }
+}
+
+export type PruneProductsState = {
+  error?: string;
+  result?: { total: number; deleted: number; failed: Array<{ title: string; error: string }> };
+};
+
+/** Actually hard-deletes orphaned inactive products (dryRun: false) — same reasoning as pruneAssetsAction. */
+export async function pruneProductsAction(): Promise<PruneProductsState> {
+  const store = await requireCurrentStore();
+
+  try {
+    const result = await deleteOrphanedInactiveProducts(store.id, "admin", false);
+    revalidatePath("/admin/cleanup");
+    revalidatePath("/admin/products");
+    return {
+      result: {
+        total: result.total,
+        deleted: result.deleted,
+        failed: (result.failed ?? []).map((f) => ({ title: f.title, error: f.error })),
+      },
+    };
+  } catch (e) {
+    return { error: e instanceof StoreError ? e.message : "Couldn't delete products — try again." };
+  }
 }
