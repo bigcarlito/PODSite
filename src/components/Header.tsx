@@ -107,7 +107,7 @@ function CartIcon() {
       fill="none"
       stroke="currentColor"
       strokeWidth={1.75}
-      className="h-5 w-5"
+      style={{ height: 30, width: 30 }}
     >
       <path
         d="M6 8h12l-1 12H7L6 8Z"
