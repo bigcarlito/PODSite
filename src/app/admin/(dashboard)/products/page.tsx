@@ -3,6 +3,7 @@ import Link from "next/link";
 import { listProducts } from "@/lib/store/products";
 import { requireCurrentStore } from "@/lib/store-context";
 import { formatCents } from "@/lib/money";
+import { DeleteProductButton } from "./DeleteProductButton";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,9 @@ export default async function AdminProductsPage() {
                       >
                         Mockups
                       </Link>
+                      {p.isActive && (
+                        <DeleteProductButton productId={p.id} productTitle={p.title} />
+                      )}
                     </div>
                   </td>
                 </tr>
