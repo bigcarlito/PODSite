@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { navLinkSchema } from "@/lib/platform-schemas";
+import { aspectsSchema } from "@/lib/design/aspects";
 
 export const variantInputSchema = z.object({
   id: z.string().optional(), // present = update existing variant, absent = create new
@@ -209,6 +210,20 @@ export const pruneSchema = z.object({
   dryRun: z.boolean().default(true),
 });
 
+/// Creates a Design from structured aspects — see the design-system notes
+/// in AGENTS.md. `aspects` is validated against the versioned vocabulary
+/// in src/lib/design/aspects.ts; `slug` auto-derives from phrase/subject
+/// when omitted.
+export const designCreateSchema = z.object({
+  slug: z.string().min(1).optional(),
+  aspects: aspectsSchema,
+  /// Which ImageProvider adapter to use — see src/lib/design/providers/.
+  provider: z.string().min(1).default("openrouter"),
+  /// Provider-specific model slug — falls back to the adapter's own default.
+  model: z.string().min(1).optional(),
+  negativePrompt: z.string().optional(),
+});
+
 export type MockupGenerateInput = z.infer<typeof mockupGenerateSchema>;
 export type AiMockupGenerateInput = z.infer<typeof aiMockupGenerateSchema>;
 export type DesignAreaInput = z.infer<typeof designAreaSchema>;
@@ -222,4 +237,5 @@ export type StoreUpdateInput = z.infer<typeof storeUpdateSchema>;
 export type HeroImageUploadInput = z.infer<typeof heroImageUploadSchema>;
 export type LogoImageUploadInput = z.infer<typeof logoImageUploadSchema>;
 export type ActivityCreateInput = z.infer<typeof activityCreateSchema>;
+export type DesignCreateInput = z.infer<typeof designCreateSchema>;
 export type PruneInput = z.infer<typeof pruneSchema>;

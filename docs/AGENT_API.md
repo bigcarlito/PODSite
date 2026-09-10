@@ -681,6 +681,83 @@ The generated image is uploaded to this store's own asset store
 (`/api/assets/:id`), not a temporary provider CDN URL, so it doesn't need
 re-hosting later.
 
+## Designs
+
+A design is defined by **structured aspects**, not by an opaque image URL —
+see the design-system notes in `AGENTS.md`. The prompt sent to the image
+model is derived from the aspects and stored verbatim, so any generation is
+reproducible and any later sale can be attributed back to the choices that
+produced it. This is Phase 1 of that system: create a design from aspects
+and get back a preview image. There's no QC gate, upscale, or publish step
+yet (those are Phase 2) — `Design.masterImageUrl` stays null and `status`
+never advances past `"generated"`.
+
+### `GET /api/agent/designs/vocabulary`
+
+Returns the versioned, controlled vocabulary for every aspect axis — how an
+agent learns the legal values without hardcoding them:
+
+```json
+{
+  "version": 1,
+  "hook": ["insider_joke", "pun", "identity_badge", "..."],
+  "occasion": ["everyday", "gift", "holiday", "..."],
+  "layout": ["text_only_stacked", "icon_above_text", "..."],
+  "artStyle": ["vintage_distressed", "bold_block_type", "..."],
+  "colorScheme": ["one_color_white", "two_color_contrast", "..."],
+  "complexity": ["minimal", "moderate", "detailed"],
+  "designedForShade": ["dark", "light", "both"],
+  "printRatio": ["square_1_1", "portrait_4_5", "wide_3_2", "pocket_1_1"],
+  "placement": ["front_center", "left_chest", "back_full", "sleeve"]
+}
+```
+
+`hook`, `layout`, `artStyle`, `colorScheme`, and `complexity` are the five
+*experiment axes* — the ones worth varying one at a time across a batch of
+designs to see what sells. `occasion`, `designedForShade`, `printRatio`,
+and `placement` are context/placement, not things to A/B. `phrase` (the
+exact words on the garment) and `subject` (the visual subject, as a short
+tag like `"disc golf basket"`) are free text, not enum values.
+
+### `POST /api/agent/designs`
+
+Validates the aspects, compiles them into a prompt, generates an image via
+the chosen provider, and stores the result — one call, one design:
+
+```json
+{
+  "aspects": {
+    "hook": "insider_joke",
+    "occasion": "everyday",
+    "phrase": "ACE OR NOTHING",
+    "subject": "disc golf basket",
+    "layout": "icon_above_text",
+    "artStyle": "vintage_distressed",
+    "colorScheme": "retro_three_color",
+    "complexity": "moderate",
+    "designedForShade": "light",
+    "printRatio": "portrait_4_5",
+    "placement": "front_center"
+  }
+}
+```
+
+`slug` is optional (auto-derived from `phrase`/`subject` when omitted).
+`provider` defaults to `"openrouter"` — the only adapter implemented so far
+(reaches GPT Image 1 / Nano Banana through OpenRouter's unified endpoint,
+same client the AI mockup pipeline already uses); `model` falls back to
+that adapter's own default. Returns the created `Design` row, including
+`prompt` (exactly what was sent), `previewImageUrl`, and `aspects` echoed
+back. A repeated call with the same aspects produces a new design — nothing
+here is idempotent, since the image model isn't deterministic even with an
+identical prompt.
+
+### `GET /api/agent/designs?status=&take=`
+
+Lists this store's designs, most recent first. `status` filters to one of
+`draft | generated | rejected | published | archived`; `take` caps the
+count (default 50).
+
 ## Collections
 
 ### `GET /api/agent/collections`
@@ -822,3 +899,12 @@ Deleting a product cascades to its `ProductVariant`, `ProductImage`, and
   but nothing populates it yet).
 - Bulk operations (batch price updates, bulk import). Loop `PATCH
   /api/agent/products/:id` calls for now.
+- **Design system Phase 2+**: a QC gate (text-fidelity/alpha-coverage/
+  color-count/contrast checks against `previewImageUrl`), an upscale step
+  to `Design.masterImageUrl` at print-ready resolution, `PrintTemplate`
+  (per-provider/product-type pixel specs), and `POST
+  /api/agent/designs/:id/publish` to turn a design into products. Until
+  then, a design's `previewImageUrl` can be passed manually as `designUrl`
+  to `POST /api/agent/products/generate-from-design`. Phase 3+ adds
+  `DesignEvent` view tracking, `DesignBatch` flights, and `GET
+  /api/agent/designs/insights` (which aspect values actually sell).

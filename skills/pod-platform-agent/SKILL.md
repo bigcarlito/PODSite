@@ -275,6 +275,30 @@ you don't repeat a failed experiment.
   the product can be fulfilled. Response: `{product, title, description,
   rendered, failed}`.
 
+### Designs
+
+Phase 1 of the structured-design system (see `AGENTS.md`): a design is
+aspects (controlled vocabulary), not an opaque image URL, so the prompt is
+reproducible and a later sale can be attributed back to the choices that
+made it. No QC gate/upscale/publish yet — `status` stops at `"generated"`.
+
+- `GET /api/agent/designs/vocabulary` — the versioned legal values per axis.
+  `hook`, `layout`, `artStyle`, `colorScheme`, `complexity` are the five
+  experiment axes; `phrase`/`subject` are free text, not enums.
+- `POST /api/agent/designs` — `{"aspects": {...}}` (all nine keys required
+  except `phrase`/`subject`, which default to `null`). `provider` defaults
+  to `"openrouter"` (GPT Image 1 / Nano Banana via OpenRouter); `slug`
+  auto-derives from `phrase`/`subject` if omitted. Validates → compiles the
+  prompt → generates → stores. Returns the created `Design`, including the
+  exact `prompt` sent and `previewImageUrl`. Not idempotent — image
+  generation isn't deterministic even from the same prompt.
+- `GET /api/agent/designs?status=&take=` — most recent first;
+  `status` is one of `draft|generated|rejected|published|archived`.
+- To turn a design into a sellable product today, pass its
+  `previewImageUrl` as `designUrl` to `POST
+  /api/agent/products/generate-from-design` — the dedicated
+  `.../designs/:id/publish` endpoint lands in Phase 2.
+
 ### Collections
 
 - `GET /api/agent/collections` — list, with product counts.

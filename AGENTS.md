@@ -233,6 +233,39 @@ routes call (same pattern as rule #1, one more thin caller), and
 `docs/AGENT_API.md` stays the canonical reference both the REST docs and
 the MCP tool descriptions are generated/kept in sync from.
 
+## Structured designs
+
+A design is defined by **structured aspects** (a controlled vocabulary —
+`hook`, `layout`, `artStyle`, `colorScheme`, `complexity`, plus free-text
+`phrase`/`subject` and placement context), not by an opaque `designUrl`.
+The pipeline: `aspects` → `compileDesignPrompt()` (pure, deterministic) →
+a pluggable `ImageProvider` → (Phase 2: QC gate → upscale) → a `Design` row
+that carries the exact prompt/seed/aspects alongside both images → one or
+more `Product`s via `Product.designId` → (Phase 3+: view/sale attribution
+back to the aspects that produced it). Every design carries the recipe
+that made it — that's what turns sales into a model of what actually works
+for a store's audience, instead of design-by-design guessing.
+
+**Phase 1 (current)**: `src/lib/design/aspects.ts` (vocabulary),
+`prompt.ts` (compiler), `providers/` (pluggable image generation, mirrors
+`src/lib/fulfillment/`), `designs.ts` (`createDesign`/`getDesign`/
+`listDesigns`), the `Design` model, and `POST/GET /api/agent/designs`. A
+design stops at `status: "generated"` with `previewImageUrl` set — no QC
+gate, no upscale, no dedicated publish endpoint yet. To turn one into a
+sellable product today, pass its `previewImageUrl` as the `designUrl` to
+the existing `POST /api/agent/products/generate-from-design`.
+
+**Not built yet**: the QC gate (reject before spending an upscale), the
+upscale step to `Design.masterImageUrl` at print-ready resolution,
+`PrintTemplate` (per-provider/product-type pixel specs), `POST
+/api/agent/designs/:id/publish`, `DesignEvent` view tracking,
+`DesignBatch` flights, and the aspect-level insights rollup. Building any
+of these: keep provider-specific logic inside `providers/*.ts` (never a
+conditional in the pipeline, per rule #6's reasoning), keep every new
+capability zod-validated and store-scoped (rules #2, #11), and update this
+section plus `docs/AGENT_API.md`/`skills/pod-platform-agent/SKILL.md` in
+the same change (rule #3).
+
 ## Where things are
 
 ```
@@ -309,6 +342,32 @@ src/lib/design/compositor.ts    compositeDesignOnScene() — scales a design
                                 blends it onto a base mockup at 85%
                                 opacity (sharp, no AI call); also reads an
                                 image's pixel dimensions for the editor
+src/lib/design/aspects.ts       The structured-design vocabulary (see
+                                "Structured designs" below) — every axis's
+                                legal values + the prompt fragment each
+                                value contributes. One file is the whole
+                                taxonomy; a new value is a data change, a
+                                changed value's *meaning* bumps
+                                ASPECTS_VERSION.
+src/lib/design/prompt.ts        compileDesignPrompt() — pure function,
+                                aspects in, a neutral prompt IR out
+                                (promptText/colorRoles/exclusions/
+                                aspectRatioBucket); same input always
+                                compiles to the same output, which is what
+                                makes attributing a sale back to an aspect
+                                combination valid
+src/lib/design/providers/       Pluggable image-generation providers —
+                                mirrors src/lib/fulfillment/ (AGENTS.md
+                                #6). registry.ts resolves one by the
+                                string in Design.provider; openrouter.ts
+                                is the only adapter so far (reaches GPT
+                                Image 1 / Nano Banana through OpenRouter's
+                                unified endpoint)
+src/lib/design/designs.ts       createDesign()/getDesign()/listDesigns()
+                                — validates aspects, compiles the prompt,
+                                calls the chosen provider, persists the
+                                Design row. Phase 1 only: no QC gate or
+                                upscale yet, see "Structured designs" below
 src/lib/store/ai-product-create.ts generateProductFromDesign() — the
                                 "upload a design, get a finished product"
                                 flow: AI-writes title/description, builds
