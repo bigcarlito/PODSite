@@ -747,7 +747,10 @@ the chosen provider, and stores the result — one call, one design:
 }
 ```
 
-`slug` is optional (auto-derived from `phrase`/`subject` when omitted).
+`slug` is optional (auto-derived from `phrase`/`subject` when omitted) —
+an auto-derived slug that collides (e.g. regenerating the same phrase
+after a rejection) gets a numeric suffix automatically; an explicitly
+passed `slug` that collides is a hard `409 SLUG_TAKEN`.
 `provider` defaults to `"openrouter"` — the only adapter implemented so far
 (reaches any OpenRouter image model through its unified endpoint, same
 client the AI mockup pipeline already uses); `model` falls back to
