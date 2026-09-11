@@ -752,13 +752,15 @@ an auto-derived slug that collides (e.g. regenerating the same phrase
 after a rejection) gets a numeric suffix automatically; an explicitly
 passed `slug` that collides is a hard `409 SLUG_TAKEN`.
 `provider` defaults to `"openrouter"` — the only adapter implemented so far
-(reaches any OpenRouter image model through its unified endpoint, same
-client the AI mockup pipeline already uses); `model` falls back to
-`OPENROUTER_DESIGN_MODEL` (default `openai/gpt-image-1` — a separate env
-var from the AI mockup pipeline's `OPENROUTER_MOCKUP_MODEL`, since the two
-tasks have different requirements and are tuned independently). A
-repeated call with the same aspects produces a new design — nothing here
-is idempotent, since the image model isn't deterministic even with an
+(reaches any OpenRouter model whose backend supports the `modalities:
+["image","text"]` chat-completions shape — not every image model does;
+`openai/gpt-image-1` currently 404s here since it needs its own distinct
+request shape); `model` falls back to `OPENROUTER_DESIGN_MODEL` (default
+`google/gemini-2.5-flash-image` — a separate env var from the AI mockup
+pipeline's `OPENROUTER_MOCKUP_MODEL`, since the two tasks have different
+requirements and are tuned independently). A repeated call with the same
+aspects produces a new design — nothing here is idempotent, since the
+image model isn't deterministic even with an
 identical prompt.
 
 Runs the **QC gate** (see below) against each attempt's preview, retrying

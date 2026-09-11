@@ -14,11 +14,20 @@ export const DEFAULT_MOCKUP_MODEL =
 
 /** Default OpenRouter model slug for structured-design generation (see
  * src/lib/design/providers/openrouter.ts), overridable per call via
- * POST /api/agent/designs' `model` field. GPT Image 1 reliably honors a
- * transparent-background instruction where some other models don't (see
- * ensureTransparentBackground in src/lib/design/background-removal.ts for
- * the fallback when a chosen model doesn't). */
-export const DEFAULT_DESIGN_MODEL = process.env.OPENROUTER_DESIGN_MODEL || "openai/gpt-image-1";
+ * POST /api/agent/designs' `model` field. `openai/gpt-image-1` was tried
+ * as the default (it reliably honors a transparent-background
+ * instruction where this one doesn't) but OpenRouter 404s it against
+ * this client's request shape — "No endpoints found that support the
+ * requested output modalities: image, text" — since GPT Image 1 needs
+ * its own distinct API shape (a `background` field, no `modalities`
+ * array) rather than the generic chat-completions call every other model
+ * here uses. Falls back to gemini-2.5-flash-image, whose non-transparent
+ * background is instead corrected after the fact by
+ * ensureTransparentBackground in background-removal.ts. Giving GPT
+ * Image 1 its own ImageProvider adapter (see providers/types.ts) would
+ * let it be the default again without this workaround. */
+export const DEFAULT_DESIGN_MODEL =
+  process.env.OPENROUTER_DESIGN_MODEL || "google/gemini-2.5-flash-image";
 
 /** Default OpenRouter model slug for text generation (product copy), overridable per call. */
 export const DEFAULT_TEXT_MODEL = process.env.OPENROUTER_TEXT_MODEL || "google/gemini-2.5-flash";
