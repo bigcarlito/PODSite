@@ -749,11 +749,14 @@ the chosen provider, and stores the result — one call, one design:
 
 `slug` is optional (auto-derived from `phrase`/`subject` when omitted).
 `provider` defaults to `"openrouter"` — the only adapter implemented so far
-(reaches GPT Image 1 / Nano Banana through OpenRouter's unified endpoint,
-same client the AI mockup pipeline already uses); `model` falls back to
-that adapter's own default. A repeated call with the same aspects produces
-a new design — nothing here is idempotent, since the image model isn't
-deterministic even with an identical prompt.
+(reaches any OpenRouter image model through its unified endpoint, same
+client the AI mockup pipeline already uses); `model` falls back to
+`OPENROUTER_DESIGN_MODEL` (default `openai/gpt-image-1` — a separate env
+var from the AI mockup pipeline's `OPENROUTER_MOCKUP_MODEL`, since the two
+tasks have different requirements and are tuned independently). A
+repeated call with the same aspects produces a new design — nothing here
+is idempotent, since the image model isn't deterministic even with an
+identical prompt.
 
 Runs the **QC gate** (see below) against each attempt's preview, retrying
 with a new attempt up to twice before giving up. On the first pass, also

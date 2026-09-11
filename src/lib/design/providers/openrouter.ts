@@ -1,7 +1,7 @@
 import "server-only";
 import sharp from "sharp";
 import {
-  DEFAULT_MOCKUP_MODEL,
+  DEFAULT_DESIGN_MODEL,
   editImageWithOpenRouter,
   parseDataUrl,
 } from "@/lib/ai/openrouter";
@@ -38,7 +38,7 @@ export const openRouterImageProvider: ImageProvider = {
     opts: GenerateDesignOpts
   ): Promise<GeneratedDesignImage> {
     const apiKey = apiKeyOrThrow();
-    const model = opts.model || DEFAULT_MOCKUP_MODEL;
+    const model = opts.model || DEFAULT_DESIGN_MODEL;
 
     const { width, height } = PRINT_RATIO_DIMENSIONS[spec.aspectRatioBucket];
     const aspectHint = `Aspect ratio ${width}:${height}.`;
