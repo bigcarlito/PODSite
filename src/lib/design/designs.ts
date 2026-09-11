@@ -48,6 +48,36 @@ function toAbsolute(url: string, origin: string): string {
   return /^https?:\/\//.test(url) ? url : `${origin}${url}`;
 }
 
+/**
+ * Finds a free slug for a new design. An explicit slug (the caller passed
+ * one) collides as a hard error — the caller asked for that exact slug.
+ * An auto-derived slug (from `phrase`/`subject`) instead appends a
+ * numeric suffix and retries, same pattern as generateProductFromDesign's
+ * retry-on-collision loop — otherwise every retry of a rejected design's
+ * phrase (the normal QC-iteration workflow) would collide with the
+ * design that got rejected, since a rejected design still keeps its slug.
+ */
+async function resolveDesignSlug(storeId: string, baseSlug: string, explicit: boolean): Promise<string> {
+  let candidate = baseSlug;
+  for (let attempt = 1; attempt <= 50; attempt++) {
+    const existing = await prisma.design.findUnique({
+      where: { storeId_slug: { storeId, slug: candidate } },
+    });
+    if (!existing) return candidate;
+    if (explicit) {
+      throw new StoreError("SLUG_TAKEN", `A design with slug "${baseSlug}" already exists`, {
+        field: "slug",
+        status: 409,
+      });
+    }
+    candidate = `${baseSlug}-${attempt + 1}`;
+  }
+  throw new StoreError("SLUG_TAKEN", `Could not find an available slug based on "${baseSlug}"`, {
+    field: "slug",
+    status: 409,
+  });
+}
+
 export async function getDesign(storeId: string, id: string) {
   const design = await prisma.design.findFirst({ where: { id, storeId } });
   if (!design) throw notFound(`Design "${id}"`);
@@ -196,14 +226,8 @@ export async function createDesign(
 ) {
   const aspects = aspectsSchema.parse(input.aspects);
 
-  const slug = input.slug ? slugify(input.slug) : slugify(aspects.phrase || aspects.subject || "design");
-  const existing = await prisma.design.findUnique({ where: { storeId_slug: { storeId: store.id, slug } } });
-  if (existing) {
-    throw new StoreError("SLUG_TAKEN", `A design with slug "${slug}" already exists`, {
-      field: "slug",
-      status: 409,
-    });
-  }
+  const baseSlug = input.slug ? slugify(input.slug) : slugify(aspects.phrase || aspects.subject || "design");
+  const slug = await resolveDesignSlug(store.id, baseSlug, Boolean(input.slug));
 
   const compiled = compileDesignPrompt(aspects);
   const provider = getImageProvider(input.provider);

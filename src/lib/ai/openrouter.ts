@@ -2,9 +2,23 @@ import "server-only";
 
 const OPENROUTER_API_BASE = "https://openrouter.ai/api/v1";
 
-/** Default OpenRouter model slug for AI mockup generation, overridable per call. */
+/** Default OpenRouter model slug for AI mockup generation (recoloring a
+ * MockupScene's garment photo — see mockup-scenes.ts), overridable per
+ * call. Deliberately a separate env var from DEFAULT_DESIGN_MODEL below,
+ * even though they may point at the same model in practice, since the
+ * two tasks have different requirements (mockup recoloring doesn't need
+ * transparency; design generation does) and should be tunable/A-B-able
+ * independently. */
 export const DEFAULT_MOCKUP_MODEL =
   process.env.OPENROUTER_MOCKUP_MODEL || "google/gemini-2.5-flash-image";
+
+/** Default OpenRouter model slug for structured-design generation (see
+ * src/lib/design/providers/openrouter.ts), overridable per call via
+ * POST /api/agent/designs' `model` field. GPT Image 1 reliably honors a
+ * transparent-background instruction where some other models don't (see
+ * ensureTransparentBackground in src/lib/design/background-removal.ts for
+ * the fallback when a chosen model doesn't). */
+export const DEFAULT_DESIGN_MODEL = process.env.OPENROUTER_DESIGN_MODEL || "openai/gpt-image-1";
 
 /** Default OpenRouter model slug for text generation (product copy), overridable per call. */
 export const DEFAULT_TEXT_MODEL = process.env.OPENROUTER_TEXT_MODEL || "google/gemini-2.5-flash";
