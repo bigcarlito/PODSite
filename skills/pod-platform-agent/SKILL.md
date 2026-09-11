@@ -289,10 +289,12 @@ publish), `rejected` (failed QC every attempt), or `published`.
   experiment axes; `phrase`/`subject` are free text, not enums.
 - `POST /api/agent/designs` — `{"aspects": {...}}` (all nine keys required
   except `phrase`/`subject`, which default to `null`). `provider` defaults
-  to `"openrouter"`; `model` falls back to `OPENROUTER_DESIGN_MODEL`
-  (default `openai/gpt-image-1`, independent of the AI mockup pipeline's
-  own `OPENROUTER_MOCKUP_MODEL`); `slug` auto-derives from `phrase`/
-  `subject` if omitted. Validates → compiles →
+  to `"openrouter"` (only reaches OpenRouter models whose backend
+  supports the `modalities: ["image","text"]` chat-completions shape —
+  `openai/gpt-image-1` isn't one of them); `model` falls back to
+  `OPENROUTER_DESIGN_MODEL` (default `google/gemini-2.5-flash-image`,
+  independent of the AI mockup pipeline's own `OPENROUTER_MOCKUP_MODEL`);
+  `slug` auto-derives from `phrase`/`subject` if omitted. Validates → compiles →
   generates → runs the QC gate against the preview (retries once on
   failure) → on pass, upscales to the print-ready master canvas. Returns
   the `Design` either way — check `status`; a `"rejected"` one has
