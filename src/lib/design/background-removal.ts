@@ -1,9 +1,21 @@
 import "server-only";
 import sharp from "sharp";
 
-/** How close a pixel's color has to be to the sampled background color
- * (Euclidean distance in RGB) to be keyed out as background. */
-const COLOR_TOLERANCE = 30;
+/** Below this Euclidean RGB distance from the background color, a pixel
+ * is treated as pure background (alpha 0). */
+const FULLY_BACKGROUND_DISTANCE = 16;
+/** Above this distance, a pixel is left fully opaque (its own alpha
+ * unchanged) — also the flood-fill traversal radius, so antialiased
+ * pixels between the two thresholds are reached and faded, not just the
+ * solid fill. Between the two thresholds, alpha ramps up (see the t*t
+ * easing below) rather than snapping straight to 255, so an antialiased
+ * edge fades out instead of leaving a ring of fully-opaque near-
+ * background pixels — which would otherwise both read as an extra
+ * "color" and tank a contrast check against a similarly light garment,
+ * since the QC gate's palette extraction (see palette.ts) only ignores
+ * pixels below alpha 128, not merely non-zero ones. The eased (rather
+ * than linear) ramp keeps more of the fringe under that 128 cutoff. */
+const FULLY_FOREGROUND_DISTANCE = 55;
 
 /**
  * Some image models (e.g. Nano Banana / gemini-2.5-flash-image) don't
@@ -12,7 +24,8 @@ const COLOR_TOLERANCE = 30;
  * (see AGENTS.md's design-system provider-reconciliation notes). Rather
  * than trust the prompt, detect this after the fact and fix it: if the
  * image has no real alpha variation, flood-fill inward from every edge
- * pixel, keying out anything close enough to the border's own color.
+ * pixel, keying out anything close enough to the border's own color —
+ * with a smooth falloff across the antialiased boundary, not a hard cut.
  * A no-op (returns the input unchanged) if the image already has
  * meaningful transparency, so a provider that *does* honor the
  * instruction is never touched.
@@ -61,9 +74,18 @@ export async function ensureTransparentBackground(data: Buffer): Promise<Buffer>
     const visitedIndex = y * width + x;
     if (visited[visitedIndex]) continue;
     visited[visitedIndex] = 1;
-    if (colorDistance(x, y) > COLOR_TOLERANCE) continue;
 
-    raw[index(x, y) + 3] = 0;
+    const distance = colorDistance(x, y);
+    if (distance > FULLY_FOREGROUND_DISTANCE) continue; // don't traverse past the fringe
+
+    const alphaIndex = index(x, y) + 3;
+    if (distance <= FULLY_BACKGROUND_DISTANCE) {
+      raw[alphaIndex] = 0;
+    } else {
+      const t = (distance - FULLY_BACKGROUND_DISTANCE) / (FULLY_FOREGROUND_DISTANCE - FULLY_BACKGROUND_DISTANCE);
+      raw[alphaIndex] = Math.round(raw[alphaIndex] * t * t);
+    }
+
     pushIfInBounds(x + 1, y);
     pushIfInBounds(x - 1, y);
     pushIfInBounds(x, y + 1);
