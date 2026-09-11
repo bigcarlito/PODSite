@@ -338,14 +338,31 @@ const stores: SeedStore[] = [
 ];
 
 async function main() {
-  const credentialsLog: { slug: string; adminPassword: string; agentApiKey: string }[] = [];
+  const credentialsLog: { slug: string; adminPassword: string; agentApiKey: string | null }[] = [];
 
   for (const s of stores) {
-    const agentApiKey = generateApiKey();
+    const existing = await prisma.store.findUnique({
+      where: { slug: s.slug },
+      select: { agentApiKeyHash: true },
+    });
+    // Only (re)generate the key when there's truly no hash to check it
+    // against yet — an existing store's key is unrecoverable once set, so
+    // reseeding must never silently invalidate it by printing a key that
+    // doesn't match what's actually stored. To force a fresh key for an
+    // existing store, blank out its agentApiKeyHash in the DB first, then
+    // reseed.
+    const needsApiKey = !existing || existing.agentApiKeyHash === "";
+    const agentApiKey = needsApiKey ? generateApiKey() : null;
+    // Computed once, even though it's only ever actually persisted via the
+    // `create` branch below when agentApiKey is non-null — `create`'s
+    // object literal is evaluated eagerly by JS regardless of which
+    // upsert branch Prisma ends up taking, so hashApiKey(agentApiKey!)
+    // inline there would throw on a plain update.
+    const agentApiKeyHash = agentApiKey ? hashApiKey(agentApiKey) : "";
 
     const store = await prisma.store.upsert({
       where: { slug: s.slug },
-      update: {},
+      update: needsApiKey ? { agentApiKeyHash } : {},
       create: {
         slug: s.slug,
         name: s.name,
@@ -375,7 +392,7 @@ async function main() {
         trustBadges: ["30-day happiness guarantee", "Printed on demand"],
         socialLinks: [{ label: "Instagram", href: "https://instagram.com" }],
         adminPasswordHash: hashPassword(DEV_ADMIN_PASSWORD),
-        agentApiKeyHash: hashApiKey(agentApiKey),
+        agentApiKeyHash,
       },
     });
 
@@ -418,13 +435,33 @@ async function main() {
       console.log(`  Seeded product: ${product.title}`);
     }
 
+    // Printful's current full-front tee spec — matches the design system's
+    // master canvas exactly, so publishing a design never needs a fallback
+    // note for the common case.
+    await prisma.printTemplate.upsert({
+      where: {
+        storeId_provider_productType: { storeId: store.id, provider: "PRINTFUL", productType: "tshirt" },
+      },
+      update: {},
+      create: {
+        storeId: store.id,
+        provider: "PRINTFUL",
+        productType: "tshirt",
+        widthPx: 4500,
+        heightPx: 5400,
+        minDpi: 150,
+      },
+    });
+
     console.log(`Seeded store: ${store.name} (${store.slug})`);
   }
 
   console.log("\n=== Local dev credentials (never valid in production) ===");
   for (const c of credentialsLog) {
     console.log(
-      `${c.slug}: admin password = "${c.adminPassword}", agent API key = ${c.agentApiKey}`
+      `${c.slug}: admin password = "${c.adminPassword}", agent API key = ${
+        c.agentApiKey ?? "(unchanged — already set; blank out agentApiKeyHash in the DB and reseed for a fresh one)"
+      }`
     );
   }
   console.log(

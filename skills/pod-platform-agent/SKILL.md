@@ -81,7 +81,7 @@ store never works against another store's host.
   the effect from the response, don't issue a separate read.
 - Errors are always JSON: `{"error":{"code","message","field?"}}`. Common
   codes: `VALIDATION_ERROR` (400), `NOT_FOUND` (404), `SLUG_TAKEN` /
-  `ALREADY_SUBMITTED` (409), `MISSING_PROVIDER_VARIANT` (422).
+  `SKU_TAKEN` / `ALREADY_SUBMITTED` (409), `MISSING_PROVIDER_VARIANT` (422).
 - IDs are `cuid()` strings. Orders also accept their human-readable
   `orderNumber` anywhere an order ID is expected.
 - Variant properties are **generic**, not fixed size/color columns. Each
@@ -134,6 +134,11 @@ you don't repeat a failed experiment.
   `image/jpeg`, or `image/webp`; max 8MB decoded). Returns the updated
   store with `theme.heroImageUrl` already set — the platform hosts the
   image itself at `/api/assets/<id>`, no S3/Cloudinary credentials needed.
+  `theme.logoUrl` is an optional image shown in the header in place of
+  the store name text — the name becomes its hover tooltip, and it still
+  links to `/`. Set it directly via `PATCH /api/agent/store`, or
+  `POST /api/agent/store/logo-image` (same body/behavior as
+  `hero-image` above) to upload a generated one.
 
 ### Activity log
 
@@ -185,7 +190,9 @@ you don't repeat a failed experiment.
   partial patch of just one field — fetch the product first if you need
   its current values); omit `id` to add a new variant.
 - `DELETE /api/agent/products/:id` — soft-delete (`isActive: false`).
-  Products are never hard-deleted (past orders reference their variants).
+  Products are normally never hard-deleted (past orders reference their
+  variants) — see `POST /api/agent/store/prune-products` below for the
+  one safe exception.
 - `POST /api/agent/products/:id/mockups` — render product photos of a
   design on the garment colors it reads well on, and attach them:
   ```json
@@ -218,6 +225,113 @@ you don't repeat a failed experiment.
   (`NO_MOCKUP_VARIANTS` otherwise). Other errors: `DESIGN_UNREADABLE`,
   `EMPTY_DESIGN`, `PROVIDER_ERROR`.
 
+- `POST /api/agent/products/:id/mockups/ai` — alternative to the above for
+  a non-generic, non-white-background result: composites the design onto
+  this product type's pre-generated, per-color **base mockup** (a blank
+  garment in a real scene, already AI-recolored), scaled to fit the
+  scene's `designArea` and blended on at 85% opacity. This is a
+  **deterministic local composite, not an AI call per design** — the only
+  AI step is the one-time base recolor, so placement is identical across
+  colors and runs instead of an image model re-deciding it each time.
+  ```json
+  { "designUrl": "https://.../design.png", "colors": ["Black", "White"] }
+  ```
+  Needs `Product.productType` set (`PATCH /api/agent/products/:id`, e.g.
+  `"tshirt"`) and a scene uploaded for that type first:
+  `PUT /api/agent/mockup-scenes/:productType` with
+  `{"data": "<base64>", "mimeType": "image/png", "colors": [{"name":"Black","hex":"#101010"}]}`
+  — one photo + color lineup shared by every product of that type.
+  `GET /api/agent/mockup-scenes` lists what's set (including cached
+  `baseImages` and `designArea`); `DELETE /api/agent/mockup-scenes/:productType`
+  removes one.
+
+  A color with no cached base image gets one generated and cached
+  automatically on first use — `POST
+  /api/agent/mockup-scenes/:productType/generate-bases` pre-warms all of
+  them at once if you want to avoid that latency on the first real
+  mockup call. `PUT /api/agent/mockup-scenes/:productType/design-area`
+  sets `{x, y, width, height}` (fractions of the scene image) — best set
+  visually via the design-area editor in `/admin/mockup-scenes`, which
+  locks it to a reference design's aspect ratio while you drag/scale it;
+  unset, generation uses a centered default.
+
+  Generation runs per color independently — one color's failure doesn't
+  block the others (`rendered`/`failed` in the response); needs at least
+  one success.
+
+- `POST /api/agent/products/generate-from-design` — creates a **whole
+  product** from just a design: an AI text model writes the title/
+  description, one variant per (color × size) is created from the product
+  type's `MockupScene` color lineup, then a mockup is generated and
+  attached per color (same mechanism as the endpoint above).
+  ```json
+  { "productType": "tshirt", "designUrl": "https://.../design.png", "priceCents": 2499 }
+  ```
+  Needs a `MockupScene` with colors set for `productType` first
+  (`NO_MOCKUP_SCENE`/`NO_MOCKUP_SCENE_COLORS` otherwise, both 422).
+  `sizes` defaults to `["S","M","L","XL"]`, applied to every color.
+  Optional `visionUrl` — a smaller/native-resolution image for the AI
+  title/description call, defaulting to `designUrl` — pass this if
+  `designUrl` is a large print-resolution file, since a vision model can
+  lose fine linework downscaling one internally and hallucinate generic
+  copy instead of erroring. New variants have no `providerVariantId` —
+  set that via `PATCH /api/agent/products/:id` afterward, per (product,
+  color, size), before the product can be fulfilled. Response:
+  `{product, title, description, rendered, failed}`.
+
+### Designs
+
+The structured-design system (see `AGENTS.md`): a design is aspects
+(controlled vocabulary), not an opaque image URL, so the prompt is
+reproducible and a later sale can be attributed back to the choices that
+made it. Pipeline: aspects → prompt → generate → **QC gate** → **upscale**
+→ **publish**. `status` is one of `generated` (QC-passed, ready to
+publish), `rejected` (failed QC every attempt), or `published`.
+
+- `GET /api/agent/designs/vocabulary` — the versioned legal values per axis.
+  `hook`, `layout`, `artStyle`, `colorScheme`, `complexity` are the five
+  experiment axes; `phrase`/`subject` are free text, not enums.
+- `POST /api/agent/designs` — `{"aspects": {...}}` (all nine keys required
+  except `phrase`/`subject`, which default to `null`). `provider` defaults
+  to `"openrouter"` (only reaches OpenRouter models whose backend
+  supports the `modalities: ["image","text"]` chat-completions shape —
+  `openai/gpt-image-1` isn't one of them); `model` falls back to
+  `OPENROUTER_DESIGN_MODEL` (default `google/gemini-2.5-flash-image`,
+  independent of the AI mockup pipeline's own `OPENROUTER_MOCKUP_MODEL`);
+  `slug` auto-derives from `phrase`/`subject` if omitted. Validates → compiles →
+  generates → runs the QC gate against the preview (retries once on
+  failure) → on pass, upscales to the print-ready master canvas. Returns
+  the `Design` either way — check `status`; a `"rejected"` one has
+  `params.qc` saying which check failed. Not idempotent.
+- QC gate checks (all must pass): `textFidelity` (vision-transcribes the
+  render, must match `phrase` exactly — skipped if `phrase` is null),
+  `alphaCoverage` (15-85% opaque), `colorCount` (caps significant colors
+  for `colorScheme` values that promise a count, e.g. `two_color_contrast`
+  → 2), `contrastVsGarment` (WCAG ≥2.5 against a representative garment
+  for `designedForShade`).
+- `POST /api/agent/designs/:id/regenerate` — `{"provider?","model?",
+  "negativePrompt?"}`, all optional. New seed/attempt through the same QC
+  gate, replacing the design's prompt/preview/master/status in place. Use
+  after a rejection when the aspects themselves seem fine and it's worth
+  another roll; a different aspect combination should be a new design.
+- `GET /api/agent/designs/:id` — one design. `GET
+  /api/agent/designs?status=&take=` — list, most recent first.
+- `POST /api/agent/designs/:id/publish` — `{"productTypes":[{"productType":
+  "tshirt","priceCents":2800,"provider":"PRINTFUL"}]}` (one entry per
+  garment type; `currency`/`sizes`/`colorOptionName`/`sizeOptionName`
+  optional, same defaults as `generate-from-design`). Only works on a
+  `"generated"` design (`409 DESIGN_NOT_READY` otherwise, `409
+  ALREADY_PUBLISHED` if already published). Derives each provider's exact
+  file from `masterImageUrl` via that store's `PrintTemplate` (falls back
+  to the master's own dimensions + an activity note if none set) and calls
+  the same product-creation flow as `generate-from-design`, once per
+  entry, setting `Product.designId`. Returns `{design, products}`.
+- `GET /api/agent/print-templates` / `PUT
+  /api/agent/print-templates/:provider/:productType` —
+  `{"widthPx","heightPx","minDpi","format?"}`. Per-store pixel specs used
+  by publish; every store starts with Printful's tee spec (4500×5400,
+  150 DPI) seeded.
+
 ### Collections
 
 - `GET /api/agent/collections` — list, with product counts.
@@ -236,6 +350,23 @@ you don't repeat a failed experiment.
   line item's variant lacks a `providerVariantId` — set that via `PATCH
   /api/agent/products/:id` first.
 
+### Cleanup
+
+Both take `{"dryRun": false}` — default is `dryRun: true`, so a caller
+must explicitly opt into actually deleting anything.
+
+- `POST /api/agent/store/prune-assets` — deletes every uploaded design/
+  scene/mockup image nothing references anymore (not `Store.theme.
+  heroImageUrl`, any `MockupScene.imageUrl`/`baseImages`, or any
+  `ProductImage.url`). Nothing else currently cleans these up, so they
+  accumulate on every replace/regenerate. Response: `{total, orphaned,
+  deleted, dryRun}`.
+- `POST /api/agent/store/prune-products` — hard-deletes **inactive**
+  products with zero `CartItem`/`OrderItem` references on any variant —
+  the one safe exception to "products are never hard-deleted." Cascades
+  to the product's variants/images/collection links. Response: `{total,
+  eligible, skipped, deleted, failed, dryRun}`.
+
 ## Typical flows
 
 **"Launch a new store for X"** → `POST /api/platform/stores` with a brand
@@ -252,6 +383,13 @@ variant per size/color (each with its `providerVariantId`), then
 `POST /api/agent/products/:id/mockups` with `dryRun: true` to see which
 garment colors the design survives on, then the same call without
 `dryRun` to render and attach the real product photos.
+
+**"Turn this design into a listed product"** (no product to build around
+yet) → one call, `POST /api/agent/products/generate-from-design` with
+`productType` + `designUrl` + `priceCents` — creates the product (AI
+writes the title/description), its variants (one per color × size from
+the product type's `MockupScene`), and a mockup per color, all at once.
+Needs that type's colors set first (`PUT /api/agent/mockup-scenes/:productType`).
 
 **"Raise/lower prices on X"** → `GET /api/agent/products` (or fetch the
 one product), find the variant(s), `PATCH` with updated `priceCents`.

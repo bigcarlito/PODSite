@@ -6,11 +6,30 @@ import { useState } from "react";
 export function Gallery({
   images,
   title,
+  activeOptionName,
+  activeOptionValue,
 }: {
-  images: { url: string; altText?: string | null }[];
+  images: { url: string; altText?: string | null; optionValues?: Record<string, string> | null }[];
   title: string;
+  activeOptionName?: string;
+  activeOptionValue?: string;
 }) {
   const [active, setActive] = useState(0);
+
+  // Adjust `active` during render (not an effect) when the selected color
+  // changes, per React's guidance for syncing state to a changed prop —
+  // this still lets a manual thumbnail click (setActive below) take over
+  // until the color changes again.
+  const [trackedOptionValue, setTrackedOptionValue] = useState(activeOptionValue);
+  if (activeOptionValue !== trackedOptionValue) {
+    setTrackedOptionValue(activeOptionValue);
+    if (activeOptionName && activeOptionValue) {
+      const index = images.findIndex(
+        (img) => img.optionValues?.[activeOptionName] === activeOptionValue
+      );
+      if (index !== -1) setActive(index);
+    }
+  }
 
   if (images.length === 0) {
     return (

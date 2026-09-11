@@ -233,6 +233,47 @@ routes call (same pattern as rule #1, one more thin caller), and
 `docs/AGENT_API.md` stays the canonical reference both the REST docs and
 the MCP tool descriptions are generated/kept in sync from.
 
+## Structured designs
+
+A design is defined by **structured aspects** (a controlled vocabulary —
+`hook`, `layout`, `artStyle`, `colorScheme`, `complexity`, plus free-text
+`phrase`/`subject` and placement context), not by an opaque `designUrl`.
+The pipeline: `aspects` → `compileDesignPrompt()` (pure, deterministic) →
+a pluggable `ImageProvider` → the **QC gate** (rejects a bad render before
+an upscale is spent on it) → on pass, **upscale** to the print-ready
+master canvas → a `Design` row that carries the exact prompt/seed/aspects
+alongside both images → **publish** derives each provider's exact file
+from the master and creates one or more `Product`s via `Product.designId`
+→ (Phase 3+: view/sale attribution back to the aspects that produced it).
+Every design carries the recipe that made it — that's what turns sales
+into a model of what actually works for a store's audience, instead of
+design-by-design guessing.
+
+**Phase 1+2 (current)**: `src/lib/design/aspects.ts` (vocabulary),
+`prompt.ts` (compiler), `providers/` (pluggable image generation, mirrors
+`src/lib/fulfillment/`), `qc.ts` (the four-check QC gate), `upscale.ts`
+(resize to the 4500×5400 master canvas), `print-templates.ts`
+(per-provider/product-type pixel specs + deriving a provider's exact file
+from the master), `designs.ts` (`createDesign`/`regenerateDesign`/
+`publishDesign`/`getDesign`/`listDesigns`), the `Design` and
+`PrintTemplate` models, and the full `/api/agent/designs*` +
+`/api/agent/print-templates*` surface (see `docs/AGENT_API.md`). A design
+reaches `status: "generated"` (QC-passed, `masterImageUrl` set) or
+`"rejected"` (failed QC every retry, `masterImageUrl` stays null); publish
+moves a `"generated"` design to `"published"`.
+
+**Not built yet (Phase 3+)**: `DesignEvent` view tracking, `DesignBatch`
+flights (a controlled experiment varying one aspect, everything else —
+including the image provider — held constant), and the aspect-level
+insights rollup (`GET /api/agent/designs/insights`) that's the actual
+point of all this: knowing which `hook`/`layout`/`artStyle`/`colorScheme`/
+`complexity` value wins for a store's audience. Building any of these:
+keep provider-specific logic inside `providers/*.ts` (never a conditional
+in the pipeline, per rule #6's reasoning), keep every new capability
+zod-validated and store-scoped (rules #2, #11), and update this section
+plus `docs/AGENT_API.md`/`skills/pod-platform-agent/SKILL.md` in the same
+change (rule #3).
+
 ## Where things are
 
 ```
@@ -260,19 +301,112 @@ src/lib/store/activity.ts       logActivity()/listActivity() — the
                                 recent-activity log (rule #12)
 src/lib/store/settings.ts       updateStoreBrand() — a store editing its
                                 own brand fields (name/brief/theme/etc.);
-                                setHeroImage() — upload + set in one step
+                                setHeroImage()/setLogoImage() — upload +
+                                set in one step
 src/lib/store/assets.ts         uploadStoreAsset()/getStoreAsset() — binary
-                                image storage (currently just hero images),
-                                kept off Store itself so getCurrentStore()
-                                never pulls image bytes on every request
+                                image storage (hero images, uploaded
+                                designs, mockup scenes/bases, generated
+                                mockups — see `kind`), kept off Store
+                                itself so getCurrentStore() never pulls
+                                image bytes on every request. Nothing
+                                deletes a StoreAsset row on its own when
+                                whatever referenced it gets replaced — see
+                                cleanup.ts below.
+src/lib/store/cleanup.ts        pruneOrphanedAssets() — deletes any
+                                StoreAsset nothing references anymore;
+                                deleteOrphanedInactiveProducts() — hard-
+                                deletes inactive products with zero
+                                cart/order references (the one safe
+                                exception to "never hard-delete a
+                                product"). Both default to a dry run.
 src/lib/store/public.ts         toSafeStore() — the allow-listed Store
                                 shape returned by any agent-facing route,
                                 never the credential-hash fields
 src/lib/store/mockups.ts        generateProductMockups() — renders a design
                                 on the garment colors it reads well on
+                                (Printful's flat, plain-background mockup)
 src/lib/design/palette.ts       Design palette extraction (opaque pixels
                                 only) + WCAG contrast scoring of a design
                                 against garment colors
+src/lib/store/mockup-scenes.ts  MockupScene CRUD — one shared "blank
+                                garment in a real setting" photo, color
+                                lineup, pre-generated per-color base
+                                mockups (baseImages), and design
+                                placement rectangle (designArea) per
+                                Product.productType (e.g. "tshirt")
+src/lib/store/ai-mockups.ts     generateAIProductMockups() — composites a
+                                design onto a MockupScene's pre-generated
+                                base for each variant color (a
+                                deterministic local image composite, not
+                                an AI call — see compositor.ts), as a
+                                non-generic/non-white-background
+                                alternative to mockups.ts above
+src/lib/design/design-area.ts  DesignArea type + default rectangle —
+                                plain constants (no server-only) shared by
+                                the server compositor and the client-side
+                                design-area editor UI
+src/lib/design/compositor.ts    compositeDesignOnScene() — scales a design
+                                to fit a DesignArea rectangle and alpha-
+                                blends it onto a base mockup at 85%
+                                opacity (sharp, no AI call); also reads an
+                                image's pixel dimensions for the editor
+src/lib/design/aspects.ts       The structured-design vocabulary (see
+                                "Structured designs" below) — every axis's
+                                legal values + the prompt fragment each
+                                value contributes. One file is the whole
+                                taxonomy; a new value is a data change, a
+                                changed value's *meaning* bumps
+                                ASPECTS_VERSION.
+src/lib/design/prompt.ts        compileDesignPrompt() — pure function,
+                                aspects in, a neutral prompt IR out
+                                (promptText/colorRoles/exclusions/
+                                aspectRatioBucket); same input always
+                                compiles to the same output, which is what
+                                makes attributing a sale back to an aspect
+                                combination valid
+src/lib/design/providers/       Pluggable image-generation providers —
+                                mirrors src/lib/fulfillment/ (AGENTS.md
+                                #6). registry.ts resolves one by the
+                                string in Design.provider; openrouter.ts
+                                is the only adapter so far (reaches GPT
+                                Image 1 / Nano Banana through OpenRouter's
+                                unified endpoint)
+src/lib/design/qc.ts            runQcGate() — the four-check QC gate
+                                (textFidelity/alphaCoverage/colorCount/
+                                contrastVsGarment) run against a design's
+                                native-resolution preview, before an
+                                upscale is spent on it
+src/lib/design/upscale.ts       upscaleToMasterCanvas() — sharp-based
+                                resize/pad to the fixed 4500x5400
+                                print-ready master canvas every downstream
+                                product variant derives from
+src/lib/design/print-templates.ts Per-store, per-(provider,productType)
+                                pixel spec CRUD (getPrintTemplate()/
+                                setPrintTemplate()/listPrintTemplates())
+                                + deriveProviderFile() — crops/resizes a
+                                Design.masterImageUrl to one provider's
+                                exact spec at publish time, never a
+                                regeneration
+src/lib/design/designs.ts       createDesign()/regenerateDesign()/
+                                publishDesign()/getDesign()/listDesigns()
+                                — validates aspects, compiles the prompt,
+                                calls the chosen provider, runs the QC
+                                gate (retrying once), upscales on pass,
+                                and (via publishDesign) wraps
+                                generateProductFromDesign once per garment
+                                type — see "Structured designs" above
+src/lib/store/ai-product-create.ts generateProductFromDesign() — the
+                                "upload a design, get a finished product"
+                                flow: AI-writes title/description, builds
+                                one variant per (color x size) from the
+                                product type's MockupScene colors, then
+                                calls ai-mockups.ts for every color
+src/lib/ai/openrouter.ts        Thin OpenRouter client — image editing
+                                (chat completions, modalities: ["image"] —
+                                used only to pre-generate a MockupScene's
+                                per-color base images, not per mockup) and
+                                plain text generation (used by
+                                ai-product-create.ts)
 src/lib/fulfillment/            Pluggable POD provider interface + Printful
                                 impl — each call takes the calling store's
                                 own provider credentials
