@@ -4,6 +4,13 @@ import { StoreError } from "@/lib/store/errors";
 
 const CUTOUT_PRO_MATTING_URL = "https://www.cutout.pro/api/v1/matting?mattingType=6";
 
+/** How close a still-opaque pixel's color has to be to the image's
+ * original background color (Euclidean RGB distance) to be treated as
+ * background the matting API missed, and keyed transparent in the
+ * cleanup pass below. Deliberately tight — this only mops up near-exact
+ * leftover background, not anything a real ink color could plausibly be. */
+const RESIDUAL_BACKGROUND_DISTANCE = 24;
+
 function apiKeyOrThrow(): string {
   const apiKey = process.env.CUTOUT_PRO_API_KEY;
   if (!apiKey) {
@@ -42,6 +49,11 @@ export async function ensureTransparentBackground(data: Buffer): Promise<Buffer>
   }
   if (hasTransparency) return data;
 
+  // Sampled before matting — background regions the API leaves opaque
+  // (thin enclosed shapes seem prone to this — see the cleanup pass
+  // below) are otherwise indistinguishable from real ink once returned.
+  const backgroundColor: [number, number, number] = [raw[0], raw[1], raw[2]];
+
   const apiKey = apiKeyOrThrow();
   const form = new FormData();
   form.append("file", new Blob([new Uint8Array(data)], { type: "image/png" }), "design.png");
@@ -74,5 +86,40 @@ export async function ensureTransparentBackground(data: Buffer): Promise<Buffer>
     );
   }
 
-  return Buffer.from(await res.arrayBuffer());
+  const matted = Buffer.from(await res.arrayBuffer());
+  return stripResidualBackground(matted, backgroundColor);
+}
+
+/**
+ * Real testing found Cutout.Pro's matting occasionally leaves thin
+ * background-colored regions opaque (e.g. a ring icon's outline detail,
+ * as opposed to its already-correctly-removed interior hole) — small
+ * enough in area that the QC gate's own "significant color" coverage
+ * filter (see qc.ts) doesn't catch it, but visible edited onto a
+ * contrasting backdrop. This mops up anything still opaque that's very
+ * close to the pre-matting background color, regardless of where it
+ * sits in the image (no border-connectivity requirement, unlike the
+ * flood-fill approach this replaced) — safe because the distance
+ * threshold is tight enough that a real ink color is very unlikely to
+ * fall within it.
+ */
+async function stripResidualBackground(
+  matted: Buffer,
+  backgroundColor: [number, number, number]
+): Promise<Buffer> {
+  const { data: raw, info } = await sharp(matted).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const { width, height, channels } = info;
+
+  for (let i = 0; i < raw.length; i += channels) {
+    if (raw[i + 3] === 0) continue; // already transparent
+    const dr = raw[i] - backgroundColor[0];
+    const dg = raw[i + 1] - backgroundColor[1];
+    const db = raw[i + 2] - backgroundColor[2];
+    const distance = Math.sqrt(dr * dr + dg * dg + db * db);
+    if (distance <= RESIDUAL_BACKGROUND_DISTANCE) {
+      raw[i + 3] = 0;
+    }
+  }
+
+  return sharp(raw, { raw: { width, height, channels } }).png().toBuffer();
 }
