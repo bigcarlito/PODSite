@@ -3,9 +3,14 @@ import { DEFAULT_TEXT_MODEL, generateTextWithOpenRouter } from "@/lib/ai/openrou
 import { extractDesignPalette, scoreGarmentColors, type GarmentColor } from "./palette";
 import { COLOR_SCHEME_MAX_COLORS, type DesignAspects } from "./aspects";
 
-/** Reject if the opaque region is under this share of the canvas — usually
- * means the art is a postage stamp, or generation returned near-nothing. */
-const MIN_ALPHA_COVERAGE = 0.15;
+/** Reject if the opaque region is under this share of the canvas — a
+ * guard against a near-blank render, not a floor on how sparse legitimate
+ * art can be. Real testing with proper background segmentation (see
+ * background-removal.ts) showed a clean, correctly-cut-out minimal
+ * design (thin line art, generous margins) can legitimately measure
+ * ~10% — the original 0.15 was an uncalibrated guess from the design
+ * plan and rejected exactly that kind of design as a false positive. */
+const MIN_ALPHA_COVERAGE = 0.03;
 /** Reject if the opaque region is over this share — usually means a
  * background leaked in (the "transparent background" instruction failed). */
 const MAX_ALPHA_COVERAGE = 0.85;
