@@ -8,6 +8,7 @@ import {
 import { StoreError } from "@/lib/store/errors";
 import { PRINT_RATIO_DIMENSIONS } from "../aspects";
 import type { CompiledDesignPrompt } from "../prompt";
+import { ensureTransparentBackground } from "../background-removal";
 import type { GenerateDesignOpts, GeneratedDesignImage, ImageProvider } from "./types";
 
 function apiKeyOrThrow(): string {
@@ -53,7 +54,14 @@ export const openRouterImageProvider: ImageProvider = {
     const rawParams = { model, prompt, aspectRatioBucket: spec.aspectRatioBucket };
 
     const resultDataUrl = await editImageWithOpenRouter({ apiKey, model, prompt, images: [] });
-    const { data, mimeType } = parseDataUrl(resultDataUrl);
+    const parsed = parseDataUrl(resultDataUrl);
+    // Some models (e.g. Nano Banana / gemini-2.5-flash-image) don't
+    // reliably honor the "transparent background" instruction and render
+    // a solid flat background instead — a no-op if the image already has
+    // real transparency. Always PNG afterward, since a flood-filled alpha
+    // channel can't round-trip through JPEG.
+    const data = await ensureTransparentBackground(parsed.data);
+    const mimeType = "image/png";
     const metadata = await sharp(data).metadata();
     if (!metadata.width || !metadata.height) {
       throw new StoreError("AI_PROVIDER_ERROR", "OpenRouter returned an image with no readable dimensions.", {
