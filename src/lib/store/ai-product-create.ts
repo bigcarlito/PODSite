@@ -72,7 +72,7 @@ export async function generateProductFromDesign(
       apiKey,
       model: textModel,
       prompt,
-      imageUrl: input.designUrl,
+      imageUrl: input.visionUrl || input.designUrl,
     });
     const parsed = JSON.parse(extractJson(raw)) as { title?: string; description?: string };
     if (!parsed.title || !parsed.description) {

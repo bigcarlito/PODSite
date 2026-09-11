@@ -598,6 +598,7 @@ below) — the "pick a type, upload a design, get a finished product" flow.
 | --- | --- | --- |
 | `productType` | *required* | Must have a `MockupScene` with at least one color set. |
 | `designUrl` | *required* | Publicly reachable transparent PNG print file. |
+| `visionUrl` | `designUrl` | Smaller/native-resolution image for the AI title/description call. A full print-resolution `designUrl` (e.g. 4500×5400) can lose fine linework when a vision model downscales it for its own encoder — leaving it ungrounded and prone to hallucinating generic copy instead of erroring. Pass the smaller image an image-generation model actually returned if you have one. |
 | `priceCents` | *required* | Applied to every variant. |
 | `currency` | `"USD"` | |
 | `sizes` | `["S","M","L","XL"]` | Applied to every color. |
@@ -855,10 +856,14 @@ Each entry mirrors `POST /api/agent/products/generate-from-design`'s
 fields (`currency`, `sizes`, `colorOptionName`, `sizeOptionName` all
 optional with the same defaults) — this endpoint wraps that exact flow,
 deriving its `designUrl` from the design's own `masterImageUrl` instead of
-an externally-hosted URL. `provider` (default `"PRINTFUL"`) selects which
-`PrintTemplate` (see below) to derive the file from; with no matching
-template, publishes using the master's own dimensions unchanged and logs
-an activity note — it never blocks on a missing template row. Returns:
+an externally-hosted URL, and automatically passing the design's own
+(much smaller) `previewImageUrl` as `visionUrl` for the AI title/
+description call — the print-resolution master would otherwise risk the
+same downscale-loses-detail issue `visionUrl` exists to avoid. `provider`
+(default `"PRINTFUL"`) selects which `PrintTemplate` (see below) to
+derive the file from; with no matching template, publishes using the
+master's own dimensions unchanged and logs an activity note — it never
+blocks on a missing template row. Returns:
 
 ```json
 {
