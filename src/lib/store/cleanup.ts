@@ -12,10 +12,11 @@ import { logActivity, type ActivityActor } from "./activity";
  * here too.
  */
 async function collectReferencedAssetIds(storeId: string): Promise<Set<string>> {
-  const [store, scenes, images] = await Promise.all([
+  const [store, scenes, images, designs] = await Promise.all([
     prisma.store.findUniqueOrThrow({ where: { id: storeId }, select: { theme: true } }),
     prisma.mockupScene.findMany({ where: { storeId }, select: { imageUrl: true, baseImages: true } }),
     prisma.productImage.findMany({ where: { product: { storeId } }, select: { url: true } }),
+    prisma.design.findMany({ where: { storeId }, select: { previewImageUrl: true, masterImageUrl: true } }),
   ]);
 
   const urls: string[] = [];
@@ -27,6 +28,16 @@ async function collectReferencedAssetIds(storeId: string): Promise<Set<string>> 
     urls.push(...Object.values((scene.baseImages as Record<string, string> | null) ?? {}));
   }
   urls.push(...images.map((i) => i.url));
+  for (const design of designs) {
+    if (design.previewImageUrl) urls.push(design.previewImageUrl);
+    if (design.masterImageUrl) urls.push(design.masterImageUrl);
+  }
+  // Note: a published design's "design-print-file" asset (the derived,
+  // provider-sized crop of masterImageUrl) is only ever referenced
+  // transiently at publish time to build a ProductImage/designUrl — once
+  // that's done, nothing stores its own URL anywhere, so it's always
+  // reported orphaned here. That's expected, not a bug: the master image
+  // is retained and can re-derive the same file at any time.
 
   const ids = new Set<string>();
   for (const url of urls) {

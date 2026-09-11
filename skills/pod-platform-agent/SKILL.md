@@ -277,10 +277,12 @@ you don't repeat a failed experiment.
 
 ### Designs
 
-Phase 1 of the structured-design system (see `AGENTS.md`): a design is
-aspects (controlled vocabulary), not an opaque image URL, so the prompt is
+The structured-design system (see `AGENTS.md`): a design is aspects
+(controlled vocabulary), not an opaque image URL, so the prompt is
 reproducible and a later sale can be attributed back to the choices that
-made it. No QC gate/upscale/publish yet — `status` stops at `"generated"`.
+made it. Pipeline: aspects → prompt → generate → **QC gate** → **upscale**
+→ **publish**. `status` is one of `generated` (QC-passed, ready to
+publish), `rejected` (failed QC every attempt), or `published`.
 
 - `GET /api/agent/designs/vocabulary` — the versioned legal values per axis.
   `hook`, `layout`, `artStyle`, `colorScheme`, `complexity` are the five
@@ -288,16 +290,39 @@ made it. No QC gate/upscale/publish yet — `status` stops at `"generated"`.
 - `POST /api/agent/designs` — `{"aspects": {...}}` (all nine keys required
   except `phrase`/`subject`, which default to `null`). `provider` defaults
   to `"openrouter"` (GPT Image 1 / Nano Banana via OpenRouter); `slug`
-  auto-derives from `phrase`/`subject` if omitted. Validates → compiles the
-  prompt → generates → stores. Returns the created `Design`, including the
-  exact `prompt` sent and `previewImageUrl`. Not idempotent — image
-  generation isn't deterministic even from the same prompt.
-- `GET /api/agent/designs?status=&take=` — most recent first;
-  `status` is one of `draft|generated|rejected|published|archived`.
-- To turn a design into a sellable product today, pass its
-  `previewImageUrl` as `designUrl` to `POST
-  /api/agent/products/generate-from-design` — the dedicated
-  `.../designs/:id/publish` endpoint lands in Phase 2.
+  auto-derives from `phrase`/`subject` if omitted. Validates → compiles →
+  generates → runs the QC gate against the preview (retries once on
+  failure) → on pass, upscales to the print-ready master canvas. Returns
+  the `Design` either way — check `status`; a `"rejected"` one has
+  `params.qc` saying which check failed. Not idempotent.
+- QC gate checks (all must pass): `textFidelity` (vision-transcribes the
+  render, must match `phrase` exactly — skipped if `phrase` is null),
+  `alphaCoverage` (15-85% opaque), `colorCount` (caps significant colors
+  for `colorScheme` values that promise a count, e.g. `two_color_contrast`
+  → 2), `contrastVsGarment` (WCAG ≥2.5 against a representative garment
+  for `designedForShade`).
+- `POST /api/agent/designs/:id/regenerate` — `{"provider?","model?",
+  "negativePrompt?"}`, all optional. New seed/attempt through the same QC
+  gate, replacing the design's prompt/preview/master/status in place. Use
+  after a rejection when the aspects themselves seem fine and it's worth
+  another roll; a different aspect combination should be a new design.
+- `GET /api/agent/designs/:id` — one design. `GET
+  /api/agent/designs?status=&take=` — list, most recent first.
+- `POST /api/agent/designs/:id/publish` — `{"productTypes":[{"productType":
+  "tshirt","priceCents":2800,"provider":"PRINTFUL"}]}` (one entry per
+  garment type; `currency`/`sizes`/`colorOptionName`/`sizeOptionName`
+  optional, same defaults as `generate-from-design`). Only works on a
+  `"generated"` design (`409 DESIGN_NOT_READY` otherwise, `409
+  ALREADY_PUBLISHED` if already published). Derives each provider's exact
+  file from `masterImageUrl` via that store's `PrintTemplate` (falls back
+  to the master's own dimensions + an activity note if none set) and calls
+  the same product-creation flow as `generate-from-design`, once per
+  entry, setting `Product.designId`. Returns `{design, products}`.
+- `GET /api/agent/print-templates` / `PUT
+  /api/agent/print-templates/:provider/:productType` —
+  `{"widthPx","heightPx","minDpi","format?"}`. Per-store pixel specs used
+  by publish; every store starts with Printful's tee spec (4500×5400,
+  150 DPI) seeded.
 
 ### Collections
 

@@ -687,10 +687,15 @@ A design is defined by **structured aspects**, not by an opaque image URL —
 see the design-system notes in `AGENTS.md`. The prompt sent to the image
 model is derived from the aspects and stored verbatim, so any generation is
 reproducible and any later sale can be attributed back to the choices that
-produced it. This is Phase 1 of that system: create a design from aspects
-and get back a preview image. There's no QC gate, upscale, or publish step
-yet (those are Phase 2) — `Design.masterImageUrl` stays null and `status`
-never advances past `"generated"`.
+produced it.
+
+The pipeline: validate aspects → compile the prompt → generate via the
+chosen provider → **QC gate** the native-resolution preview (rejects
+before spending an upscale on a bad render) → on pass, **upscale** to the
+print-ready master canvas → **publish** derives each provider's exact file
+from the master and creates real product(s). A design's `status` reflects
+where it is in that pipeline: `generated` (QC-passed, ready to publish),
+`rejected` (failed QC after every retry), or `published`.
 
 ### `GET /api/agent/designs/vocabulary`
 
@@ -746,17 +751,149 @@ the chosen provider, and stores the result — one call, one design:
 `provider` defaults to `"openrouter"` — the only adapter implemented so far
 (reaches GPT Image 1 / Nano Banana through OpenRouter's unified endpoint,
 same client the AI mockup pipeline already uses); `model` falls back to
-that adapter's own default. Returns the created `Design` row, including
-`prompt` (exactly what was sent), `previewImageUrl`, and `aspects` echoed
-back. A repeated call with the same aspects produces a new design — nothing
-here is idempotent, since the image model isn't deterministic even with an
-identical prompt.
+that adapter's own default. A repeated call with the same aspects produces
+a new design — nothing here is idempotent, since the image model isn't
+deterministic even with an identical prompt.
+
+Runs the **QC gate** (see below) against each attempt's preview, retrying
+with a new attempt up to twice before giving up. On the first pass, also
+**upscales** to the print-ready master canvas. Returns the created
+`Design` row either way:
+
+```json
+{
+  "design": {
+    "id": "...", "slug": "ace-or-nothing", "status": "generated",
+    "prompt": "...", "aspects": {...}, "provider": "openrouter",
+    "previewImageUrl": "https://.../api/assets/...",
+    "masterImageUrl": "https://.../api/assets/...",
+    "masterWidthPx": 4500, "masterHeightPx": 5400,
+    "params": { "qc": { "textFidelity": {...}, "alphaCoverage": {...}, "colorCount": {...}, "contrastVsGarment": {...} }, "attempts": 1 }
+  }
+}
+```
+
+`status: "rejected"` means every attempt failed QC — `masterImageUrl`
+stays null, and `params.qc` says which check(s) failed on the last
+attempt. A rejected design is still useful evidence: check `params.qc`,
+adjust the failing aspect (or `phrase`, if `textFidelity` failed), and
+create a new design rather than retrying the identical one — identical
+aspects rarely fix a systematically bad combination.
+
+### QC gate
+
+Runs against `previewImageUrl` (cheap, native resolution) before any
+upscale is spent — every design gets four checks, all of which must pass:
+
+- **`textFidelity`** — a vision model transcribes the rendered text and
+  compares it to `aspects.phrase` exactly (case/whitespace-insensitive).
+  Skipped (auto-pass) when `phrase` is null. Misspelled/garbled text is
+  the #1 failure mode of AI apparel art and the one that produces refunds.
+- **`alphaCoverage`** — the opaque region must be between 15% and 85% of
+  the canvas; outside that usually means a near-blank render or a leaked
+  background.
+- **`colorCount`** — for `colorScheme` values that promise a specific
+  count (`one_color_*`: 1, `two_color_contrast`: 2, `retro_three_color`:
+  3), rejects a render with more significant colors than that.
+- **`contrastVsGarment`** — WCAG contrast between the design's ink and a
+  representative garment color for `aspects.designedForShade` (dark,
+  light, or both) must be at least 2.5.
+
+Every attempt (pass or fail) writes a `"design"` activity log entry with
+the per-check detail.
+
+### `POST /api/agent/designs/:id/regenerate`
+
+Re-runs generation for an existing design's aspects — a new seed/attempt
+through the same QC gate and upscale, replacing the design's
+prompt/preview/master/status in place (not a new row):
+
+```json
+{ "provider": "openrouter", "model": "...", "negativePrompt": "..." }
+```
+
+All fields optional — omitted means "same as the design already has".
+Use this after a `"rejected"` design's QC detail suggests the same
+provider/aspects just need another roll, rather than a different aspect
+combination (which should be a new `POST /api/agent/designs` instead).
+
+### `GET /api/agent/designs/:id`
+
+One design, full detail.
 
 ### `GET /api/agent/designs?status=&take=`
 
 Lists this store's designs, most recent first. `status` filters to one of
 `draft | generated | rejected | published | archived`; `take` caps the
 count (default 50).
+
+### `POST /api/agent/designs/:id/publish`
+
+Turns a `"generated"` (QC-passed) design into one or more real products —
+one call per garment type, since a tee and a sweatshirt from the same
+design are different `Product` rows sharing one `Design` via
+`Product.designId`:
+
+```json
+{
+  "productTypes": [
+    { "productType": "tshirt", "priceCents": 2800, "provider": "PRINTFUL" },
+    { "productType": "hoodie", "priceCents": 4800, "provider": "PRINTFUL" }
+  ]
+}
+```
+
+Each entry mirrors `POST /api/agent/products/generate-from-design`'s
+fields (`currency`, `sizes`, `colorOptionName`, `sizeOptionName` all
+optional with the same defaults) — this endpoint wraps that exact flow,
+deriving its `designUrl` from the design's own `masterImageUrl` instead of
+an externally-hosted URL. `provider` (default `"PRINTFUL"`) selects which
+`PrintTemplate` (see below) to derive the file from; with no matching
+template, publishes using the master's own dimensions unchanged and logs
+an activity note — it never blocks on a missing template row. Returns:
+
+```json
+{
+  "design": { "id": "...", "status": "published", ... },
+  "products": [
+    { "productType": "tshirt", "product": {...}, "rendered": [...], "failed": [] }
+  ]
+}
+```
+
+Fails with `409 DESIGN_NOT_READY` if the design isn't `"generated"` yet,
+or `409 ALREADY_PUBLISHED` if it's already been published — publish a
+second garment type for the same design by minting a new design instead
+(structured aspects are cheap to regenerate; a Design row is meant to
+represent one specific rendered artwork, not a family of them).
+
+## Print templates
+
+`PrintTemplate` is the exact pixel spec (width/height/min DPI) one
+fulfillment provider expects for one product type, **per store** (see
+AGENTS.md #11 — even though the real-world spec is usually identical
+across every store using the same provider, one store's admin/agent
+updating it must never affect another store's products). Looked up at
+publish time to crop/resize `Design.masterImageUrl` into that provider's
+exact file — the master itself is never regenerated per provider. Every
+store is seeded with Printful's current full-front tee spec
+(4500×5400px, 150 DPI) at creation.
+
+### `GET /api/agent/print-templates`
+
+Lists every print template this store has set.
+
+### `PUT /api/agent/print-templates/:provider/:productType`
+
+`:provider` is one of `PRINTFUL | PRINTIFY | GELATO` (case-insensitive in
+the URL). Body:
+
+```json
+{ "widthPx": 4500, "heightPx": 5400, "minDpi": 150, "format": "png" }
+```
+
+Creates or replaces the row for that `(provider, productType)` pair on
+this store. Returns the updated `PrintTemplate`.
 
 ## Collections
 
@@ -844,8 +981,11 @@ stored permanently (see `src/lib/store/assets.ts` — nothing currently
 deletes an asset when the thing referencing it gets replaced). This finds
 every `StoreAsset` nothing currently points to — not `Store.theme.
 heroImageUrl`, not `Store.theme.logoUrl`, not any `MockupScene.imageUrl`/
-`baseImages` entry, not any `ProductImage.url` — and, unless `dryRun`,
-deletes them.
+`baseImages` entry, not any `ProductImage.url`, not any `Design.
+previewImageUrl`/`masterImageUrl` — and, unless `dryRun`, deletes them.
+(A published design's derived per-provider print file is *not* tracked
+anywhere after publish and will always show as orphaned — expected, since
+the master image can re-derive it at any time.)
 
 ```json
 {
@@ -899,12 +1039,8 @@ Deleting a product cascades to its `ProductVariant`, `ProductImage`, and
   but nothing populates it yet).
 - Bulk operations (batch price updates, bulk import). Loop `PATCH
   /api/agent/products/:id` calls for now.
-- **Design system Phase 2+**: a QC gate (text-fidelity/alpha-coverage/
-  color-count/contrast checks against `previewImageUrl`), an upscale step
-  to `Design.masterImageUrl` at print-ready resolution, `PrintTemplate`
-  (per-provider/product-type pixel specs), and `POST
-  /api/agent/designs/:id/publish` to turn a design into products. Until
-  then, a design's `previewImageUrl` can be passed manually as `designUrl`
-  to `POST /api/agent/products/generate-from-design`. Phase 3+ adds
-  `DesignEvent` view tracking, `DesignBatch` flights, and `GET
-  /api/agent/designs/insights` (which aspect values actually sell).
+- **Design system Phase 3+**: `DesignEvent` view tracking, `DesignBatch`
+  flights (controlled experiments varying one aspect at a time), and `GET
+  /api/agent/designs/insights` (an aspect-level rollup of which values
+  actually sell). Phases 1-2 (aspects → prompt → QC gate → upscale →
+  publish) are built — see "Designs" above.

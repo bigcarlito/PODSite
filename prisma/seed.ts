@@ -435,6 +435,24 @@ async function main() {
       console.log(`  Seeded product: ${product.title}`);
     }
 
+    // Printful's current full-front tee spec — matches the design system's
+    // master canvas exactly, so publishing a design never needs a fallback
+    // note for the common case.
+    await prisma.printTemplate.upsert({
+      where: {
+        storeId_provider_productType: { storeId: store.id, provider: "PRINTFUL", productType: "tshirt" },
+      },
+      update: {},
+      create: {
+        storeId: store.id,
+        provider: "PRINTFUL",
+        productType: "tshirt",
+        widthPx: 4500,
+        heightPx: 5400,
+        minDpi: 150,
+      },
+    });
+
     console.log(`Seeded store: ${store.name} (${store.slug})`);
   }
 

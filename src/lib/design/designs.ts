@@ -4,10 +4,20 @@ import type { Prisma, Store } from "@prisma/client";
 import { StoreError, notFound } from "@/lib/store/errors";
 import { logActivity, type ActivityActor } from "@/lib/store/activity";
 import { uploadStoreAsset } from "@/lib/store/assets";
-import type { DesignCreateInput } from "@/lib/store/schemas";
-import { ASPECTS_VERSION, aspectsSchema } from "./aspects";
-import { compileDesignPrompt } from "./prompt";
+import type { DesignCreateInput, DesignPublishInput, DesignRegenerateInput } from "@/lib/store/schemas";
+import { generateProductFromDesign } from "@/lib/store/ai-product-create";
+import { ASPECTS_VERSION, aspectsSchema, type DesignAspects } from "./aspects";
+import { compileDesignPrompt, type CompiledDesignPrompt } from "./prompt";
 import { getImageProvider } from "./providers/registry";
+import type { ImageProvider } from "./providers/types";
+import { runQcGate, type QcResult } from "./qc";
+import { upscaleToMasterCanvas } from "./upscale";
+import { deriveProviderFile, getPrintTemplate } from "./print-templates";
+
+/** Reject-and-regenerate this many times before giving up and persisting a
+ * "rejected" design — bounds the cost of a genuinely bad aspect combination
+ * (see AGENTS.md's design-system notes on the QC gate). */
+const MAX_GENERATION_ATTEMPTS = 2;
 
 function slugify(text: string): string {
   return (
@@ -17,6 +27,25 @@ function slugify(text: string): string {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "") || "design"
   );
+}
+
+function openRouterApiKeyOrThrow(): string {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new StoreError(
+      "MISSING_PROVIDER_CREDENTIALS",
+      "OPENROUTER_API_KEY is not configured.",
+      { status: 422 }
+    );
+  }
+  return apiKey;
+}
+
+/** A relative StoreAsset URL stays relative; an already-absolute URL from a
+ * future provider that hosts images itself is used as-is (same reasoning
+ * as generateAIProductMockups — see AGENTS.md's design-system notes). */
+function toAbsolute(url: string, origin: string): string {
+  return /^https?:\/\//.test(url) ? url : `${origin}${url}`;
 }
 
 export async function getDesign(storeId: string, id: string) {
@@ -33,14 +62,138 @@ export function listDesigns(storeId: string, opts?: { status?: string; take?: nu
   });
 }
 
+type GenerationOutcome = {
+  status: "generated" | "rejected";
+  previewImageUrl: string;
+  masterImageUrl: string | null;
+  masterWidthPx: number | null;
+  masterHeightPx: number | null;
+  seed: number | null;
+  model: string;
+  attempts: number;
+  qc: QcResult;
+};
+
+/**
+ * Generates via the chosen provider, running the QC gate against each
+ * attempt's native-resolution preview before spending an upscale on it —
+ * the step that saves the most money (see AGENTS.md's design-system
+ * notes). On the first QC pass, upscales to the print-ready master canvas
+ * and returns status "generated"; if every attempt fails QC, returns
+ * status "rejected" with the last attempt's preview and QC detail, rather
+ * than throwing — a rejected design is still useful evidence of which
+ * aspect combinations are expensive to produce.
+ */
+async function generateWithQc(
+  store: Store,
+  aspects: DesignAspects,
+  compiled: CompiledDesignPrompt,
+  provider: ImageProvider,
+  opts: { model?: string; negativePrompt?: string },
+  actor: ActivityActor,
+  origin: string
+): Promise<GenerationOutcome> {
+  const openRouterApiKey = openRouterApiKeyOrThrow();
+
+  let lastPreviewUrl = "";
+  let lastSeed: number | undefined;
+  let lastModel = opts.model ?? "";
+  let lastQc: QcResult | undefined;
+
+  for (let attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt++) {
+    let generated;
+    try {
+      generated = await provider.generate(compiled, {
+        model: opts.model,
+        negativePrompt: opts.negativePrompt,
+      });
+    } catch (cause) {
+      throw new StoreError(
+        "AI_PROVIDER_ERROR",
+        `Design generation failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+        { status: 502 }
+      );
+    }
+
+    let previewUrl = generated.imageUrl;
+    const dataUrlMatch = /^data:([^;]+);base64,([\s\S]+)$/.exec(generated.imageUrl);
+    if (dataUrlMatch) {
+      const asset = await uploadStoreAsset(
+        store.id,
+        { kind: "design-preview", data: Buffer.from(dataUrlMatch[2], "base64"), mimeType: dataUrlMatch[1] },
+        actor
+      );
+      previewUrl = asset.url;
+    }
+
+    lastPreviewUrl = previewUrl;
+    lastSeed = generated.seed;
+    lastModel = opts.model || String(generated.rawParams.model ?? "");
+
+    const qc = await runQcGate(toAbsolute(previewUrl, origin), aspects, { apiKey: openRouterApiKey });
+    lastQc = qc;
+
+    await logActivity(store.id, {
+      actor,
+      category: "design",
+      summary: qc.pass
+        ? `QC passed on attempt ${attempt}`
+        : `QC rejected attempt ${attempt}: ${Object.values(qc.checks)
+            .filter((c) => !c.pass)
+            .map((c) => c.detail)
+            .join("; ")}`,
+      details: { checks: qc.checks },
+    });
+
+    if (qc.pass) {
+      const upscaled = await upscaleToMasterCanvas(toAbsolute(previewUrl, origin));
+      const masterAsset = await uploadStoreAsset(
+        store.id,
+        { kind: "design-master", data: upscaled.data, mimeType: upscaled.mimeType },
+        actor
+      );
+      return {
+        status: "generated",
+        previewImageUrl: previewUrl,
+        masterImageUrl: masterAsset.url,
+        masterWidthPx: upscaled.width,
+        masterHeightPx: upscaled.height,
+        seed: lastSeed ?? null,
+        model: lastModel,
+        attempts: attempt,
+        qc,
+      };
+    }
+  }
+
+  return {
+    status: "rejected",
+    previewImageUrl: lastPreviewUrl,
+    masterImageUrl: null,
+    masterWidthPx: null,
+    masterHeightPx: null,
+    seed: lastSeed ?? null,
+    model: lastModel,
+    attempts: MAX_GENERATION_ATTEMPTS,
+    qc: lastQc!,
+  };
+}
+
 /**
  * Validates aspects → compiles the prompt → generates via the chosen
- * ImageProvider → persists the Design row. Phase 1 stops here: no QC gate
- * and no upscale yet (previewImageUrl is set, masterImageUrl stays null),
- * so status lands on "generated" rather than "published" — see AGENTS.md's
- * design-system notes for the full pipeline this is the first stage of.
+ * ImageProvider, running the QC gate and (on pass) the upscale to the
+ * print-ready master canvas — see AGENTS.md's design-system notes for the
+ * full pipeline. `origin` must be this request's own absolute origin: the
+ * preview/master URLs are stored relative (same reasoning as every other
+ * StoreAsset reference), but QC and upscale both need an absolute URL to
+ * fetch them from outside a browser context.
  */
-export async function createDesign(store: Store, input: DesignCreateInput, actor: ActivityActor) {
+export async function createDesign(
+  store: Store,
+  input: DesignCreateInput,
+  actor: ActivityActor,
+  origin: string
+) {
   const aspects = aspectsSchema.parse(input.aspects);
 
   const slug = input.slug ? slugify(input.slug) : slugify(aspects.phrase || aspects.subject || "design");
@@ -54,35 +207,15 @@ export async function createDesign(store: Store, input: DesignCreateInput, actor
 
   const compiled = compileDesignPrompt(aspects);
   const provider = getImageProvider(input.provider);
-
-  let generated;
-  try {
-    generated = await provider.generate(compiled, {
-      model: input.model,
-      negativePrompt: input.negativePrompt,
-    });
-  } catch (cause) {
-    throw new StoreError(
-      "AI_PROVIDER_ERROR",
-      `Design generation failed: ${cause instanceof Error ? cause.message : String(cause)}`,
-      { status: 502 }
-    );
-  }
-
-  // Providers return either a publicly reachable URL or a data: URI (see
-  // ImageProvider) — persist through the same asset store every other
-  // AI-generated image uses rather than trusting a provider's own
-  // (often temporary) hosting.
-  let previewImageUrl = generated.imageUrl;
-  const dataUrlMatch = /^data:([^;]+);base64,([\s\S]+)$/.exec(generated.imageUrl);
-  if (dataUrlMatch) {
-    const asset = await uploadStoreAsset(
-      store.id,
-      { kind: "design-preview", data: Buffer.from(dataUrlMatch[2], "base64"), mimeType: dataUrlMatch[1] },
-      actor
-    );
-    previewImageUrl = asset.url;
-  }
+  const outcome = await generateWithQc(
+    store,
+    aspects,
+    compiled,
+    provider,
+    { model: input.model, negativePrompt: input.negativePrompt },
+    actor,
+    origin
+  );
 
   const design = await prisma.design.create({
     data: {
@@ -93,25 +226,194 @@ export async function createDesign(store: Store, input: DesignCreateInput, actor
       prompt: compiled.promptText,
       negativePrompt: input.negativePrompt,
       provider: input.provider,
-      model: input.model || String(generated.rawParams.model ?? ""),
-      seed: generated.seed,
+      model: outcome.model,
+      seed: outcome.seed,
       params: {
         aspectRatioBucket: compiled.aspectRatioBucket,
         colorRoles: compiled.colorRoles,
         exclusions: compiled.exclusions,
-        rawParams: generated.rawParams,
+        qc: outcome.qc.checks,
+        attempts: outcome.attempts,
       } as unknown as Prisma.InputJsonValue,
-      previewImageUrl,
-      status: "generated",
+      previewImageUrl: outcome.previewImageUrl,
+      masterImageUrl: outcome.masterImageUrl,
+      masterWidthPx: outcome.masterWidthPx,
+      masterHeightPx: outcome.masterHeightPx,
+      status: outcome.status,
     },
   });
 
   await logActivity(store.id, {
     actor,
     category: "design",
-    summary: `Generated design "${slug}"`,
-    details: { designId: design.id, aspects, provider: input.provider },
+    summary: `${outcome.status === "generated" ? "Generated" : "Rejected"} design "${slug}"`,
+    details: { designId: design.id, aspects, provider: input.provider, attempts: outcome.attempts },
   });
 
   return design;
+}
+
+/**
+ * Re-runs generation for an existing design's aspects — a new seed/attempt,
+ * same aspects, same provider/model unless overridden. Replaces the
+ * design's prompt/preview/master/status in place rather than creating a
+ * new row, since it's the same design being re-tried, not a new one.
+ */
+export async function regenerateDesign(
+  store: Store,
+  id: string,
+  input: DesignRegenerateInput,
+  actor: ActivityActor,
+  origin: string
+) {
+  const existing = await getDesign(store.id, id);
+  const aspects = aspectsSchema.parse(existing.aspects);
+  const compiled = compileDesignPrompt(aspects);
+  const providerName = input.provider || existing.provider;
+  const provider = getImageProvider(providerName);
+
+  const outcome = await generateWithQc(
+    store,
+    aspects,
+    compiled,
+    provider,
+    { model: input.model, negativePrompt: input.negativePrompt ?? existing.negativePrompt ?? undefined },
+    actor,
+    origin
+  );
+
+  const design = await prisma.design.update({
+    where: { id: existing.id },
+    data: {
+      prompt: compiled.promptText,
+      negativePrompt: input.negativePrompt ?? existing.negativePrompt,
+      provider: providerName,
+      model: outcome.model,
+      seed: outcome.seed,
+      params: {
+        aspectRatioBucket: compiled.aspectRatioBucket,
+        colorRoles: compiled.colorRoles,
+        exclusions: compiled.exclusions,
+        qc: outcome.qc.checks,
+        attempts: outcome.attempts,
+      } as unknown as Prisma.InputJsonValue,
+      previewImageUrl: outcome.previewImageUrl,
+      masterImageUrl: outcome.masterImageUrl,
+      masterWidthPx: outcome.masterWidthPx,
+      masterHeightPx: outcome.masterHeightPx,
+      status: outcome.status,
+    },
+  });
+
+  await logActivity(store.id, {
+    actor,
+    category: "design",
+    summary: `${outcome.status === "generated" ? "Regenerated" : "Re-rejected"} design "${existing.slug}"`,
+    details: { designId: design.id, provider: providerName, attempts: outcome.attempts },
+  });
+
+  return design;
+}
+
+/**
+ * Turns a QC-passed design into one or more real products, one per garment
+ * type — wraps the existing generateProductFromDesign flow (same "upload a
+ * design, get a finished product" pipeline any store already uses), except
+ * the design's own masterImageUrl (cropped/resized to each provider's
+ * PrintTemplate, never regenerated) is the source image instead of an
+ * externally-hosted URL. See AGENTS.md's design-system notes.
+ */
+export async function publishDesign(
+  store: Store,
+  id: string,
+  input: DesignPublishInput,
+  actor: ActivityActor,
+  origin: string
+) {
+  const design = await getDesign(store.id, id);
+
+  if (design.status === "published") {
+    throw new StoreError("ALREADY_PUBLISHED", "This design has already been published.", {
+      status: 409,
+    });
+  }
+  if (design.status !== "generated" || !design.masterImageUrl) {
+    throw new StoreError(
+      "DESIGN_NOT_READY",
+      `Design status is "${design.status}" — only a "generated" (QC-passed, upscaled) design can be published.`,
+      { status: 409 }
+    );
+  }
+
+  const masterAbsolute = toAbsolute(design.masterImageUrl, origin);
+  const products: Array<{
+    productType: string;
+    product: Awaited<ReturnType<typeof generateProductFromDesign>>["product"];
+    rendered: Awaited<ReturnType<typeof generateProductFromDesign>>["rendered"];
+    failed: Awaited<ReturnType<typeof generateProductFromDesign>>["failed"];
+  }> = [];
+
+  for (const entry of input.productTypes) {
+    const template = await getPrintTemplate(store.id, entry.provider, entry.productType);
+
+    let fileUrl = masterAbsolute;
+    if (template) {
+      const derived = await deriveProviderFile(masterAbsolute, template);
+      const asset = await uploadStoreAsset(
+        store.id,
+        { kind: "design-print-file", data: derived.data, mimeType: derived.mimeType },
+        actor
+      );
+      fileUrl = toAbsolute(asset.url, origin);
+    } else {
+      await logActivity(store.id, {
+        actor,
+        category: "design",
+        summary: `No PrintTemplate for ${entry.provider} "${entry.productType}" — published with the master's own dimensions`,
+        details: { designId: design.id, provider: entry.provider, productType: entry.productType },
+      });
+    }
+
+    const result = await generateProductFromDesign(
+      store,
+      {
+        productType: entry.productType,
+        designUrl: fileUrl,
+        priceCents: entry.priceCents,
+        currency: entry.currency,
+        sizes: entry.sizes,
+        colorOptionName: entry.colorOptionName,
+        sizeOptionName: entry.sizeOptionName,
+        textModel: input.textModel,
+      },
+      actor,
+      origin
+    );
+
+    await prisma.product.update({
+      where: { id: result.product.id, storeId: store.id },
+      data: { designId: design.id },
+    });
+
+    products.push({
+      productType: entry.productType,
+      product: result.product,
+      rendered: result.rendered,
+      failed: result.failed,
+    });
+  }
+
+  const updated = await prisma.design.update({
+    where: { id: design.id },
+    data: { status: "published" },
+  });
+
+  await logActivity(store.id, {
+    actor,
+    category: "design",
+    summary: `Published design "${design.slug}" as ${products.length} product(s)`,
+    details: { designId: design.id, productTypes: input.productTypes.map((p) => p.productType) },
+  });
+
+  return { design: updated, products };
 }

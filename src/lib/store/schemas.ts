@@ -224,6 +224,45 @@ export const designCreateSchema = z.object({
   negativePrompt: z.string().optional(),
 });
 
+/// Re-runs generation for an existing design — a new seed/attempt, same
+/// aspects. All fields optional: omitted means "same as the design already
+/// has" (see regenerateDesign in src/lib/design/designs.ts).
+export const designRegenerateSchema = z.object({
+  provider: z.string().min(1).optional(),
+  model: z.string().min(1).optional(),
+  negativePrompt: z.string().optional(),
+});
+
+/// Sets the pixel spec one fulfillment provider expects for one product
+/// type on this store — see PUT /api/agent/print-templates/:provider/:productType.
+export const printTemplateUpsertSchema = z.object({
+  widthPx: z.number().int().positive(),
+  heightPx: z.number().int().positive(),
+  minDpi: z.number().int().positive(),
+  format: z.string().min(1).default("png"),
+});
+
+/// Turns a QC-passed design into one or more real products, one per
+/// garment type — see POST /api/agent/designs/:id/publish. Each entry
+/// mirrors aiProductCreateSchema's product-creation fields, minus
+/// `designUrl` (derived from the design's own masterImageUrl).
+const designPublishProductTypeSchema = z.object({
+  productType: z.string().min(1),
+  priceCents: z.number().int().positive(),
+  currency: z.string().length(3).default("USD"),
+  sizes: z.array(z.string().min(1)).default(["S", "M", "L", "XL"]),
+  colorOptionName: z.string().default("color"),
+  sizeOptionName: z.string().default("size"),
+  /// Which fulfillment provider's PrintTemplate to derive the file for.
+  provider: z.enum(["PRINTFUL", "PRINTIFY", "GELATO"]).default("PRINTFUL"),
+});
+
+export const designPublishSchema = z.object({
+  productTypes: z.array(designPublishProductTypeSchema).min(1),
+  /// Overrides OPENROUTER_TEXT_MODEL for each product's title/description call.
+  textModel: z.string().optional(),
+});
+
 export type MockupGenerateInput = z.infer<typeof mockupGenerateSchema>;
 export type AiMockupGenerateInput = z.infer<typeof aiMockupGenerateSchema>;
 export type DesignAreaInput = z.infer<typeof designAreaSchema>;
@@ -238,4 +277,7 @@ export type HeroImageUploadInput = z.infer<typeof heroImageUploadSchema>;
 export type LogoImageUploadInput = z.infer<typeof logoImageUploadSchema>;
 export type ActivityCreateInput = z.infer<typeof activityCreateSchema>;
 export type DesignCreateInput = z.infer<typeof designCreateSchema>;
+export type DesignRegenerateInput = z.infer<typeof designRegenerateSchema>;
+export type PrintTemplateUpsertInput = z.infer<typeof printTemplateUpsertSchema>;
+export type DesignPublishInput = z.infer<typeof designPublishSchema>;
 export type PruneInput = z.infer<typeof pruneSchema>;
