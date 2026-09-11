@@ -353,10 +353,16 @@ async function main() {
     // reseed.
     const needsApiKey = !existing || existing.agentApiKeyHash === "";
     const agentApiKey = needsApiKey ? generateApiKey() : null;
+    // Computed once, even though it's only ever actually persisted via the
+    // `create` branch below when agentApiKey is non-null — `create`'s
+    // object literal is evaluated eagerly by JS regardless of which
+    // upsert branch Prisma ends up taking, so hashApiKey(agentApiKey!)
+    // inline there would throw on a plain update.
+    const agentApiKeyHash = agentApiKey ? hashApiKey(agentApiKey) : "";
 
     const store = await prisma.store.upsert({
       where: { slug: s.slug },
-      update: needsApiKey ? { agentApiKeyHash: hashApiKey(agentApiKey!) } : {},
+      update: needsApiKey ? { agentApiKeyHash } : {},
       create: {
         slug: s.slug,
         name: s.name,
@@ -386,7 +392,7 @@ async function main() {
         trustBadges: ["30-day happiness guarantee", "Printed on demand"],
         socialLinks: [{ label: "Instagram", href: "https://instagram.com" }],
         adminPasswordHash: hashPassword(DEV_ADMIN_PASSWORD),
-        agentApiKeyHash: hashApiKey(agentApiKey!),
+        agentApiKeyHash,
       },
     });
 
