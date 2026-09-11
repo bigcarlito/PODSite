@@ -135,6 +135,17 @@ export const COLOR_SCHEME_ROLES: Partial<
   ],
 };
 
+/** Max distinct significant colors a colorScheme value promises — the QC
+ * gate (qc.ts) rejects a render that exceeds this, since it means the
+ * aspect didn't actually take effect. Omitted values (the free-palette
+ * ones like muted_earth/bright_primary) aren't capped. */
+export const COLOR_SCHEME_MAX_COLORS: Partial<Record<ColorScheme, number>> = {
+  one_color_white: 1,
+  one_color_black: 1,
+  two_color_contrast: 2,
+  retro_three_color: 3,
+};
+
 export const COMPLEXITY_VALUES = ["minimal", "moderate", "detailed"] as const;
 export type Complexity = (typeof COMPLEXITY_VALUES)[number];
 

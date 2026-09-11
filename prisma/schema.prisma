@@ -87,15 +87,16 @@ model Store {
   /// Printful token.
   printfulStoreId   String?
 
-  products     Product[]
-  variants     ProductVariant[]
-  collections  Collection[]
-  carts        Cart[]
-  orders       Order[]
-  activity     ActivityLogEntry[]
-  assets       StoreAsset[]
-  mockupScenes MockupScene[]
-  designs      Design[]
+  products       Product[]
+  variants       ProductVariant[]
+  collections    Collection[]
+  carts          Cart[]
+  orders         Order[]
+  activity       ActivityLogEntry[]
+  assets         StoreAsset[]
+  mockupScenes   MockupScene[]
+  designs        Design[]
+  printTemplates PrintTemplate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -217,6 +218,31 @@ model Design {
 
   @@unique([storeId, slug])
   @@index([storeId, status])
+}
+
+/// The exact print-file spec one fulfillment provider expects for one
+/// product type on this store — pixel dimensions and minimum DPI. Scoped
+/// per store (not global) per AGENTS.md #11: one store's admin/agent
+/// updating a spec must never affect another store's products, even
+/// though the same provider's real-world spec is usually identical across
+/// stores. Looked up at publish time to derive a provider-ready file from
+/// Design.masterImageUrl by crop/resize only — the master is never
+/// regenerated per provider. Free-form on `productType` on purpose (see
+/// AGENTS.md #10): a new garment type is a data change, never a migration.
+model PrintTemplate {
+  id          String                  @id @default(cuid())
+  store       Store                   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId     String
+  provider    FulfillmentProviderName
+  productType String
+  widthPx     Int
+  heightPx    Int
+  minDpi      Int
+  format      String                  @default("png")
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  @@unique([storeId, provider, productType])
 }
 
 /// A running history of what changed and why, per store — the "recent

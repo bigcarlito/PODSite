@@ -239,32 +239,40 @@ A design is defined by **structured aspects** (a controlled vocabulary —
 `hook`, `layout`, `artStyle`, `colorScheme`, `complexity`, plus free-text
 `phrase`/`subject` and placement context), not by an opaque `designUrl`.
 The pipeline: `aspects` → `compileDesignPrompt()` (pure, deterministic) →
-a pluggable `ImageProvider` → (Phase 2: QC gate → upscale) → a `Design` row
-that carries the exact prompt/seed/aspects alongside both images → one or
-more `Product`s via `Product.designId` → (Phase 3+: view/sale attribution
-back to the aspects that produced it). Every design carries the recipe
-that made it — that's what turns sales into a model of what actually works
-for a store's audience, instead of design-by-design guessing.
+a pluggable `ImageProvider` → the **QC gate** (rejects a bad render before
+an upscale is spent on it) → on pass, **upscale** to the print-ready
+master canvas → a `Design` row that carries the exact prompt/seed/aspects
+alongside both images → **publish** derives each provider's exact file
+from the master and creates one or more `Product`s via `Product.designId`
+→ (Phase 3+: view/sale attribution back to the aspects that produced it).
+Every design carries the recipe that made it — that's what turns sales
+into a model of what actually works for a store's audience, instead of
+design-by-design guessing.
 
-**Phase 1 (current)**: `src/lib/design/aspects.ts` (vocabulary),
+**Phase 1+2 (current)**: `src/lib/design/aspects.ts` (vocabulary),
 `prompt.ts` (compiler), `providers/` (pluggable image generation, mirrors
-`src/lib/fulfillment/`), `designs.ts` (`createDesign`/`getDesign`/
-`listDesigns`), the `Design` model, and `POST/GET /api/agent/designs`. A
-design stops at `status: "generated"` with `previewImageUrl` set — no QC
-gate, no upscale, no dedicated publish endpoint yet. To turn one into a
-sellable product today, pass its `previewImageUrl` as the `designUrl` to
-the existing `POST /api/agent/products/generate-from-design`.
+`src/lib/fulfillment/`), `qc.ts` (the four-check QC gate), `upscale.ts`
+(resize to the 4500×5400 master canvas), `print-templates.ts`
+(per-provider/product-type pixel specs + deriving a provider's exact file
+from the master), `designs.ts` (`createDesign`/`regenerateDesign`/
+`publishDesign`/`getDesign`/`listDesigns`), the `Design` and
+`PrintTemplate` models, and the full `/api/agent/designs*` +
+`/api/agent/print-templates*` surface (see `docs/AGENT_API.md`). A design
+reaches `status: "generated"` (QC-passed, `masterImageUrl` set) or
+`"rejected"` (failed QC every retry, `masterImageUrl` stays null); publish
+moves a `"generated"` design to `"published"`.
 
-**Not built yet**: the QC gate (reject before spending an upscale), the
-upscale step to `Design.masterImageUrl` at print-ready resolution,
-`PrintTemplate` (per-provider/product-type pixel specs), `POST
-/api/agent/designs/:id/publish`, `DesignEvent` view tracking,
-`DesignBatch` flights, and the aspect-level insights rollup. Building any
-of these: keep provider-specific logic inside `providers/*.ts` (never a
-conditional in the pipeline, per rule #6's reasoning), keep every new
-capability zod-validated and store-scoped (rules #2, #11), and update this
-section plus `docs/AGENT_API.md`/`skills/pod-platform-agent/SKILL.md` in
-the same change (rule #3).
+**Not built yet (Phase 3+)**: `DesignEvent` view tracking, `DesignBatch`
+flights (a controlled experiment varying one aspect, everything else —
+including the image provider — held constant), and the aspect-level
+insights rollup (`GET /api/agent/designs/insights`) that's the actual
+point of all this: knowing which `hook`/`layout`/`artStyle`/`colorScheme`/
+`complexity` value wins for a store's audience. Building any of these:
+keep provider-specific logic inside `providers/*.ts` (never a conditional
+in the pipeline, per rule #6's reasoning), keep every new capability
+zod-validated and store-scoped (rules #2, #11), and update this section
+plus `docs/AGENT_API.md`/`skills/pod-platform-agent/SKILL.md` in the same
+change (rule #3).
 
 ## Where things are
 
@@ -363,11 +371,30 @@ src/lib/design/providers/       Pluggable image-generation providers —
                                 is the only adapter so far (reaches GPT
                                 Image 1 / Nano Banana through OpenRouter's
                                 unified endpoint)
-src/lib/design/designs.ts       createDesign()/getDesign()/listDesigns()
+src/lib/design/qc.ts            runQcGate() — the four-check QC gate
+                                (textFidelity/alphaCoverage/colorCount/
+                                contrastVsGarment) run against a design's
+                                native-resolution preview, before an
+                                upscale is spent on it
+src/lib/design/upscale.ts       upscaleToMasterCanvas() — sharp-based
+                                resize/pad to the fixed 4500x5400
+                                print-ready master canvas every downstream
+                                product variant derives from
+src/lib/design/print-templates.ts Per-store, per-(provider,productType)
+                                pixel spec CRUD (getPrintTemplate()/
+                                setPrintTemplate()/listPrintTemplates())
+                                + deriveProviderFile() — crops/resizes a
+                                Design.masterImageUrl to one provider's
+                                exact spec at publish time, never a
+                                regeneration
+src/lib/design/designs.ts       createDesign()/regenerateDesign()/
+                                publishDesign()/getDesign()/listDesigns()
                                 — validates aspects, compiles the prompt,
-                                calls the chosen provider, persists the
-                                Design row. Phase 1 only: no QC gate or
-                                upscale yet, see "Structured designs" below
+                                calls the chosen provider, runs the QC
+                                gate (retrying once), upscales on pass,
+                                and (via publishDesign) wraps
+                                generateProductFromDesign once per garment
+                                type — see "Structured designs" above
 src/lib/store/ai-product-create.ts generateProductFromDesign() — the
                                 "upload a design, get a finished product"
                                 flow: AI-writes title/description, builds
