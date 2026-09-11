@@ -28,6 +28,13 @@ export const storeCreateSchema = z.object({
   /// (OAuth/multi-store) Printful tokens on most endpoints. Find it via
   /// GET /stores against the token above.
   printfulStoreId: z.string().optional(),
+  /// This store's own Stripe secret key (sk_...), if different from the
+  /// platform default. Falls back to STRIPE_SECRET_KEY when unset.
+  stripeSecretKey: z.string().optional(),
+  /// Signing secret (whsec_...) for this store's own Stripe webhook
+  /// endpoint, if different from the platform default. Falls back to
+  /// STRIPE_WEBHOOK_SECRET when unset.
+  stripeWebhookSecret: z.string().optional(),
 });
 
 export type StoreCreateInput = z.infer<typeof storeCreateSchema>;

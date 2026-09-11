@@ -43,6 +43,8 @@ export async function createStore(input: StoreCreateInput) {
       socialLinks: input.socialLinks ?? [],
       printfulApiKey: input.printfulApiKey,
       printfulStoreId: input.printfulStoreId,
+      stripeSecretKey: input.stripeSecretKey,
+      stripeWebhookSecret: input.stripeWebhookSecret,
       adminPasswordHash: hashPassword(adminPassword),
       agentApiKeyHash: hashApiKey(agentApiKey),
     },

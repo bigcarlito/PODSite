@@ -410,8 +410,27 @@ src/lib/ai/openrouter.ts        Thin OpenRouter client — image editing
 src/lib/fulfillment/            Pluggable POD provider interface + Printful
                                 impl — each call takes the calling store's
                                 own provider credentials
+src/lib/payments/stripe.ts      getStripeClient()/getStripeWebhookSecret()
+                                — resolves a store's own Stripe secret
+                                key/webhook secret, falling back to the
+                                platform STRIPE_SECRET_KEY/
+                                STRIPE_WEBHOOK_SECRET env vars, same
+                                per-store-credential pattern as
+                                src/lib/fulfillment/ (AGENTS.md #6/#7)
 src/lib/agent-auth.ts           Bearer-token auth for /api/agent/*, checked
                                 against the resolved store's own key
+src/app/checkout/actions.ts     placeOrder() — creates a PENDING_PAYMENT
+                                order via createPendingOrder()
+                                (src/lib/store/orders.ts), then redirects
+                                to a Stripe Checkout Session; the cart is
+                                only cleared once payment actually
+                                succeeds (see the webhook below), not here
+src/app/api/webhooks/stripe/    Verifies a checkout.session.completed
+                                delivery with the resolved store's own
+                                webhook secret, then calls the same
+                                markOrderPaid() the agent mark-paid
+                                endpoint uses and clears the cart — see
+                                docs/AGENT_API.md "Checkout & payments"
 src/app/api/agent/              JSON API surface for agents, store-scoped
                                 (see docs/AGENT_API.md)
 src/app/api/platform/           Store-creation API (see docs/AGENT_API.md)

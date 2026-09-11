@@ -1,13 +1,13 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { randomUUID } from "crypto";
-import { prisma } from "@/lib/prisma";
+import { headers } from "next/headers";
 import { getCart, cartTotalCents } from "@/lib/cart";
 import { formatVariantOptions } from "@/lib/variant-label";
 import { requireCurrentStore } from "@/lib/store-context";
-import { logActivity } from "@/lib/store/activity";
-import { cookies } from "next/headers";
+import { createPendingOrder } from "@/lib/store/orders";
+import { getStripeClient } from "@/lib/payments/stripe";
+import { originFromHeaders } from "@/lib/origin";
 
 export type CheckoutState = {
   error?: string;
@@ -44,53 +44,62 @@ export async function placeOrder(
   }
 
   const subtotalCents = cartTotalCents(cart.items);
-  const prefix = store.slug.replace(/[^a-z0-9]/gi, "").slice(0, 3).toUpperCase() || "ORD";
-  const orderNumber = `${prefix}-${Date.now().toString(36).toUpperCase()}`;
 
-  const order = await prisma.order.create({
-    data: {
-      storeId: store.id,
-      orderNumber,
+  const order = await createPendingOrder(
+    store.id,
+    store.slug,
+    cart,
+    {
       email,
       shippingName,
       shippingAddress1,
-      shippingAddress2: shippingAddress2 || null,
+      shippingAddress2,
       shippingCity,
       shippingState,
       shippingZip,
       shippingCountry,
-      subtotalCents,
-      status: "PENDING_PAYMENT",
-      items: {
-        create: cart.items.map((item) => ({
-          variantId: item.variantId,
-          quantity: item.quantity,
-          priceCents: item.variant.priceCents,
-          productName: item.variant.product.title,
-          variantName: formatVariantOptions(
-            item.variant.options as Record<string, string>
-          ),
-        })),
-      },
     },
-  });
+    subtotalCents
+  );
 
-  await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+  let sessionUrl: string | null;
+  try {
+    const stripe = getStripeClient(store);
+    const origin = originFromHeaders(await headers());
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      customer_email: email,
+      line_items: cart.items.map((item) => ({
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: `${item.variant.product.title} — ${formatVariantOptions(
+              item.variant.options as Record<string, string>
+            )}`,
+          },
+          unit_amount: item.variant.priceCents,
+        },
+        quantity: item.quantity,
+      })),
+      metadata: { orderId: order.id, storeId: store.id, cartId: cart.id },
+      success_url: `${origin}/checkout/confirmation/${order.orderNumber}`,
+      cancel_url: `${origin}/checkout`,
+    });
+    sessionUrl = session.url;
+  } catch {
+    return {
+      error:
+        "We couldn't start payment for your order. Please try again in a moment.",
+    };
+  }
 
-  await logActivity(store.id, {
-    actor: "customer",
-    category: "order",
-    summary: `New order ${order.orderNumber} placed ($${(subtotalCents / 100).toFixed(2)})`,
-    details: { orderId: order.id, orderNumber: order.orderNumber, subtotalCents },
-  });
+  if (!sessionUrl) {
+    return {
+      error:
+        "We couldn't start payment for your order. Please try again in a moment.",
+    };
+  }
 
-  const cookieStore = await cookies();
-  cookieStore.set("cart_token", randomUUID(), {
-    httpOnly: true,
-    sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 30,
-    path: "/",
-  });
-
-  redirect(`/checkout/confirmation/${order.orderNumber}`);
+  redirect(sessionUrl);
 }

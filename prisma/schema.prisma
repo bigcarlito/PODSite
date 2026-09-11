@@ -86,6 +86,13 @@ model Store {
   /// PRINTFUL_STORE_ID when unset. Find it via GET /stores against your
   /// Printful token.
   printfulStoreId   String?
+  /// This store's own Stripe secret key, if different from the platform
+  /// default. Falls back to STRIPE_SECRET_KEY when unset.
+  stripeSecretKey     String?
+  /// Signing secret for this store's own Stripe webhook endpoint, if
+  /// different from the platform default. Falls back to
+  /// STRIPE_WEBHOOK_SECRET when unset.
+  stripeWebhookSecret String?
 
   products       Product[]
   variants       ProductVariant[]
