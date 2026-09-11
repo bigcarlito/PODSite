@@ -270,10 +270,14 @@ you don't repeat a failed experiment.
   Needs a `MockupScene` with colors set for `productType` first
   (`NO_MOCKUP_SCENE`/`NO_MOCKUP_SCENE_COLORS` otherwise, both 422).
   `sizes` defaults to `["S","M","L","XL"]`, applied to every color.
-  New variants have no `providerVariantId` — set that via `PATCH
-  /api/agent/products/:id` afterward, per (product, color, size), before
-  the product can be fulfilled. Response: `{product, title, description,
-  rendered, failed}`.
+  Optional `visionUrl` — a smaller/native-resolution image for the AI
+  title/description call, defaulting to `designUrl` — pass this if
+  `designUrl` is a large print-resolution file, since a vision model can
+  lose fine linework downscaling one internally and hallucinate generic
+  copy instead of erroring. New variants have no `providerVariantId` —
+  set that via `PATCH /api/agent/products/:id` afterward, per (product,
+  color, size), before the product can be fulfilled. Response:
+  `{product, title, description, rendered, failed}`.
 
 ### Designs
 

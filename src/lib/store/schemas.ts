@@ -122,6 +122,15 @@ export const aiProductCreateSchema = z.object({
   productType: z.string().min(1),
   /// Publicly reachable print file — a transparent PNG at print resolution.
   designUrl: z.string().url(),
+  /// Optional smaller/native-resolution image for the AI title/description
+  /// call, defaulting to designUrl when omitted. A full print-resolution
+  /// file (e.g. 4500x5400) can lose fine linework when a vision model
+  /// downscales it internally for its own encoder, leaving it with what
+  /// looks like a near-blank image and no real grounding — it then
+  /// hallucinates generic copy instead of erroring. Pass a smaller
+  /// preview here (the resolution an image-generation model actually
+  /// returns, well under print size) to avoid that.
+  visionUrl: z.string().url().optional(),
   priceCents: z.number().int().positive(),
   currency: z.string().length(3).default("USD"),
   /// Applied to every color. Defaults to a standard apparel size run.

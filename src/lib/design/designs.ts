@@ -361,7 +361,7 @@ export async function publishDesign(
       status: 409,
     });
   }
-  if (design.status !== "generated" || !design.masterImageUrl) {
+  if (design.status !== "generated" || !design.masterImageUrl || !design.previewImageUrl) {
     throw new StoreError(
       "DESIGN_NOT_READY",
       `Design status is "${design.status}" — only a "generated" (QC-passed, upscaled) design can be published.`,
@@ -370,6 +370,7 @@ export async function publishDesign(
   }
 
   const masterAbsolute = toAbsolute(design.masterImageUrl, origin);
+  const previewAbsolute = toAbsolute(design.previewImageUrl, origin);
   const products: Array<{
     productType: string;
     product: Awaited<ReturnType<typeof generateProductFromDesign>>["product"];
@@ -403,6 +404,11 @@ export async function publishDesign(
       {
         productType: entry.productType,
         designUrl: fileUrl,
+        // The print-resolution file above can lose fine linework when a
+        // vision model downscales it for its own encoder — pass the
+        // design's own (much smaller) QC-proven preview for the AI
+        // title/description call instead.
+        visionUrl: previewAbsolute,
         priceCents: entry.priceCents,
         currency: entry.currency,
         sizes: entry.sizes,
