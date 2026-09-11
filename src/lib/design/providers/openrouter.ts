@@ -9,6 +9,7 @@ import { StoreError } from "@/lib/store/errors";
 import { PRINT_RATIO_DIMENSIONS } from "../aspects";
 import type { CompiledDesignPrompt } from "../prompt";
 import { ensureTransparentBackground } from "../background-removal";
+import { tightenComposition } from "../tighten-composition";
 import type { GenerateDesignOpts, GeneratedDesignImage, ImageProvider } from "./types";
 
 function apiKeyOrThrow(): string {
@@ -60,7 +61,11 @@ export const openRouterImageProvider: ImageProvider = {
     // a solid flat background instead — a no-op if the image already has
     // real transparency. Always PNG afterward, since a flood-filled alpha
     // channel can't round-trip through JPEG.
-    const data = await ensureTransparentBackground(parsed.data);
+    const transparent = await ensureTransparentBackground(parsed.data);
+    // Models tend to leave generous, inconsistent margins around the
+    // actual artwork — crop to its real content and re-pad deterministically
+    // rather than trust the prompt (see tighten-composition.ts).
+    const data = await tightenComposition(transparent, spec.aspectRatioBucket);
     const mimeType = "image/png";
     const metadata = await sharp(data).metadata();
     if (!metadata.width || !metadata.height) {
