@@ -29,12 +29,12 @@ enum OrderStatus {
 /// here for a single store's one-off need — theme/nav/footer/etc. are
 /// JSON precisely so brand-specific shape doesn't require a migration.
 model Store {
-  id          String  @id @default(cuid())
+  id       String  @id @default(cuid())
   /// Subdomain label — first-available.yourdomain.com
-  slug        String  @unique
+  slug     String  @unique
   /// Optional custom domain, checked before slug when resolving a request.
-  domain      String? @unique
-  isActive    Boolean @default(true)
+  domain   String? @unique
+  isActive Boolean @default(true)
 
   name        String
   tagline     String
@@ -55,15 +55,15 @@ model Store {
 
   /// { "accent": "#...", "accentDark": "#...", "logoUrl": "...",
   ///   "heroImageUrl": "..." }
-  theme       Json @default("{}")
+  theme       Json    @default("{}")
   /// [{ "label": "...", "href": "..." }, ...]
-  nav         Json @default("[]")
+  nav         Json    @default("[]")
   /// { "Help": [{ "label": "...", "href": "..." }], "Company": [...] }
-  footerLinks Json @default("{}")
+  footerLinks Json    @default("{}")
   /// ["25,000+ happy customers", ...]
-  trustBadges Json @default("[]")
+  trustBadges Json    @default("[]")
   /// [{ "label": "Instagram", "href": "..." }, ...]
-  socialLinks Json @default("[]")
+  socialLinks Json    @default("[]")
   /// Optional announcement banner shown above the header on every page —
   /// null/empty means no banner. Raw HTML, rendered unescaped: this is
   /// trusted content set by the store's own admin/agent (never end-user
@@ -87,14 +87,15 @@ model Store {
   /// Printful token.
   printfulStoreId   String?
 
-  products    Product[]
-  variants    ProductVariant[]
-  collections Collection[]
-  carts       Cart[]
-  orders      Order[]
-  activity    ActivityLogEntry[]
-  assets      StoreAsset[]
+  products     Product[]
+  variants     ProductVariant[]
+  collections  Collection[]
+  carts        Cart[]
+  orders       Order[]
+  activity     ActivityLogEntry[]
+  assets       StoreAsset[]
   mockupScenes MockupScene[]
+  designs      Design[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -159,6 +160,63 @@ model MockupScene {
   updatedAt   DateTime @updatedAt
 
   @@unique([storeId, productType])
+}
+
+/// One piece of artwork, defined by its structured aspects rather than by
+/// its pixels — see AGENTS.md's design-system notes. The prompt is derived
+/// from `aspects` and stored verbatim so any generation can be reproduced
+/// and any sale attributed back to the choices that produced it. Free-form
+/// JSON on purpose (see AGENTS.md #10): a new aspect is a vocabulary change
+/// in src/lib/design/aspects.ts, not a migration.
+model Design {
+  id      String @id @default(cuid())
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId String
+  slug    String
+
+  /// Structured aspect values, validated against the versioned vocabulary
+  /// in src/lib/design/aspects.ts, e.g. { "hook": "pun", "layout":
+  /// "icon_above_text", "artStyle": "vintage_distressed", "colorScheme":
+  /// "retro_three_color", "complexity": "moderate", "phrase": "ACE OR
+  /// NOTHING", "subject": "disc golf basket", "designedForShade": "light",
+  /// "printRatio": "portrait_4_5" }.
+  aspects        Json
+  aspectsVersion Int  @default(1)
+
+  /// Exactly what was sent to the image model, kept verbatim — without it a
+  /// design can't be reproduced or its result trusted as evidence.
+  /// `provider` identifies which ImageProvider adapter produced it (see
+  /// src/lib/design/providers/), so switching or A/B-ing providers is a
+  /// data value, never a schema change.
+  prompt         String
+  negativePrompt String?
+  provider       String  @default("openrouter")
+  model          String  @default("google/gemini-2.5-flash-image")
+  seed           Int?
+  /// Remaining generation params (aspectRatioBucket, colorRoles, etc.) so a
+  /// rerun is byte-for-byte specified.
+  params         Json    @default("{}")
+
+  /// The provider's raw output, at whatever resolution it natively returns.
+  /// Used for the QC gate — cheap to check and to reject before spending an
+  /// upscale on a design that fails it.
+  previewImageUrl String?
+  /// The QC-passed preview upscaled to the print-ready master canvas. Null
+  /// until QC passes. This, not previewImageUrl, is what publish uses.
+  masterImageUrl  String?
+  masterWidthPx   Int?
+  masterHeightPx  Int?
+
+  /// draft | generated | rejected | published | archived
+  status String @default("draft")
+
+  products Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, slug])
+  @@index([storeId, status])
 }
 
 /// A running history of what changed and why, per store — the "recent
@@ -226,6 +284,12 @@ model Product {
   /// purpose (see AGENTS.md #10): a new product type is a data change, not
   /// a migration. Null means this product has no AI mockup scene assigned.
   productType String?
+  /// The Design this product was published from, if any — lets sales on
+  /// this product (and any other garment type published from the same
+  /// Design) roll up to one aspect-tagged record. Null for products
+  /// created before the design system, or from a plain designUrl.
+  design      Design?             @relation(fields: [designId], references: [id])
+  designId    String?
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
 
@@ -242,12 +306,12 @@ model ProductCollection {
 }
 
 model ProductImage {
-  id        String   @id @default(cuid())
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId String
-  url       String
-  altText   String?
-  position  Int      @default(0)
+  id           String  @id @default(cuid())
+  product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId    String
+  url          String
+  altText      String?
+  position     Int     @default(0)
   /// Which option combination this image shows, e.g. {"color":"Black"} for
   /// a per-color mockup — null means a general product image that applies
   /// to every variant. Same generic shape as ProductVariant.options (see
