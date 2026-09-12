@@ -54,7 +54,9 @@ Creates a new store from a brand brief:
   "socialLinks": [{ "label": "Instagram", "href": "https://instagram.com/..." }],
   "domain": "firstavailable.com",
   "printfulApiKey": "optional — this store's own Printful account",
-  "printfulStoreId": "optional — required by a modern/multi-store Printful token, or most calls 400 with \"This endpoint requires `store_id`!\"; find it via GET https://api.printful.com/stores"
+  "printfulStoreId": "optional — required by a modern/multi-store Printful token, or most calls 400 with \"This endpoint requires `store_id`!\"; find it via GET https://api.printful.com/stores",
+  "stripeSecretKey": "optional — this store's own Stripe secret key (sk_...); falls back to the platform's STRIPE_SECRET_KEY",
+  "stripeWebhookSecret": "optional — this store's own Stripe webhook signing secret (whsec_...) for POST /api/webhooks/stripe; falls back to the platform's STRIPE_WEBHOOK_SECRET"
 }
 ```
 
@@ -65,12 +67,16 @@ default to empty and can be refined later with the new store's own key
 via `PATCH /api/agent/store` (see "Store brand & settings" below) —
 there's no platform-level `PATCH /api/platform/stores/:id`, since brand
 edits are naturally a store managing itself, not a platform operation.
-`printfulApiKey` and `printfulStoreId` are the exception: they're
-credentials, not brand fields, and `storeUpdateSchema` deliberately
-excludes them, so today they can only be set at creation — changing
-them afterward means editing the `Store` row directly (or relying on
-the platform-wide `PRINTFUL_API_KEY`/`PRINTFUL_STORE_ID` env var
-fallbacks instead of a per-store value).
+`printfulApiKey`/`printfulStoreId` and `stripeSecretKey`/
+`stripeWebhookSecret` are the exception: they're credentials, not brand
+fields, and `storeUpdateSchema` deliberately excludes them, so today
+they can only be set at creation — changing them afterward means
+editing the `Store` row directly (or relying on the platform-wide
+`PRINTFUL_API_KEY`/`PRINTFUL_STORE_ID`/`STRIPE_SECRET_KEY`/
+`STRIPE_WEBHOOK_SECRET` env var fallbacks instead of a per-store value).
+A store's Stripe webhook (configured in that store's own Stripe
+dashboard) should point at `https://<slug>.yourdomain.com/api/webhooks/stripe`
+— see "Checkout & payments" below.
 
 Returns `201`:
 
@@ -938,7 +944,30 @@ Fetch one order (by `id` or `orderNumber`) with its line items.
 ### `POST /api/agent/orders/:idOrNumber/mark-paid`
 
 Transitions an order from `PENDING_PAYMENT` to `PAID`. Returns
-`409 INVALID_STATUS` if it isn't currently `PENDING_PAYMENT`.
+`409 INVALID_STATUS` if it isn't currently `PENDING_PAYMENT`. This is
+also how the storefront's own checkout confirms payment — see "Checkout
+& payments" below — so an agent only needs this endpoint for a manual/
+out-of-band payment (e.g. an order taken over the phone).
+
+## Checkout & payments
+
+The storefront checkout (`/checkout`) collects shipping details, creates
+an `Order` in `PENDING_PAYMENT` status (`createPendingOrder()` in
+`src/lib/store/orders.ts`), then redirects the shopper to a Stripe
+Checkout Session (hosted by Stripe — this app never touches card data).
+Stripe calls back `POST /api/webhooks/stripe`, on the store's own
+hostname, with a `checkout.session.completed` event; the handler
+verifies the signature with that store's own `stripeWebhookSecret` (or
+the platform `STRIPE_WEBHOOK_SECRET` fallback), calls the same
+`markOrderPaid()` the endpoint above uses, and clears the cart referenced
+in the session's `metadata.cartId`. A duplicate webhook delivery against
+an already-`PAID` order is treated as a harmless no-op (`INVALID_STATUS`
+is swallowed there, not surfaced as an error) rather than retried
+forever by Stripe. There's no agent-facing endpoint to *create* a
+Checkout Session — that's a customer-checkout-only flow (rule #13: no
+capability needs one here, since the only actor is a browser completing
+a purchase) — but every resulting order is fully visible/manageable via
+the endpoints above and the summary/activity endpoints.
 
 ### `POST /api/agent/orders/:idOrNumber/fulfill`
 

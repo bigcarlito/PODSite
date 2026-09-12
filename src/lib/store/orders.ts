@@ -1,13 +1,85 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getFulfillmentProvider } from "@/lib/fulfillment/registry";
+import { formatVariantOptions } from "@/lib/variant-label";
 import { StoreError, notFound } from "./errors";
 import { logActivity, type ActivityActor } from "./activity";
-import type { OrderStatus, Store } from "@prisma/client";
+import type { Cart, CartItem, OrderStatus, ProductVariant, Product, Store } from "@prisma/client";
 
 const orderInclude = {
   items: { include: { variant: true } },
 } as const;
+
+export type ShippingDetails = {
+  email: string;
+  shippingName: string;
+  shippingAddress1: string;
+  shippingAddress2?: string | null;
+  shippingCity: string;
+  shippingState: string;
+  shippingZip: string;
+  shippingCountry: string;
+};
+
+type CartWithItems = Cart & {
+  items: (CartItem & { variant: ProductVariant & { product: Product } })[];
+};
+
+/**
+ * Creates an order from a cart's current contents, in PENDING_PAYMENT
+ * status — the cart itself is left untouched (see checkout/actions.ts and
+ * the Stripe webhook: the cart is only cleared once payment actually
+ * succeeds, so an abandoned checkout doesn't silently lose the customer's
+ * items).
+ */
+export async function createPendingOrder(
+  storeId: string,
+  storeSlug: string,
+  cart: CartWithItems,
+  shipping: ShippingDetails,
+  subtotalCents: number
+) {
+  const prefix = storeSlug.replace(/[^a-z0-9]/gi, "").slice(0, 3).toUpperCase() || "ORD";
+  const orderNumber = `${prefix}-${Date.now().toString(36).toUpperCase()}`;
+
+  const order = await prisma.order.create({
+    data: {
+      storeId,
+      orderNumber,
+      email: shipping.email,
+      shippingName: shipping.shippingName,
+      shippingAddress1: shipping.shippingAddress1,
+      shippingAddress2: shipping.shippingAddress2 || null,
+      shippingCity: shipping.shippingCity,
+      shippingState: shipping.shippingState,
+      shippingZip: shipping.shippingZip,
+      shippingCountry: shipping.shippingCountry,
+      subtotalCents,
+      status: "PENDING_PAYMENT",
+      items: {
+        create: cart.items.map((item) => ({
+          variantId: item.variantId,
+          quantity: item.quantity,
+          priceCents: item.variant.priceCents,
+          productName: item.variant.product.title,
+          variantName: formatVariantOptions(
+            item.variant.options as Record<string, string>
+          ),
+        })),
+      },
+    },
+    include: orderInclude,
+  });
+
+  await logActivity(storeId, {
+    actor: "customer",
+    category: "order",
+    summary: `New order ${order.orderNumber} placed ($${(subtotalCents / 100).toFixed(2)})`,
+    details: { orderId: order.id, orderNumber: order.orderNumber, subtotalCents },
+  });
+
+  return order;
+}
 
 export function listOrders(
   storeId: string,

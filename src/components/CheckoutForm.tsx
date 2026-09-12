@@ -39,17 +39,12 @@ export function CheckoutForm() {
         </p>
       )}
 
-      <p className="rounded-xl bg-accent/10 p-4 text-xs text-muted">
-        Payment collection isn&apos;t enabled yet — placing this order will
-        record it for fulfillment without charging a card.
-      </p>
-
       <button
         type="submit"
         disabled={pending}
         className="w-full rounded-full bg-accent py-3.5 text-sm font-semibold text-white transition-colors hover:bg-accent-dark disabled:opacity-50 sm:text-base"
       >
-        {pending ? "Placing order..." : "Place Order"}
+        {pending ? "Redirecting to payment..." : "Continue to Payment"}
       </button>
     </form>
   );

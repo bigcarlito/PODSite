@@ -60,3 +60,13 @@ export function cartTotalCents(
 export function cartItemCount(items: { quantity: number }[]) {
   return items.reduce((sum, i) => sum + i.quantity, 0);
 }
+
+/**
+ * Clears a cart's items once its order has actually been paid for (see
+ * the Stripe webhook) — deliberately not called at order-creation time,
+ * so an abandoned checkout leaves the cart intact instead of silently
+ * losing the customer's items.
+ */
+export async function clearCart(cartId: string) {
+  await prisma.cartItem.deleteMany({ where: { cartId } });
+}

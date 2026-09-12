@@ -33,8 +33,10 @@ export default async function ConfirmationPage({
         Thanks, {order.shippingName.split(" ")[0]}!
       </h1>
       <p className="mt-2 text-sm text-muted">
-        Your order <span className="font-medium">{order.orderNumber}</span> has
-        been received.
+        Your order <span className="font-medium">{order.orderNumber}</span>{" "}
+        {order.status === "PENDING_PAYMENT"
+          ? "is being confirmed — this page will reflect your payment shortly."
+          : "has been received."}
       </p>
 
       <div className="mt-8 space-y-3 rounded-2xl border border-border p-5 text-left">
