@@ -134,6 +134,38 @@ export async function markOrderPaid(
   return updated;
 }
 
+/**
+ * Marks an order paid, then immediately tries to submit it to its
+ * fulfillment provider — the link between "a customer paid" and "the
+ * order actually ships" that nothing previously wired together (a paid
+ * order otherwise just sat in PAID until someone noticed and called
+ * /fulfill by hand). A fulfillment failure (e.g. a variant missing its
+ * providerVariantId) is logged as activity rather than thrown, since the
+ * payment itself already succeeded — an agent reading the activity log
+ * or summary sees the stuck order and can fix the underlying issue, then
+ * retry via POST /api/agent/orders/:idOrNumber/fulfill.
+ */
+export async function markOrderPaidAndFulfill(
+  store: Store,
+  idOrNumber: string,
+  actor: ActivityActor = "system"
+) {
+  const paidOrder = await markOrderPaid(store.id, idOrNumber, actor);
+  try {
+    return await submitOrderToFulfillment(store, paidOrder.id, actor);
+  } catch (err) {
+    await logActivity(store.id, {
+      actor,
+      category: "fulfillment",
+      summary: `Order ${paidOrder.orderNumber} paid but couldn't be auto-submitted to fulfillment: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+      details: { orderId: paidOrder.id, orderNumber: paidOrder.orderNumber },
+    });
+    return paidOrder;
+  }
+}
+
 export async function submitOrderToFulfillment(
   store: Store,
   idOrNumber: string,

@@ -1,7 +1,7 @@
 import type Stripe from "stripe";
 import { requireCurrentStore } from "@/lib/store-context";
 import { getStripeClient, getStripeWebhookSecret } from "@/lib/payments/stripe";
-import { markOrderPaid } from "@/lib/store/orders";
+import { markOrderPaidAndFulfill } from "@/lib/store/orders";
 import { clearCart } from "@/lib/cart";
 import { StoreError } from "@/lib/store/errors";
 
@@ -43,7 +43,11 @@ export async function POST(request: Request) {
 
     if (orderId) {
       try {
-        await markOrderPaid(store.id, orderId, "system");
+        // Marks the order paid and immediately attempts to submit it to
+        // fulfillment — a fulfillment failure is logged as activity, not
+        // thrown here, since the payment itself already succeeded (see
+        // markOrderPaidAndFulfill).
+        await markOrderPaidAndFulfill(store, orderId, "system");
         if (cartId) await clearCart(cartId);
       } catch (err) {
         // A duplicate webhook delivery for an order already marked paid is

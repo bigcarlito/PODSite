@@ -944,10 +944,12 @@ Fetch one order (by `id` or `orderNumber`) with its line items.
 ### `POST /api/agent/orders/:idOrNumber/mark-paid`
 
 Transitions an order from `PENDING_PAYMENT` to `PAID`. Returns
-`409 INVALID_STATUS` if it isn't currently `PENDING_PAYMENT`. This is
-also how the storefront's own checkout confirms payment — see "Checkout
-& payments" below — so an agent only needs this endpoint for a manual/
-out-of-band payment (e.g. an order taken over the phone).
+`409 INVALID_STATUS` if it isn't currently `PENDING_PAYMENT`. Unlike the
+Stripe webhook (see "Checkout & payments" below), this endpoint does
+**not** auto-submit the order to fulfillment — a manual/out-of-band
+payment (e.g. an order taken over the phone) may need review before it
+ships, so follow up with `POST /api/agent/orders/:idOrNumber/fulfill`
+once you're ready.
 
 ## Checkout & payments
 
@@ -958,16 +960,24 @@ Checkout Session (hosted by Stripe — this app never touches card data).
 Stripe calls back `POST /api/webhooks/stripe`, on the store's own
 hostname, with a `checkout.session.completed` event; the handler
 verifies the signature with that store's own `stripeWebhookSecret` (or
-the platform `STRIPE_WEBHOOK_SECRET` fallback), calls the same
-`markOrderPaid()` the endpoint above uses, and clears the cart referenced
-in the session's `metadata.cartId`. A duplicate webhook delivery against
-an already-`PAID` order is treated as a harmless no-op (`INVALID_STATUS`
-is swallowed there, not surfaced as an error) rather than retried
-forever by Stripe. There's no agent-facing endpoint to *create* a
-Checkout Session — that's a customer-checkout-only flow (rule #13: no
-capability needs one here, since the only actor is a browser completing
-a purchase) — but every resulting order is fully visible/manageable via
-the endpoints above and the summary/activity endpoints.
+the platform `STRIPE_WEBHOOK_SECRET` fallback), calls
+`markOrderPaidAndFulfill()` — which marks the order paid and then
+immediately calls the same `submitOrderToFulfillment()` the endpoint
+below uses — and clears the cart referenced in the session's
+`metadata.cartId`. If fulfillment submission fails (e.g. a variant is
+still missing its `providerVariantId`), the order stays `PAID` and the
+failure is logged to the activity log rather than blocking payment
+confirmation — check `GET /api/agent/activity` or `GET /api/agent/summary`
+for stuck orders, fix the underlying issue, then retry with `POST
+/api/agent/orders/:idOrNumber/fulfill`. A duplicate webhook delivery
+against an already-`PAID` order is treated as a harmless no-op
+(`INVALID_STATUS` is swallowed there, not surfaced as an error) rather
+than retried forever by Stripe. There's no agent-facing endpoint to
+*create* a Checkout Session — that's a customer-checkout-only flow (rule
+#13: no capability needs one here, since the only actor is a browser
+completing a purchase) — but every resulting order is fully
+visible/manageable via the endpoints above and the summary/activity
+endpoints.
 
 ### `POST /api/agent/orders/:idOrNumber/fulfill`
 
