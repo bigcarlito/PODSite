@@ -427,10 +427,10 @@ src/app/checkout/actions.ts     placeOrder() — creates a PENDING_PAYMENT
                                 succeeds (see the webhook below), not here
 src/app/api/webhooks/stripe/    Verifies a checkout.session.completed
                                 delivery with the resolved store's own
-                                webhook secret, then calls the same
-                                markOrderPaid() the agent mark-paid
-                                endpoint uses and clears the cart — see
-                                docs/AGENT_API.md "Checkout & payments"
+                                webhook secret, then calls
+                                markOrderPaidAndFulfill() (orders.ts) and
+                                clears the cart — see docs/AGENT_API.md
+                                "Checkout & payments"
 src/app/api/agent/              JSON API surface for agents, store-scoped
                                 (see docs/AGENT_API.md)
 src/app/api/platform/           Store-creation API (see docs/AGENT_API.md)
