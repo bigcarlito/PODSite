@@ -40,6 +40,13 @@ export default async function AdminOrdersPage() {
                     subtotalCents: o.subtotalCents,
                     createdAt: o.createdAt.toISOString(),
                     shippingName: o.shippingName,
+                    items: o.items.map((item) => ({
+                      id: item.id,
+                      productName: item.productName,
+                      variantName: item.variantName,
+                      quantity: item.quantity,
+                      priceCents: item.priceCents,
+                    })),
                   }}
                 />
               ))}
