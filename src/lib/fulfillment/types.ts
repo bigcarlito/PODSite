@@ -28,6 +28,14 @@ export interface ShippingAddress {
 export interface FulfillmentOrderItem {
   providerVariantId: string;
   quantity: number;
+  /**
+   * Publicly reachable URL of the print-ready file for this line item —
+   * the same catalog-variant-id convention as everywhere else in this
+   * interface means an order is always placed ad hoc (a catalog variant
+   * id + a print file), never against a product manually pre-synced into
+   * the provider's own dashboard. See PrintfulProvider.submitOrder.
+   */
+  printFileUrl: string;
 }
 
 export interface FulfillmentOrderResult {

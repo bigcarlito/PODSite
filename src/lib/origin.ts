@@ -14,3 +14,9 @@ export function originFromHeaders(headers: { get(name: string): string | null })
   const proto = headers.get("x-forwarded-proto") ?? "https";
   return host ? `${proto}://${host}` : "";
 }
+
+/** Turns a host-relative URL ("/api/assets/<id>") into an absolute one
+ * against the given origin — a no-op if it's already absolute. */
+export function toAbsoluteUrl(url: string, origin: string): string {
+  return /^https?:\/\//.test(url) ? url : `${origin}${url}`;
+}

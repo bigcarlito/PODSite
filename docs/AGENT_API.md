@@ -965,8 +965,9 @@ the platform `STRIPE_WEBHOOK_SECRET` fallback), calls
 immediately calls the same `submitOrderToFulfillment()` the endpoint
 below uses — and clears the cart referenced in the session's
 `metadata.cartId`. If fulfillment submission fails (e.g. a variant is
-still missing its `providerVariantId`), the order stays `PAID` and the
-failure is logged to the activity log rather than blocking payment
+still missing its `providerVariantId`, or its product has no `Design` to
+derive a print file from — see "Orders" above), the order stays `PAID`
+and the failure is logged to the activity log rather than blocking payment
 confirmation — check `GET /api/agent/activity` or `GET /api/agent/summary`
 for stuck orders, fix the underlying issue, then retry with `POST
 /api/agent/orders/:idOrNumber/fulfill`. A duplicate webhook delivery
@@ -989,6 +990,17 @@ Fails with `422 MISSING_PROVIDER_VARIANT` if any line item's variant
 doesn't have a `providerVariantId` set — set that via `PATCH
 /api/agent/products/:id` first (typically after syncing the provider's
 catalog).
+
+Submission is always **ad hoc**: each item is sent to Printful as its
+catalog `variant_id` (the same id `providerVariantId` holds everywhere
+else in this API — never a Printful "sync product" id) plus a print file
+derived fresh from the item's product's own `Design.masterImageUrl` (its
+store's `PrintTemplate` for that provider/productType, if one's set, or
+the master's own dimensions otherwise — see "Designs" above). Nothing
+needs to be pre-synced into Printful's own dashboard. Fails with `422
+MISSING_DESIGN_FILE` if a line item's product has no `Product.designId`
+(or that design has no `masterImageUrl` yet) — only products published
+through the design pipeline can be auto-submitted.
 
 ## Store summary
 

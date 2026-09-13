@@ -4,6 +4,7 @@ import { getStripeClient, getStripeWebhookSecret } from "@/lib/payments/stripe";
 import { markOrderPaidAndFulfill } from "@/lib/store/orders";
 import { clearCart } from "@/lib/cart";
 import { StoreError } from "@/lib/store/errors";
+import { originFromHeaders } from "@/lib/origin";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
         // fulfillment — a fulfillment failure is logged as activity, not
         // thrown here, since the payment itself already succeeded (see
         // markOrderPaidAndFulfill).
-        await markOrderPaidAndFulfill(store, orderId, "system");
+        await markOrderPaidAndFulfill(store, orderId, originFromHeaders(request.headers), "system");
         if (cartId) await clearCart(cartId);
       } catch (err) {
         // A duplicate webhook delivery for an order already marked paid is

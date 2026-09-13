@@ -593,7 +593,8 @@ export async function updateProviderVariantIds(
 
 export async function submitOrderToFulfillment(orderId: string) {
   const store = await requireCurrentStore();
-  await ordersStore.submitOrderToFulfillment(store, orderId, "admin");
+  const origin = originFromHeaders(await headers());
+  await ordersStore.submitOrderToFulfillment(store, orderId, origin, "admin");
   revalidatePath("/admin");
 }
 
