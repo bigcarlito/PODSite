@@ -103,7 +103,15 @@ env var) — providers are constructed per call with the calling store's
 key, never shared singletons, so credentials can't leak across stores.
 When adding Gelato/Printify/etc., implement the same interface and
 register it — never special-case a provider name inside cart, checkout,
-or order code.
+or order code. `ProductVariant.providerVariantId` is always that
+provider's **catalog** variant id — the same one `getCatalog()`/
+`getVariantDetails()`/`generateMockups()` already use — never an id from
+a product manually pre-synced into the provider's own dashboard.
+`submitOrder()` places every order ad hoc (a catalog variant id + a
+print file this platform derives itself from `Product.designId`'s
+`Design.masterImageUrl`, per `PrintTemplate` if one's set — see
+`src/lib/store/orders.ts`'s `resolveOrderItemPrintFile()`), since designs
+here are generated dynamically and never manually synced.
 
 ### 7. Every agent-facing write is authenticated and store-scoped
 

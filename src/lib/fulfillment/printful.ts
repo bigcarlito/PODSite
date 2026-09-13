@@ -148,6 +148,12 @@ export class PrintfulProvider implements FulfillmentProvider {
   ): Promise<FulfillmentOrderResult> {
     type PrintfulOrder = { id: number; status: string };
 
+    // Ad hoc order items (catalog variant_id + our own print file), not
+    // sync_variant_id — this platform generates designs/products
+    // dynamically and never pre-syncs them into Printful's own dashboard,
+    // so providerVariantId is always the catalog id used everywhere else
+    // in this interface (getCatalog/getVariantDetails/generateMockups),
+    // never a Printful "sync product" id.
     const result = await this.printfulFetch<PrintfulOrder>("/orders", {
       method: "POST",
       body: JSON.stringify({
@@ -162,8 +168,9 @@ export class PrintfulProvider implements FulfillmentProvider {
           zip: shipping.zip,
         },
         items: items.map((i) => ({
-          sync_variant_id: Number(i.providerVariantId),
+          variant_id: Number(i.providerVariantId),
           quantity: i.quantity,
+          files: [{ url: i.printFileUrl }],
         })),
       }),
     });

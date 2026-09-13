@@ -2,13 +2,77 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getFulfillmentProvider } from "@/lib/fulfillment/registry";
 import { formatVariantOptions } from "@/lib/variant-label";
+import { toAbsoluteUrl } from "@/lib/origin";
+import { getDesign } from "@/lib/design/designs";
+import { deriveProviderFile, getPrintTemplate } from "@/lib/design/print-templates";
+import { uploadStoreAsset } from "./assets";
 import { StoreError, notFound } from "./errors";
 import { logActivity, type ActivityActor } from "./activity";
-import type { Cart, CartItem, OrderStatus, ProductVariant, Product, Store } from "@prisma/client";
+import type {
+  Cart,
+  CartItem,
+  FulfillmentProviderName,
+  OrderStatus,
+  Product,
+  ProductVariant,
+  Store,
+} from "@prisma/client";
 
 const orderInclude = {
-  items: { include: { variant: true } },
+  items: { include: { variant: { include: { product: true } } } },
 } as const;
+
+/**
+ * Resolves the publicly reachable print file to hand a fulfillment
+ * provider for one order item — derived from the item's product's own
+ * Design.masterImageUrl (see AGENTS.md's design-system notes), matching
+ * that provider's exact PrintTemplate spec if one's configured for this
+ * store, or the master's own dimensions otherwise (same fallback
+ * publishDesign() uses). Every provider call is ad hoc (a catalog variant
+ * id + a print file, never a pre-synced "sync product" — see
+ * PrintfulProvider.submitOrder), so a product with no Design has nothing
+ * to submit.
+ */
+async function resolveOrderItemPrintFile(
+  store: Store,
+  item: { productName: string; variant: ProductVariant & { product: Product } },
+  provider: FulfillmentProviderName,
+  origin: string
+): Promise<string> {
+  const product = item.variant.product;
+  if (!product.designId) {
+    throw new StoreError(
+      "MISSING_DESIGN_FILE",
+      `"${item.productName}" has no Design to derive a print file from — only ` +
+        `products published through the design pipeline (Product.designId set) ` +
+        `can be auto-submitted to fulfillment.`,
+      { status: 422 }
+    );
+  }
+
+  const design = await getDesign(store.id, product.designId);
+  if (!design.masterImageUrl) {
+    throw new StoreError(
+      "MISSING_DESIGN_FILE",
+      `"${item.productName}"'s design has no master image yet.`,
+      { status: 422 }
+    );
+  }
+  const masterAbsolute = toAbsoluteUrl(design.masterImageUrl, origin);
+
+  const template = product.productType
+    ? await getPrintTemplate(store.id, provider, product.productType)
+    : null;
+  if (!template) return masterAbsolute;
+
+  const derived = await deriveProviderFile(masterAbsolute, template);
+  const asset = await uploadStoreAsset(
+    store.id,
+    { kind: "design-print-file", data: derived.data, mimeType: derived.mimeType },
+    "system"
+  );
+  return toAbsoluteUrl(asset.url, origin);
+}
 
 export type ShippingDetails = {
   email: string;
@@ -148,11 +212,12 @@ export async function markOrderPaid(
 export async function markOrderPaidAndFulfill(
   store: Store,
   idOrNumber: string,
+  origin: string,
   actor: ActivityActor = "system"
 ) {
   const paidOrder = await markOrderPaid(store.id, idOrNumber, actor);
   try {
-    return await submitOrderToFulfillment(store, paidOrder.id, actor);
+    return await submitOrderToFulfillment(store, paidOrder.id, origin, actor);
   } catch (err) {
     await logActivity(store.id, {
       actor,
@@ -169,6 +234,7 @@ export async function markOrderPaidAndFulfill(
 export async function submitOrderToFulfillment(
   store: Store,
   idOrNumber: string,
+  origin: string,
   actor: ActivityActor = "agent"
 ) {
   const order = await getOrder(store.id, idOrNumber);
@@ -192,17 +258,23 @@ export async function submitOrderToFulfillment(
     );
   }
 
+  const providerName = order.items[0].variant.provider;
   const provider = getFulfillmentProvider(
-    order.items[0].variant.provider,
+    providerName,
     store.printfulApiKey,
     store.printfulStoreId
   );
 
-  const result = await provider.submitOrder(
-    order.items.map((i) => ({
+  const items = await Promise.all(
+    order.items.map(async (i) => ({
       providerVariantId: i.variant.providerVariantId as string,
       quantity: i.quantity,
-    })),
+      printFileUrl: await resolveOrderItemPrintFile(store, i, providerName, origin),
+    }))
+  );
+
+  const result = await provider.submitOrder(
+    items,
     {
       name: order.shippingName,
       address1: order.shippingAddress1,
