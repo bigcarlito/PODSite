@@ -114,6 +114,14 @@ export const mockupSceneUploadSchema = z.object({
   colors: z.array(z.object({ name: z.string().min(1), hex: z.string().min(4) })).optional(),
 });
 
+/// Uploads a specific color's own "blank garment" base mockup, skipping
+/// the AI recolor for that color — see setMockupSceneBaseImage() in
+/// mockup-scenes.ts. Same base64 shape as mockupSceneUploadSchema.
+export const mockupSceneBaseImageUploadSchema = z.object({
+  data: z.string().min(1),
+  mimeType: z.enum(["image/png", "image/jpeg", "image/webp"]),
+});
+
 /// Auto-creates a product from a design: generates a title/description
 /// with an AI text model, builds one variant per color (x size) using the
 /// product type's MockupScene color lineup, then generates AI mockups for
@@ -288,6 +296,7 @@ export type AiMockupGenerateInput = z.infer<typeof aiMockupGenerateSchema>;
 export type DesignAreaInput = z.infer<typeof designAreaSchema>;
 export type GenerateMockupSceneBasesInput = z.infer<typeof generateMockupSceneBasesSchema>;
 export type MockupSceneUploadInput = z.infer<typeof mockupSceneUploadSchema>;
+export type MockupSceneBaseImageUploadInput = z.infer<typeof mockupSceneBaseImageUploadSchema>;
 export type AiProductCreateInput = z.infer<typeof aiProductCreateSchema>;
 export type ProductCreateInput = z.infer<typeof productCreateSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;

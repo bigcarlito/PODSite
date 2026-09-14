@@ -18,6 +18,7 @@ import {
   setMockupScene,
   deleteMockupScene,
   generateMockupSceneBases,
+  setMockupSceneBaseImage,
   setDesignArea,
 } from "@/lib/store/mockup-scenes";
 import { setShippingRate } from "@/lib/store/shipping";
@@ -418,6 +419,48 @@ export async function generateMockupSceneBasesAction(
     return {
       error:
         e instanceof StoreError ? e.message : "Couldn't generate base mockups — try again.",
+    };
+  }
+}
+
+export type MockupSceneBaseImageUploadState = { url?: string; error?: string };
+
+/**
+ * Uploads one color's own "blank garment" base mockup, in place of an
+ * AI-recolored one — same uploadStoreAsset plumbing as uploadMockupScene,
+ * tagged the same "mockup-scene-base" kind a generated base uses (see
+ * setMockupSceneBaseImage in mockup-scenes.ts) so every consumer treats
+ * it identically.
+ */
+export async function uploadMockupSceneBaseImage(
+  productType: string,
+  colorName: string,
+  formData: FormData
+): Promise<MockupSceneBaseImageUploadState> {
+  const store = await requireCurrentStore();
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Choose an image file first." };
+  }
+
+  try {
+    const data = Buffer.from(await file.arrayBuffer());
+    const origin = originFromHeaders(await headers());
+    const scene = await setMockupSceneBaseImage(
+      store,
+      productType,
+      colorName,
+      { data, mimeType: file.type },
+      "admin",
+      origin
+    );
+    revalidatePath("/admin/mockup-scenes");
+    const baseImages = (scene.baseImages as Record<string, string>) ?? {};
+    return { url: baseImages[colorName] };
+  } catch (e) {
+    return {
+      error: e instanceof StoreError ? e.message : "Couldn't upload image — try again.",
     };
   }
 }

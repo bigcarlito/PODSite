@@ -1,11 +1,82 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
-import { generateMockupSceneBasesAction, type GenerateBasesState } from "../actions";
+import { useActionState, useState, useTransition } from "react";
+import {
+  generateMockupSceneBasesAction,
+  uploadMockupSceneBaseImage,
+  type GenerateBasesState,
+} from "../actions";
 import { DeleteMockupSceneButton } from "./DeleteMockupSceneButton";
 
 const initialState: GenerateBasesState = {};
+
+function ColorBaseImage({
+  productType,
+  color,
+  imageUrl,
+  onUploaded,
+}: {
+  productType: string;
+  color: { name: string; hex: string };
+  imageUrl?: string;
+  onUploaded: (colorName: string, url: string) => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const inputId = `base-image-${productType}-${color.name}`;
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+
+    setError(null);
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("file", file);
+      const result = await uploadMockupSceneBaseImage(productType, color.name, formData);
+      if (result.error) {
+        setError(result.error);
+      } else if (result.url) {
+        onUploaded(color.name, result.url);
+      }
+    });
+  }
+
+  return (
+    <div className="text-center">
+      {imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- our own asset URL
+        <img
+          src={imageUrl}
+          alt={`${color.name} base`}
+          className="h-14 w-14 rounded border border-border object-cover"
+        />
+      ) : (
+        <div className="flex h-14 w-14 items-center justify-center rounded border border-dashed border-border text-[10px] text-muted">
+          {pending ? "…" : "none"}
+        </div>
+      )}
+      <p className="mt-0.5 text-[10px] text-muted">{color.name}</p>
+      <label
+        htmlFor={inputId}
+        className="mt-0.5 block cursor-pointer text-[10px] text-accent underline"
+      >
+        {pending ? "Uploading…" : "Upload"}
+      </label>
+      <input
+        id={inputId}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        disabled={pending}
+        onChange={handleFileChange}
+        className="hidden"
+      />
+      {error && <p className="mt-0.5 max-w-[6rem] text-[10px] text-red-600">{error}</p>}
+    </div>
+  );
+}
 
 export function MockupSceneCard({
   scene,
@@ -20,7 +91,8 @@ export function MockupSceneCard({
   };
 }) {
   const [state, formAction, pending] = useActionState(generateMockupSceneBasesAction, initialState);
-  const baseImages = { ...scene.baseImages, ...state.result?.generated };
+  const [uploadedOverrides, setUploadedOverrides] = useState<Record<string, string>>({});
+  const baseImages = { ...scene.baseImages, ...state.result?.generated, ...uploadedOverrides };
   const missing = scene.colors.filter((c) => !baseImages[c.name]);
 
   return (
@@ -39,21 +111,15 @@ export function MockupSceneCard({
       {scene.colors.length > 0 && (
         <div className="mt-3 flex flex-wrap justify-center gap-2">
           {scene.colors.map((c) => (
-            <div key={c.name} className="text-center">
-              {baseImages[c.name] ? (
-                // eslint-disable-next-line @next/next/no-img-element -- our own asset URL
-                <img
-                  src={baseImages[c.name]}
-                  alt={`${c.name} base`}
-                  className="h-14 w-14 rounded border border-border object-cover"
-                />
-              ) : (
-                <div className="flex h-14 w-14 items-center justify-center rounded border border-dashed border-border text-[10px] text-muted">
-                  none
-                </div>
-              )}
-              <p className="mt-0.5 text-[10px] text-muted">{c.name}</p>
-            </div>
+            <ColorBaseImage
+              key={c.name}
+              productType={scene.productType}
+              color={c}
+              imageUrl={baseImages[c.name]}
+              onUploaded={(colorName, url) =>
+                setUploadedOverrides((prev) => ({ ...prev, [colorName]: url }))
+              }
+            />
           ))}
         </div>
       )}
@@ -74,6 +140,9 @@ export function MockupSceneCard({
           </button>
         </form>
       )}
+      <p className="mt-1 text-[10px] text-muted">
+        Generating overwrites any base you&apos;ve uploaded for that color.
+      </p>
 
       {state.error && (
         <p className="mt-2 text-red-600" role="alert">

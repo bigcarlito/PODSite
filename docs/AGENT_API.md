@@ -566,6 +566,21 @@ Fails with `NO_MOCKUP_SCENE_COLORS` (422) if the scene has no colors.
 Response: `{ "scene": {...}, "generated": {"Black": "https://..."}, "failed": [] }`.
 A partial failure doesn't erase bases from a previous successful run.
 
+#### `PUT /api/agent/mockup-scenes/:productType/base-image/:colorName`
+
+```json
+{ "data": "<base64, no data: prefix>", "mimeType": "image/png" }
+```
+
+Sets `:colorName`'s own base mockup from a supplied image, instead of an
+AI recolor — useful when the AI recolor doesn't read well for a
+particular color, or you already have a real product photo for it.
+`:colorName` must match one of the scene's own `colors` (`422
+UNKNOWN_COLOR` otherwise). Stored identically to a generated base, so a
+later `generate-bases` call (including "regenerate all" in
+`/admin/mockup-scenes`) simply overwrites it again — this is a one-off
+override, not a permanent exemption from regeneration.
+
 #### `PUT /api/agent/mockup-scenes/:productType/design-area`
 
 ```json

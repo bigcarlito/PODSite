@@ -249,7 +249,12 @@ you don't repeat a failed experiment.
   automatically on first use — `POST
   /api/agent/mockup-scenes/:productType/generate-bases` pre-warms all of
   them at once if you want to avoid that latency on the first real
-  mockup call. `PUT /api/agent/mockup-scenes/:productType/design-area`
+  mockup call. To use your own photo for one color instead of an AI
+  recolor, `PUT /api/agent/mockup-scenes/:productType/base-image/:colorName`
+  with `{"data": "<base64>", "mimeType": "image/png"}` — `:colorName` must
+  be one of the scene's own colors (`422 UNKNOWN_COLOR` otherwise); a
+  later `generate-bases` call overwrites it again. `PUT
+  /api/agent/mockup-scenes/:productType/design-area`
   sets `{x, y, width, height}` (fractions of the scene image) — best set
   visually via the design-area editor in `/admin/mockup-scenes`, which
   locks it to a reference design's aspect ratio while you drag/scale it;

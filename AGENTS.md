@@ -341,7 +341,12 @@ src/lib/store/mockup-scenes.ts  MockupScene CRUD — one shared "blank
                                 lineup, pre-generated per-color base
                                 mockups (baseImages), and design
                                 placement rectangle (designArea) per
-                                Product.productType (e.g. "tshirt")
+                                Product.productType (e.g. "tshirt").
+                                setMockupSceneBaseImage() lets an admin/
+                                agent upload their own base for one color
+                                instead of the AI recolor — stored
+                                identically, so a later generate-bases
+                                call simply overwrites it
 src/lib/store/ai-mockups.ts     generateAIProductMockups() — composites a
                                 design onto a MockupScene's pre-generated
                                 base for each variant color (a
