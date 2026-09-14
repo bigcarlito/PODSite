@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { hasAnyShippingRate } from "./shipping";
 
 /**
  * A single-call snapshot of store state, built specifically for an agent
@@ -16,6 +17,7 @@ export async function getStoreSummary(storeId: string) {
     zeroPriceVariants,
     revenue,
     recentOrders,
+    shippingConfigured,
   ] = await Promise.all([
     prisma.product.count({ where: { storeId } }),
     prisma.product.count({ where: { storeId, isActive: true } }),
@@ -59,6 +61,7 @@ export async function getStoreSummary(storeId: string) {
         createdAt: true,
       },
     }),
+    hasAnyShippingRate(storeId),
   ]);
 
   const stuckOrders = await prisma.order.findMany({
@@ -87,6 +90,10 @@ export async function getStoreSummary(storeId: string) {
     attention: {
       outOfStockVariants,
       variantsMissingPrice: zeroPriceVariants,
+      /// true when this store has zero ShippingRate rows — every order
+      /// ships free until at least one rate (or a "default" fallback) is
+      /// set via PUT /api/agent/shipping-rates/:productType.
+      shippingNotConfigured: !shippingConfigured,
     },
   };
 }

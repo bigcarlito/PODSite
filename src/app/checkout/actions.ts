@@ -82,6 +82,18 @@ export async function placeOrder(
         },
         quantity: item.quantity,
       })),
+      shipping_options:
+        order.shippingCents > 0
+          ? [
+              {
+                shipping_rate_data: {
+                  type: "fixed_amount",
+                  fixed_amount: { amount: order.shippingCents, currency: "usd" },
+                  display_name: "Shipping",
+                },
+              },
+            ]
+          : undefined,
       metadata: { orderId: order.id, storeId: store.id, cartId: cart.id },
       success_url: `${origin}/checkout/confirmation/${order.orderNumber}`,
       cancel_url: `${origin}/checkout`,

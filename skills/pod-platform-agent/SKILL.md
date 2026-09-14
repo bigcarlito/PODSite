@@ -332,6 +332,19 @@ publish), `rejected` (failed QC every attempt), or `published`.
   by publish; every store starts with Printful's tee spec (4500×5400,
   150 DPI) seeded.
 
+### Shipping rates
+
+- `GET /api/agent/shipping-rates` — list this store's rates.
+- `PUT /api/agent/shipping-rates/:productType` —
+  `{"baseCents","additionalItemCents","currency?"}`. `:productType`
+  matches `Product.productType`, or the literal `default` (the fallback
+  for any type with no row of its own). Charged once per productType
+  group in a cart (base for the first unit + additional per extra unit
+  of that type), summed across groups. A type with no rate and no
+  `default` row ships free (never blocks checkout) — check `GET
+  /api/agent/summary`'s `attention.shippingNotConfigured` for whether
+  this store has set any rate at all.
+
 ### Collections
 
 - `GET /api/agent/collections` — list, with product counts.
@@ -375,7 +388,8 @@ against the new store's host, once per product, to build its catalog.
 
 **"What needs my attention on <store>?"** → `GET /api/agent/briefing` on
 that store's host, then act on `summary.attention.outOfStockVariants`,
-`summary.attention.variantsMissingPrice`, and
+`summary.attention.variantsMissingPrice`,
+`summary.attention.shippingNotConfigured`, and
 `summary.orders.stuckPendingPaymentOver24h`.
 
 **"Put this design on a shirt"** → `POST /api/agent/products` with a

@@ -6,6 +6,7 @@ import { toAbsoluteUrl } from "@/lib/origin";
 import { getDesign } from "@/lib/design/designs";
 import { deriveProviderFile, getPrintTemplate } from "@/lib/design/print-templates";
 import { uploadStoreAsset } from "./assets";
+import { calculateShippingCents } from "./shipping";
 import { StoreError, notFound } from "./errors";
 import { logActivity, type ActivityActor } from "./activity";
 import type {
@@ -105,6 +106,7 @@ export async function createPendingOrder(
 ) {
   const prefix = storeSlug.replace(/[^a-z0-9]/gi, "").slice(0, 3).toUpperCase() || "ORD";
   const orderNumber = `${prefix}-${Date.now().toString(36).toUpperCase()}`;
+  const shippingCents = await calculateShippingCents(storeId, cart.items, { logGaps: true });
 
   const order = await prisma.order.create({
     data: {
@@ -119,6 +121,7 @@ export async function createPendingOrder(
       shippingZip: shipping.shippingZip,
       shippingCountry: shipping.shippingCountry,
       subtotalCents,
+      shippingCents,
       status: "PENDING_PAYMENT",
       items: {
         create: cart.items.map((item) => ({
@@ -138,8 +141,8 @@ export async function createPendingOrder(
   await logActivity(storeId, {
     actor: "customer",
     category: "order",
-    summary: `New order ${order.orderNumber} placed ($${(subtotalCents / 100).toFixed(2)})`,
-    details: { orderId: order.id, orderNumber: order.orderNumber, subtotalCents },
+    summary: `New order ${order.orderNumber} placed ($${((subtotalCents + shippingCents) / 100).toFixed(2)})`,
+    details: { orderId: order.id, orderNumber: order.orderNumber, subtotalCents, shippingCents },
   });
 
   return order;

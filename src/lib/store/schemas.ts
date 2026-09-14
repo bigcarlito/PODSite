@@ -251,6 +251,17 @@ export const printTemplateUpsertSchema = z.object({
   format: z.string().min(1).default("png"),
 });
 
+/// See ShippingRate in schema.prisma — baseCents for the first unit of a
+/// productType in a cart, additionalItemCents for each extra unit of that
+/// same type. productType "default" (set via the route's :productType
+/// param, not this body) is the fallback for any type with no row of its
+/// own.
+export const shippingRateUpsertSchema = z.object({
+  baseCents: z.number().int().nonnegative(),
+  additionalItemCents: z.number().int().nonnegative(),
+  currency: z.string().length(3).default("USD"),
+});
+
 /// Turns a QC-passed design into one or more real products, one per
 /// garment type — see POST /api/agent/designs/:id/publish. Each entry
 /// mirrors aiProductCreateSchema's product-creation fields, minus
@@ -288,5 +299,6 @@ export type ActivityCreateInput = z.infer<typeof activityCreateSchema>;
 export type DesignCreateInput = z.infer<typeof designCreateSchema>;
 export type DesignRegenerateInput = z.infer<typeof designRegenerateSchema>;
 export type PrintTemplateUpsertInput = z.infer<typeof printTemplateUpsertSchema>;
+export type ShippingRateUpsertInput = z.infer<typeof shippingRateUpsertSchema>;
 export type DesignPublishInput = z.infer<typeof designPublishSchema>;
 export type PruneInput = z.infer<typeof pruneSchema>;

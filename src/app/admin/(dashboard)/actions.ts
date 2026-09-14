@@ -20,6 +20,7 @@ import {
   generateMockupSceneBases,
   setDesignArea,
 } from "@/lib/store/mockup-scenes";
+import { setShippingRate } from "@/lib/store/shipping";
 import {
   storeUpdateSchema,
   mockupGenerateSchema,
@@ -27,6 +28,7 @@ import {
   aiProductCreateSchema,
   designAreaSchema,
   productUpdateSchema,
+  shippingRateUpsertSchema,
 } from "@/lib/store/schemas";
 import { StoreError } from "@/lib/store/errors";
 import { ZodError } from "zod";
@@ -602,6 +604,17 @@ export async function markOrderPaid(orderId: string) {
   const store = await requireCurrentStore();
   await ordersStore.markOrderPaid(store.id, orderId, "admin");
   revalidatePath("/admin");
+}
+
+export async function saveShippingRate(
+  productType: string,
+  values: { baseCents: number; additionalItemCents: number }
+) {
+  const store = await requireCurrentStore();
+  const input = shippingRateUpsertSchema.parse(values);
+  const rate = await setShippingRate(store.id, productType, input, "admin");
+  revalidatePath("/admin/shipping");
+  return rate;
 }
 
 export type PruneAssetsState = {

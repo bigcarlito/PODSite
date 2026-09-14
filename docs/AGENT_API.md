@@ -914,6 +914,45 @@ the URL). Body:
 Creates or replaces the row for that `(provider, productType)` pair on
 this store. Returns the updated `PrintTemplate`.
 
+## Shipping rates
+
+`ShippingRate` is a flat shipping charge per `Product.productType`,
+**per store** (same per-store reasoning as `PrintTemplate` above) —
+`baseCents` for the first unit of that type in a cart, `additionalItemCents`
+for each extra unit of the same type. A row with `productType` exactly
+`"default"` is the fallback used for any product type with no row of its
+own — a data convention (AGENTS.md #10), not a schema flag. A cart with
+multiple product types is charged per type and summed (e.g. a shirt plus
+a poster pays both types' shipping, as if shipped in separate packages).
+A product type with neither its own row nor a `"default"` row ships
+**free** — this never blocks checkout, but every such gap is logged to
+the activity log, and `GET /api/agent/summary`'s `attention.shippingNotConfigured`
+is `true` whenever the store has zero `ShippingRate` rows at all, so a
+freshly created store doesn't ship for free indefinitely without anyone
+noticing.
+
+### `GET /api/agent/shipping-rates`
+
+Lists every shipping rate this store has set.
+
+### `PUT /api/agent/shipping-rates/:productType`
+
+`:productType` matches `Product.productType` (e.g. `tshirt`, `poster`),
+or the literal `default`. Body:
+
+```json
+{ "baseCents": 499, "additionalItemCents": 150, "currency": "USD" }
+```
+
+Creates or replaces the rate for that product type on this store.
+Returns the updated `ShippingRate`.
+
+Computed once per order at checkout time (`createPendingOrder()` in
+`src/lib/store/orders.ts`) and locked onto `Order.shippingCents` — never
+recomputed later even if rates change afterward. Charged to the customer
+via a native Stripe Checkout `shipping_options` line (see "Checkout &
+payments" above), not a synthetic product line item.
+
 ## Collections
 
 ### `GET /api/agent/collections`
@@ -1019,10 +1058,15 @@ A single-call snapshot built for "what should I do next?" decisions:
   "revenueCents": 45992,
   "attention": {
     "outOfStockVariants": [ { "id": "...", "sku": "...", "options": { "size": "M" }, "product": { "title": "...", "slug": "..." } } ],
-    "variantsMissingPrice": [ { "id": "...", "sku": "...", "product": { "title": "...", "slug": "..." } } ]
+    "variantsMissingPrice": [ { "id": "...", "sku": "...", "product": { "title": "...", "slug": "..." } } ],
+    "shippingNotConfigured": true
   }
 }
 ```
+
+`attention.shippingNotConfigured` is `true` when the store has zero
+`ShippingRate` rows — see "Shipping rates" above. Set at least a
+`"default"` rate to stop shipping free indefinitely.
 
 Use this before making changes — it's the fastest way to find what's
 worth optimizing (stuck orders, dead stock, missing prices) without
