@@ -48,9 +48,17 @@ export default async function ConfirmationPage({
             <span>{formatCents(item.priceCents * item.quantity)}</span>
           </div>
         ))}
+        <div className="flex justify-between border-t border-border pt-3 text-sm text-muted">
+          <span>Subtotal</span>
+          <span>{formatCents(order.subtotalCents)}</span>
+        </div>
+        <div className="flex justify-between text-sm text-muted">
+          <span>Shipping</span>
+          <span>{order.shippingCents > 0 ? formatCents(order.shippingCents) : "Free"}</span>
+        </div>
         <div className="flex justify-between border-t border-border pt-3 text-base font-semibold">
           <span>Total</span>
-          <span>{formatCents(order.subtotalCents)}</span>
+          <span>{formatCents(order.subtotalCents + order.shippingCents)}</span>
         </div>
       </div>
 

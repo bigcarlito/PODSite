@@ -4,6 +4,7 @@ import { getCart, cartTotalCents } from "@/lib/cart";
 import { getCurrentStore } from "@/lib/store-context";
 import { formatCents } from "@/lib/money";
 import { formatVariantOptions } from "@/lib/variant-label";
+import { calculateShippingCents } from "@/lib/store/shipping";
 import { CheckoutForm } from "@/components/CheckoutForm";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ export default async function CheckoutPage() {
   }
 
   const subtotal = cartTotalCents(cart.items);
+  const shipping = await calculateShippingCents(store.id, cart.items);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
@@ -47,9 +49,19 @@ export default async function CheckoutPage() {
               </div>
             ))}
           </div>
-          <div className="mt-4 flex justify-between border-t border-border pt-4 text-base font-semibold">
-            <span>Subtotal</span>
-            <span>{formatCents(subtotal)}</span>
+          <div className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
+            <div className="flex justify-between text-muted">
+              <span>Subtotal</span>
+              <span>{formatCents(subtotal)}</span>
+            </div>
+            <div className="flex justify-between text-muted">
+              <span>Shipping</span>
+              <span>{shipping > 0 ? formatCents(shipping) : "Free"}</span>
+            </div>
+            <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
+              <span>Total</span>
+              <span>{formatCents(subtotal + shipping)}</span>
+            </div>
           </div>
         </div>
       </div>

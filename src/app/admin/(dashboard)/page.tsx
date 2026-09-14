@@ -38,6 +38,7 @@ export default async function AdminOrdersPage() {
                     email: o.email,
                     status: o.status,
                     subtotalCents: o.subtotalCents,
+                    shippingCents: o.shippingCents,
                     createdAt: o.createdAt.toISOString(),
                     shippingName: o.shippingName,
                     items: o.items.map((item) => ({

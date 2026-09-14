@@ -104,6 +104,7 @@ model Store {
   mockupScenes   MockupScene[]
   designs        Design[]
   printTemplates PrintTemplate[]
+  shippingRates  ShippingRate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -250,6 +251,28 @@ model PrintTemplate {
   updatedAt   DateTime                @updatedAt
 
   @@unique([storeId, provider, productType])
+}
+
+/// A flat shipping charge per Product.productType — baseCents for the
+/// first unit of that type in a cart, additionalItemCents for each extra
+/// unit of the same type. A row with productType exactly "default" is the
+/// fallback for any type with no row of its own (a data convention, not a
+/// schema flag — see AGENTS.md #10). No row at all for a given type (and
+/// no "default" row either) charges $0 for that group — see
+/// calculateShippingCents() in src/lib/store/shipping.ts, which also logs
+/// an activity note so the gap doesn't go unnoticed.
+model ShippingRate {
+  id                  String   @id @default(cuid())
+  store               Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId             String
+  productType         String
+  baseCents           Int
+  additionalItemCents Int
+  currency            String   @default("USD")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([storeId, productType])
 }
 
 /// A running history of what changed and why, per store — the "recent
@@ -428,6 +451,11 @@ model Order {
   status           OrderStatus @default(PENDING_PAYMENT)
   items            OrderItem[]
   subtotalCents    Int
+  /// Computed at order-creation time via calculateShippingCents() and
+  /// locked in — never recomputed later even if ShippingRate rows change.
+  /// Separate from subtotalCents (merchandise-only); the checkout/
+  /// confirmation/admin UIs show Subtotal + Shipping = Total.
+  shippingCents    Int         @default(0)
   providerOrderId  String?
   notes            String?
   createdAt        DateTime    @default(now())

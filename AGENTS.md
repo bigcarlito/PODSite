@@ -427,11 +427,22 @@ src/lib/payments/stripe.ts      getStripeClient()/getStripeWebhookSecret()
                                 src/lib/fulfillment/ (AGENTS.md #6/#7)
 src/lib/agent-auth.ts           Bearer-token auth for /api/agent/*, checked
                                 against the resolved store's own key
+src/lib/store/shipping.ts        listShippingRates()/setShippingRate() —
+                                per-store, per-productType flat shipping
+                                charge CRUD (mirrors print-templates.ts's
+                                pattern); calculateShippingCents() groups
+                                a cart's items by Product.productType and
+                                sums each group's rate, falling back to a
+                                "default" row or $0 (logged, never
+                                blocking) for a type with no rate set
 src/app/checkout/actions.ts     placeOrder() — creates a PENDING_PAYMENT
                                 order via createPendingOrder()
-                                (src/lib/store/orders.ts), then redirects
-                                to a Stripe Checkout Session; the cart is
-                                only cleared once payment actually
+                                (src/lib/store/orders.ts, which also
+                                computes and locks in Order.shippingCents),
+                                then redirects to a Stripe Checkout
+                                Session (shipping charged via its native
+                                shipping_options, not a line item); the
+                                cart is only cleared once payment actually
                                 succeeds (see the webhook below), not here
 src/app/api/webhooks/stripe/    Verifies a checkout.session.completed
                                 delivery with the resolved store's own

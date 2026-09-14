@@ -18,6 +18,7 @@ export type AdminOrder = {
   email: string;
   status: string;
   subtotalCents: number;
+  shippingCents: number;
   createdAt: string;
   shippingName: string;
   items: AdminOrderItem[];
@@ -51,7 +52,7 @@ export function OrderRow({ order }: { order: AdminOrder }) {
             </span>
           </button>
         </td>
-        <td className="py-3 pr-4">{formatCents(order.subtotalCents)}</td>
+        <td className="py-3 pr-4">{formatCents(order.subtotalCents + order.shippingCents)}</td>
         <td className="py-3 pr-4">
           <span className="rounded-full bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent">
             {order.status.replaceAll("_", " ")}
@@ -112,6 +113,14 @@ export function OrderRow({ order }: { order: AdminOrder }) {
                     </td>
                   </tr>
                 ))}
+                <tr className="border-t border-border/60">
+                  <td className="py-1 pr-4 text-muted" colSpan={2}>
+                    Shipping
+                  </td>
+                  <td className="py-1 text-right text-muted">
+                    {order.shippingCents > 0 ? formatCents(order.shippingCents) : "Free"}
+                  </td>
+                </tr>
               </tbody>
             </table>
           </td>
