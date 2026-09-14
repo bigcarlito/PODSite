@@ -17,15 +17,36 @@ export type CartLine = {
     product: {
       title: string;
       slug: string;
-      images: { url: string }[];
+      optionNames: string[];
+      images: { url: string; optionValues?: unknown }[];
     };
   };
 };
 
+/** Same heuristic ProductPurchasePanel/Gallery use to find which of a
+ * product's generic option axes is "color" — no dedicated column per
+ * AGENTS.md #10, so this is a name match, not a schema lookup. */
+function findColorOptionName(optionNames: string[]): string | undefined {
+  return optionNames.find((name) => name.toLowerCase().includes("color"));
+}
+
 export function CartItemRow({ item }: { item: CartLine }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
-  const image = item.variant.product.images[0]?.url;
+
+  const options = item.variant.options as Record<string, string>;
+  const { images, optionNames } = item.variant.product;
+  const colorOptionName = findColorOptionName(optionNames);
+  const selectedColor = colorOptionName ? options[colorOptionName] : undefined;
+  const matched =
+    colorOptionName && selectedColor
+      ? images.find(
+          (img) =>
+            (img.optionValues as Record<string, string> | null)?.[colorOptionName] ===
+            selectedColor
+        )
+      : undefined;
+  const image = (matched ?? images[0])?.url;
 
   return (
     <div className="flex gap-4 border-b border-border py-5 first:pt-0 last:border-b-0">
