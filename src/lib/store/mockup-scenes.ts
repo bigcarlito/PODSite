@@ -246,6 +246,60 @@ export async function ensureMockupSceneBase(
   return imageUrl;
 }
 
+/**
+ * Sets one color's "blank garment" base mockup from an admin/agent-supplied
+ * image, in place of the AI-recolored one generateMockupSceneBases()
+ * would otherwise produce — useful when the AI recolor doesn't read well
+ * for a particular color, or the store already has a real product photo
+ * for it. Stored the same way (`baseImages[color.name]`, `kind:
+ * "mockup-scene-base"`) so every downstream consumer (ai-mockups.ts,
+ * cleanup.ts's orphan scan) treats it identically to a generated one —
+ * generateMockupSceneBases() would simply overwrite it again on a later
+ * "regenerate all" run.
+ */
+export async function setMockupSceneBaseImage(
+  store: Store,
+  productType: string,
+  colorName: string,
+  input: { data: Buffer; mimeType: string },
+  actor: ActivityActor,
+  origin: string
+) {
+  const scene = await getMockupScene(store.id, productType);
+  const colors = (scene.colors as unknown as MockupSceneColor[]) ?? [];
+  if (!colors.some((c) => c.name === colorName)) {
+    throw new StoreError(
+      "UNKNOWN_COLOR",
+      `"${colorName}" isn't one of this product type's colors: ${
+        colors.map((c) => c.name).join(", ") || "(none set)"
+      }.`,
+      { status: 422, field: "colorName" }
+    );
+  }
+
+  const asset = await uploadStoreAsset(store.id, { kind: "mockup-scene-base", ...input }, actor);
+  const imageUrl = `${origin}${asset.url}`;
+
+  const updated = await prisma.mockupScene.update({
+    where: { id: scene.id },
+    data: {
+      baseImages: {
+        ...((scene.baseImages as Record<string, string>) ?? {}),
+        [colorName]: imageUrl,
+      } as Prisma.InputJsonValue,
+    },
+  });
+
+  await logActivity(store.id, {
+    actor,
+    category: "mockup-scene",
+    summary: `Uploaded a base mockup for "${colorName}" (product type "${productType}")`,
+    details: { productType, colorName, imageUrl },
+  });
+
+  return updated;
+}
+
 /** Sets the rectangle (fractions of the scene image) a design gets placed
  *  into — see compositeDesignOnScene in src/lib/design/compositor.ts. */
 export async function setDesignArea(
