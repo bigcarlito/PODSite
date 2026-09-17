@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { navLinkSchema } from "@/lib/platform-schemas";
-import { aspectsSchema } from "@/lib/design/aspects";
+import { aspectsSchema, DESIGN_TYPE_VALUES } from "@/lib/design/aspects";
 
 export const variantInputSchema = z.object({
   id: z.string().optional(), // present = update existing variant, absent = create new
@@ -112,6 +112,11 @@ export const mockupSceneUploadSchema = z.object({
   /// existing lineup when just replacing the photo; required at least
   /// once before this product type can be used to auto-generate a product.
   colors: z.array(z.object({ name: z.string().min(1), hex: z.string().min(4) })).optional(),
+  /// Default price (integer cents) the one-click "make this a product"
+  /// review-queue flow uses for this product type — see
+  /// MockupScene.defaultPriceCents. Omit to keep the existing value.
+  defaultPriceCents: z.number().int().positive().optional(),
+  defaultCurrency: z.string().length(3).optional(),
 });
 
 /// Uploads a specific color's own "blank garment" base mockup, skipping
@@ -239,6 +244,15 @@ export const designCreateSchema = z.object({
   /// Provider-specific model slug — falls back to the adapter's own default.
   model: z.string().min(1).optional(),
   negativePrompt: z.string().optional(),
+  /// Groups a set of designs created together — see Design.batchLabel and
+  /// createDesignBatch() in src/lib/design/design-batches.ts. Not meant to
+  /// be set by a caller creating one design at a time.
+  batchLabel: z.string().optional(),
+  /// Arbitrary extra metadata merged into Design.params — used by
+  /// createDesignBatch() to keep a concept's display name, sell rationale,
+  /// and intended product type alongside the design for the
+  /// /admin/designs review queue.
+  meta: z.record(z.string(), z.unknown()).optional(),
 });
 
 /// Re-runs generation for an existing design — a new seed/attempt, same
@@ -291,6 +305,41 @@ export const designPublishSchema = z.object({
   textModel: z.string().optional(),
 });
 
+/// Generates a batch of t-shirt design concepts (no image yet) from a
+/// niche/target customer — see generateDesignConcepts() in
+/// src/lib/design/concepts.ts and POST /api/agent/designs/concepts.
+/// niche/targetCustomer default from Store.audience when omitted.
+export const designConceptsGenerateSchema = z.object({
+  niche: z.string().min(1).optional(),
+  targetCustomer: z.string().min(1).optional(),
+  count: z.number().int().min(1).max(5).default(5),
+  lockDesignType: z.enum(DESIGN_TYPE_VALUES).optional(),
+  /// Overrides OPENROUTER_TEXT_MODEL for the concept-generation call.
+  textModel: z.string().optional(),
+});
+
+/// Turns a batch of concepts into real Designs via the existing
+/// createDesign pipeline — see createDesignBatch() in
+/// src/lib/design/design-batches.ts and POST /api/agent/designs/batch.
+/// Pass `concepts` (e.g. an agent's edited output from
+/// POST /api/agent/designs/concepts) to skip straight to generation, or
+/// omit it to generate concepts from niche/targetCustomer first.
+export const designBatchCreateSchema = z.object({
+  concepts: z.array(z.record(z.string(), z.unknown())).min(1).max(5).optional(),
+  niche: z.string().min(1).optional(),
+  targetCustomer: z.string().min(1).optional(),
+  count: z.number().int().min(1).max(5).default(5),
+  lockDesignType: z.enum(DESIGN_TYPE_VALUES).optional(),
+  /// The garment product type these concepts target, e.g. "tshirt" —
+  /// stored on each Design's params so the one-click "make product" flow
+  /// (POST /api/agent/designs/:id/publish) knows which MockupScene/default
+  /// price to use without asking again.
+  productType: z.string().min(1).default("tshirt"),
+  provider: z.string().min(1).default("openrouter"),
+  model: z.string().min(1).optional(),
+  textModel: z.string().optional(),
+});
+
 export type MockupGenerateInput = z.infer<typeof mockupGenerateSchema>;
 export type AiMockupGenerateInput = z.infer<typeof aiMockupGenerateSchema>;
 export type DesignAreaInput = z.infer<typeof designAreaSchema>;
@@ -310,4 +359,6 @@ export type DesignRegenerateInput = z.infer<typeof designRegenerateSchema>;
 export type PrintTemplateUpsertInput = z.infer<typeof printTemplateUpsertSchema>;
 export type ShippingRateUpsertInput = z.infer<typeof shippingRateUpsertSchema>;
 export type DesignPublishInput = z.infer<typeof designPublishSchema>;
+export type DesignConceptsGenerateInput = z.infer<typeof designConceptsGenerateSchema>;
+export type DesignBatchCreateInput = z.infer<typeof designBatchCreateSchema>;
 export type PruneInput = z.infer<typeof pruneSchema>;

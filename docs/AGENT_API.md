@@ -534,7 +534,9 @@ Lists every scene this store has set, including `baseImages` and `designArea`.
 {
   "data": "<base64, no data: prefix>",
   "mimeType": "image/png",
-  "colors": [{ "name": "Black", "hex": "#101010" }, { "name": "White", "hex": "#ffffff" }]
+  "colors": [{ "name": "Black", "hex": "#101010" }, { "name": "White", "hex": "#ffffff" }],
+  "defaultPriceCents": 2499,
+  "defaultCurrency": "USD"
 }
 ```
 
@@ -549,6 +551,12 @@ the photo to keep the existing lineup; at least one color is required
 before `generate-bases` or `generate-from-design` can use this type.
 Replacing the photo always clears `baseImages` — a base rendered from the
 old photo no longer matches this one.
+
+`defaultPriceCents`/`defaultCurrency` (optional, omit to keep the existing
+value) set this product type's default price for the one-click "make
+product" flow in `/admin/designs` and `POST /api/agent/designs/:id/quick-publish`
+(below) — without it, that flow fails with `422 NO_DEFAULT_PRICE` rather
+than guessing a price.
 
 #### `POST /api/agent/mockup-scenes/:productType/generate-bases`
 
@@ -717,7 +725,18 @@ before spending an upscale on a bad render) → on pass, **upscale** to the
 print-ready master canvas → **publish** derives each provider's exact file
 from the master and creates real product(s). A design's `status` reflects
 where it is in that pipeline: `generated` (QC-passed, ready to publish),
-`rejected` (failed QC after every retry), or `published`.
+`rejected` (failed QC — either automatically, after every QC retry, or
+manually via `POST /api/agent/designs/:id/reject` below), or `published`.
+
+A batch of t-shirt design **concepts** (`POST /api/agent/designs/concepts`
+/ `POST /api/agent/designs/batch` below) sits in front of this same
+pipeline — it's a text-generation step that produces a set of aspects
+combinations following a sellable-t-shirt methodology
+(`src/lib/design/tshirt-design-concepts.md`), then feeds each one through
+`POST /api/agent/designs` unchanged. The resulting designs are tagged with
+a shared `batchLabel` and reviewable as a set (`GET
+/api/agent/designs?batchLabel=`, or `/admin/designs` for a human), each
+either rejected or turned into a product in one call.
 
 ### `GET /api/agent/designs/vocabulary`
 
@@ -726,7 +745,7 @@ agent learns the legal values without hardcoding them:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "hook": ["insider_joke", "pun", "identity_badge", "..."],
   "occasion": ["everyday", "gift", "holiday", "..."],
   "layout": ["text_only_stacked", "icon_above_text", "..."],
@@ -735,16 +754,26 @@ agent learns the legal values without hardcoding them:
   "complexity": ["minimal", "moderate", "detailed"],
   "designedForShade": ["dark", "light", "both"],
   "printRatio": ["square_1_1", "portrait_4_5", "wide_3_2", "pocket_1_1"],
-  "placement": ["front_center", "left_chest", "back_full", "sleeve"]
+  "placement": ["front_center", "left_chest", "back_full", "sleeve"],
+  "designType": ["vintage_weathered", "type_only_lockup", "hand_drawn_ink", "..."],
+  "archetype": ["centered_badge_emblem", "stacked_type_lockup", "..."],
+  "distressLevel": ["0", "1", "2", "3"]
 }
 ```
 
-`hook`, `layout`, `artStyle`, `colorScheme`, and `complexity` are the five
+`hook`, `layout`, `artStyle`, `colorScheme`, and `complexity` are the
 *experiment axes* — the ones worth varying one at a time across a batch of
 designs to see what sells. `occasion`, `designedForShade`, `printRatio`,
 and `placement` are context/placement, not things to A/B. `phrase` (the
 exact words on the garment) and `subject` (the visual subject, as a short
 tag like `"disc golf basket"`) are free text, not enum values.
+
+`designType` (print-treatment/finish family), `archetype` (visual layout),
+and `distressLevel` (how thrashed the print looks) were added in version 2
+— the same controlled vocabulary a batch of t-shirt design concepts draws
+from (see "Design concepts" below). All three are optional on `POST
+/api/agent/designs` with defaults (`vintage_weathered`, `null`, `"2"`
+respectively) so version-1 callers keep working unchanged.
 
 ### `POST /api/agent/designs`
 
@@ -900,6 +929,114 @@ or `409 ALREADY_PUBLISHED` if it's already been published — publish a
 second garment type for the same design by minting a new design instead
 (structured aspects are cheap to regenerate; a Design row is meant to
 represent one specific rendered artwork, not a family of them).
+
+### `POST /api/agent/designs/:id/reject`
+
+Manually rejects a `"generated"` design an admin/agent looked at and
+didn't want, without publishing it — the human counterpart to the
+automatic QC rejection above. Returns `{ "design": {...} }` with `status:
+"rejected"`. Fails with `409 DESIGN_NOT_REJECTABLE` on any other status
+(already rejected, or already published).
+
+### `POST /api/agent/designs/:id/quick-publish`
+
+One call, no body — the agent-facing equivalent of the `/admin/designs`
+review queue's one-click "make product" button. Publishes using the
+design's own target product type (set by `POST /api/agent/designs/batch`
+into `Design.params.targetProductType`, defaulting to `"tshirt"` for a
+design created outside a batch) and that product type's `MockupScene`
+defaults: every color the scene has, and its `defaultPriceCents`/
+`defaultCurrency` (see `PUT /api/agent/mockup-scenes/:productType`
+above). Same response shape as `publish`. Fails with `422
+NO_DEFAULT_PRICE` if that product type has no default price set yet — set
+one first, or use `POST /api/agent/designs/:id/publish` directly for
+per-call control over price/sizes/provider.
+
+## Design concepts
+
+A batch of t-shirt design concepts is a text-generation step that sits in
+front of the design pipeline above — it produces a set of structured
+aspects combinations (angle, print-treatment/finish, layout archetype,
+on-shirt copy) following a sellable-t-shirt methodology, without spending
+an image generation on any of them. The methodology itself lives in
+`src/lib/design/tshirt-design-concepts.md`, loaded verbatim into the
+concept-generation prompt — editing that file changes future batches
+without a code change.
+
+### `POST /api/agent/designs/concepts`
+
+```json
+{ "niche": "disc golfers who take it too seriously", "count": 5 }
+```
+
+Generates `count` (1-5, default 5) concepts and returns them **without**
+creating any Designs or spending an image generation — so a batch can be
+inspected or edited before committing image-gen budget to it:
+
+```json
+{
+  "concepts": [
+    {
+      "name": "Ace or Nothing",
+      "whySells": "The disc golfer who treats every throw like it's the finals",
+      "hook": "insider_joke", "designType": "vintage_weathered",
+      "archetype": "centered_badge_emblem", "distressLevel": "2",
+      "phrase": "ACE OR NOTHING", "subject": "disc golf basket",
+      "occasion": "everyday", "layout": "circular_emblem",
+      "artStyle": "vintage_distressed", "colorScheme": "retro_three_color",
+      "complexity": "moderate", "designedForShade": "light",
+      "printRatio": "portrait_4_5", "placement": "front_center"
+    }
+  ]
+}
+```
+
+`niche`/`targetCustomer` default to this store's own `audience` (see
+"Store fields" — every store already carries a persona there) when
+omitted; at least one of the two (supplied or defaulted) is required, or
+this fails with `422 MISSING_NICHE`. `lockDesignType` (optional, one of
+the `designType` vocabulary values) fixes that axis for the whole batch,
+matching the concepts methodology's own "if the user names a design type,
+use it for the entire batch" rule. `textModel` overrides
+`OPENROUTER_TEXT_MODEL` for this call.
+
+### `POST /api/agent/designs/batch`
+
+```json
+{ "niche": "disc golfers who take it too seriously", "count": 5, "productType": "tshirt" }
+```
+
+Turns a batch of concepts into real Designs via the exact same `POST
+/api/agent/designs` pipeline (QC gate, upscale, all unchanged) — either
+generating the concepts itself (same fields as `concepts` above), or, if
+the caller passes a `concepts` array (e.g. this store's own edited output
+from the endpoint above), using those as-is and skipping straight to
+generation:
+
+```json
+{ "concepts": [ /* edited output from POST /api/agent/designs/concepts */ ] }
+```
+
+Capped at 5 concepts per call regardless of `count`. Every design created
+in the run shares one `batchLabel` (`GET
+/api/agent/designs?batchLabel=...` lists them together). A concept that
+fails image generation doesn't abort the rest of the batch. Returns:
+
+```json
+{
+  "batchLabel": "disc-golfers-who-take-it-too-seriously-1758...",
+  "productType": "tshirt",
+  "results": [
+    { "concept": {...}, "design": { "id": "...", "status": "generated", ... } },
+    { "concept": {...}, "error": "..." }
+  ]
+}
+```
+
+`productType` (default `"tshirt"`) is stored on each created design's
+`params.targetProductType`, so `POST /api/agent/designs/:id/quick-publish`
+above knows which `MockupScene`/default price to use without asking
+again.
 
 ## Print templates
 

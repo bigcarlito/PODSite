@@ -36,6 +36,8 @@ export default async function MockupScenesPage() {
                 colors: (s.colors as { name: string; hex: string }[]) ?? [],
                 baseImages: (s.baseImages as Record<string, string>) ?? {},
                 hasDesignArea: s.designArea != null,
+                defaultPriceCents: s.defaultPriceCents,
+                defaultCurrency: s.defaultCurrency,
               }}
             />
           ))}

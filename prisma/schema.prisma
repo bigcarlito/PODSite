@@ -165,6 +165,14 @@ model MockupScene {
   /// design's aspect ratio). Null means unset — generation falls back to
   /// a centered default area rather than failing.
   designArea  Json?
+  /// Default price (integer cents) a one-click "make this a product" flow
+  /// (see publishDesign in src/lib/design/designs.ts, used by the
+  /// /admin/designs review queue) uses for this product type when the
+  /// caller doesn't specify one. Null until an admin/agent sets it via
+  /// PUT /api/agent/mockup-scenes/:productType — publishing then throws
+  /// a clear NO_DEFAULT_PRICE error rather than guessing a price.
+  defaultPriceCents Int?
+  defaultCurrency   String   @default("USD")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -218,6 +226,12 @@ model Design {
 
   /// draft | generated | rejected | published | archived
   status String @default("draft")
+  /// Free-text grouping tag set by createDesignBatch() so a set of
+  /// concepts generated together can be filtered/reviewed as one run in
+  /// /admin/designs — not a DesignBatch model (that's Phase 3+ controlled-
+  /// experiment "flights", a different concept — see AGENTS.md). Null for
+  /// a design created one at a time via POST /api/agent/designs.
+  batchLabel String?
 
   products Product[]
 
@@ -226,6 +240,7 @@ model Design {
 
   @@unique([storeId, slug])
   @@index([storeId, status])
+  @@index([storeId, batchLabel])
 }
 
 /// The exact print-file spec one fulfillment provider expects for one

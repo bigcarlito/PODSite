@@ -1,10 +1,15 @@
 import {
   ART_STYLE_FRAGMENTS,
+  ARCHETYPE_FRAGMENTS,
   COLOR_SCHEME_FRAGMENTS,
   COLOR_SCHEME_ROLES,
   COMPLEXITY_FRAGMENTS,
   DESIGNED_FOR_SHADE_FRAGMENTS,
+  DESIGN_TYPE_FRAGMENTS,
+  DISTRESS_LEVEL_FRAGMENTS,
+  DISTRESS_TRANSPARENCY_FRAGMENT,
   LAYOUT_FRAGMENTS,
+  NO_KEYLINE_FRAGMENT,
   type DesignAspects,
   type PrintRatio,
 } from "./aspects";
@@ -78,13 +83,20 @@ export function compileDesignPrompt(aspects: DesignAspects): CompiledDesignPromp
     ? `The words "${aspects.phrase}" rendered exactly and spelled correctly in bold display lettering. `
     : "";
 
+  const archetypeClause = aspects.archetype ? `${ARCHETYPE_FRAGMENTS[aspects.archetype]}.` : "";
+
   const promptText = [
+    `${DESIGN_TYPE_FRAGMENTS[aspects.designType]}.`,
+    archetypeClause,
     `${LAYOUT_FRAGMENTS[aspects.layout]}.`,
     `${subjectClause}${phraseClause}`.trim(),
     `${ART_STYLE_FRAGMENTS[aspects.artStyle]}.`,
     `${resolveColorFragment(aspects.colorScheme)}.`,
     `${COMPLEXITY_FRAGMENTS[aspects.complexity]}.`,
     `${DESIGNED_FOR_SHADE_FRAGMENTS[aspects.designedForShade]}.`,
+    `${DISTRESS_LEVEL_FRAGMENTS[aspects.distressLevel]}`,
+    NO_KEYLINE_FRAGMENT,
+    aspects.distressLevel !== "0" ? DISTRESS_TRANSPARENCY_FRAGMENT : "",
     RENDER_CONTRACT,
   ]
     .filter(Boolean)

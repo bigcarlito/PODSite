@@ -8,9 +8,10 @@ export const dynamic = "force-dynamic";
 export const GET = withAgentAuth(async (request, store) => {
   const url = new URL(request.url);
   const status = url.searchParams.get("status") ?? undefined;
+  const batchLabel = url.searchParams.get("batchLabel") ?? undefined;
   const takeParam = url.searchParams.get("take");
   const take = takeParam ? Number(takeParam) : undefined;
-  const designs = await listDesigns(store.id, { status, take });
+  const designs = await listDesigns(store.id, { status, batchLabel, take });
   return Response.json({ designs });
 });
 

@@ -14,8 +14,14 @@ import { z } from "zod";
  * experiment axes analyzed as levels — `phrase` and `subject` are free
  * text analyzed as content, and `occasion`/`designedForShade`/`printRatio`
  * are context/placement, not things to A/B.
+ *
+ * `designType`, `archetype`, and `distressLevel` (added in version 2) come
+ * from the same controlled-vocabulary taxonomy as a batch of t-shirt
+ * design concepts (see src/lib/design/concepts.ts /
+ * tshirt-design-concepts.md) — they're just as enumerable as `artStyle`/
+ * `layout`, so they belong here rather than as free text on a concept.
  */
-export const ASPECTS_VERSION = 1;
+export const ASPECTS_VERSION = 2;
 
 /** One controlled-vocabulary axis: legal values, each with its prompt fragment. */
 type AspectAxis<V extends string> = Record<V, string>;
@@ -181,6 +187,116 @@ export const PRINT_RATIO_DIMENSIONS: Record<PrintRatio, { width: number; height:
 export const PLACEMENT_VALUES = ["front_center", "left_chest", "back_full", "sleeve"] as const;
 export type Placement = (typeof PLACEMENT_VALUES)[number];
 
+/** The print-treatment/finish family — sets texture, distress, and which
+ * archetypes fit (see tshirt-design-concepts.md Step 3). Each fragment is
+ * the opening print-finish instruction dropped into the compiled prompt. */
+export const DESIGN_TYPE_VALUES = [
+  "vintage_weathered",
+  "type_only_lockup",
+  "hand_drawn_ink",
+  "single_color_overprint",
+  "retro_poster",
+  "block_print_linocut",
+  "bold_line_tattoo_flash",
+  "clean_vector",
+] as const;
+export type DesignType = (typeof DESIGN_TYPE_VALUES)[number];
+
+export const DESIGN_TYPE_FRAGMENTS: AspectAxis<DesignType> = {
+  vintage_weathered:
+    "Vintage screen-printed t-shirt graphic, heavily distressed ink with fine cracking and speckle, halftone dot shading in the fills, eroded ragged edges, faded sun-bleached ink colors, looks washed a hundred times",
+  type_only_lockup:
+    "Typographic t-shirt design, text only, no illustration or imagery of any kind, vintage screen-print texture on the letterforms",
+  hand_drawn_ink:
+    "Hand-drawn pen and brush ink illustration, wobbly imperfect linework with varying stroke weight, crosshatch and stipple shading, hand-lettered text with natural inconsistency, looks drawn in a sketchbook",
+  single_color_overprint:
+    "Single-color screen print, one ink only, every tonal value achieved through halftone dots and line density rather than a second color, heavy contrast, bold graphic silhouettes, slight ink spread and press texture",
+  retro_poster:
+    "1970s screen-printed poster style, horizontal stripe bands and sunburst rays, warm limited palette, heavy uniform grain across the whole design, groovy rounded display lettering, slight plate misregistration",
+  block_print_linocut:
+    "Hand-carved linocut block print, rough chiseled edges with visible carve marks and nicks, uneven ink coverage with visible press texture, bold simplified shapes, rustic and tactile",
+  bold_line_tattoo_flash:
+    "American traditional tattoo flash, heavy uniform black outlines, flat limited palette, banner scroll with lettering, dot and line shading, bold simple shapes with no fine detail",
+  clean_vector:
+    "Clean flat vector t-shirt graphic, crisp geometric shapes, precise even edges, bold solid fills, modern minimal styling, subtle paper grain only",
+};
+
+/** The visual layout archetype — see tshirt-design-concepts.md Step 4. Kept
+ * as prose labels (not composition instructions like `layout` above) since
+ * distinguishing e.g. "worn tour tee" from "vintage athletic / varsity" in
+ * the prompt matters more for aspect-level attribution than for rendering
+ * — the compiled prompt names the archetype and lets designType/subject
+ * carry the actual composition detail. */
+export const ARCHETYPE_VALUES = [
+  "centered_badge_emblem",
+  "stacked_type_lockup",
+  "retro_sunset_scene",
+  "vintage_athletic_varsity",
+  "mascot_illustration",
+  "tattoo_flash",
+  "woodcut_engraving",
+  "blueprint_diagram",
+  "worn_tour_tee",
+  "sticker_sheet_collage",
+  "kitsch_90s_y2k",
+  "hand_drawn_doodle",
+  "celestial_sacred_geometry",
+  "minimal_line_art",
+  "left_chest_mark",
+] as const;
+export type Archetype = (typeof ARCHETYPE_VALUES)[number];
+
+export const ARCHETYPE_FRAGMENTS: AspectAxis<Archetype> = {
+  centered_badge_emblem:
+    "Centered badge/emblem composition — a circular or shield seal with outer ring text, a rope or laurel border, and a banner ribbon",
+  stacked_type_lockup: "Stacked type lockup — 3 to 5 lines of mixed weights and widths, top line arched, one word oversized",
+  retro_sunset_scene: "Retro sunset scene — horizontal stripe bands, a sun arc, and a silhouette subject",
+  vintage_athletic_varsity: "Vintage athletic/varsity composition — collegiate block letters, an arched top line, and a number",
+  mascot_illustration: "Mascot illustration — bold uneven outlines, flat cel-shading, an exaggerated expression",
+  tattoo_flash: "Tattoo flash composition — heavy black linework, a banner scroll, dot shading",
+  woodcut_engraving: "Woodcut/engraving composition — fine parallel hatching, single ink, an antique specimen-plate feel",
+  blueprint_diagram: "Blueprint/diagram composition — an exploded view with labeled callouts, leader lines, monospaced labels",
+  worn_tour_tee: "Worn tour tee composition — heavy grit, halftone, cracked ink, two colors",
+  sticker_sheet_collage: "Sticker sheet/patch collage — 5 to 8 small elements scattered in a loose grid",
+  kitsch_90s_y2k: "Kitsch 90s/Y2K composition — bubble type, starbursts, checkerboard, Memphis squiggles",
+  hand_drawn_doodle: "Hand-drawn doodle composition — wobbly marker linework, handwritten lettering",
+  celestial_sacred_geometry: "Celestial/sacred geometry composition — moon phases, star fields, line-art constellation",
+  minimal_line_art: "Minimal line art composition — a single continuous contour in one ink color, huge negative space",
+  left_chest_mark: "Left-chest mark composition — a small self-contained icon plus one to three words, reads at 3 inches",
+};
+
+/** How thrashed the print looks, per tshirt-design-concepts.md Step 6 — the
+ * "printed into the shirt, not stuck on it" instructions. Level 0 (clean)
+ * is meant for designType clean_vector only. */
+export const DISTRESS_LEVEL_VALUES = ["0", "1", "2", "3"] as const;
+export type DistressLevel = (typeof DISTRESS_LEVEL_VALUES)[number];
+
+export const DISTRESS_LEVEL_FRAGMENTS: AspectAxis<DistressLevel> = {
+  "0": "Clean flat edges, subtle paper grain only.",
+  "1": "Light screen-print grain, faintly irregular edges, ink not perfectly opaque (around 92%).",
+  "2":
+    "Vintage screen-print texture, ink broken by fine distress speckle, eroded ragged edges, halftone dot shading in the fills, slight plate misregistration, ink around 86% opaque.",
+  "3": "Heavily distressed and faded vintage print, cracked and flaking ink, significant wear, looks washed a hundred times.",
+};
+
+/** The "sticker tells" this platform's designs must never carry (see
+ * tshirt-design-concepts.md Step 6) — appended to every compiled prompt
+ * regardless of designType, since even the intentionally-clean designType
+ * (distressLevel "0") still bans a keyline and pure white. */
+export const NO_KEYLINE_FRAGMENT =
+  "The design has no outer border, frame, keyline, or die-cut outline — its outermost elements " +
+  "break up or fade out instead of stopping at a hard contour. Never pure white or pure black " +
+  "anywhere — use an aged white and a soft black instead. It should look printed into a worn " +
+  "shirt, not like a sticker applied on top of one.";
+
+/** Only meaningful once there's real distress to render (distressLevel !=
+ * "0") — instructs the gaps to be the flat background color rather than a
+ * grey overlay, so removing the background leaves them genuinely
+ * transparent (the print-realism transparency trick). */
+export const DISTRESS_TRANSPARENCY_FRAGMENT =
+  "Render all distress, cracking, and halftone gaps as the flat background color showing " +
+  "through the ink, never as a grey or tinted overlay.";
+
 /** Zod schema for the full aspects object — every field except `phrase`/
  * `subject` is a controlled-vocabulary enum from the lists above. */
 export const aspectsSchema = z.object({
@@ -195,6 +311,16 @@ export const aspectsSchema = z.object({
   designedForShade: z.enum(DESIGNED_FOR_SHADE_VALUES),
   printRatio: z.enum(PRINT_RATIO_VALUES),
   placement: z.enum(PLACEMENT_VALUES),
+  /// Print-treatment family (Step 3) — optional so version-1 designs (no
+  /// designType) still validate; compileDesignPrompt() falls back to
+  /// vintage_weathered's fragment when omitted.
+  designType: z.enum(DESIGN_TYPE_VALUES).default("vintage_weathered"),
+  /// Visual layout archetype (Step 4) — optional, no default fragment is
+  /// added to the prompt when omitted.
+  archetype: z.enum(ARCHETYPE_VALUES).nullable().default(null),
+  /// How thrashed the print looks (Step 6) — defaults to the skill's
+  /// documented default level.
+  distressLevel: z.enum(DISTRESS_LEVEL_VALUES).default("2"),
 });
 
 export type DesignAspects = z.infer<typeof aspectsSchema>;
@@ -212,4 +338,7 @@ export const DESIGN_VOCABULARY = {
   designedForShade: DESIGNED_FOR_SHADE_VALUES,
   printRatio: PRINT_RATIO_VALUES,
   placement: PLACEMENT_VALUES,
+  designType: DESIGN_TYPE_VALUES,
+  archetype: ARCHETYPE_VALUES,
+  distressLevel: DISTRESS_LEVEL_VALUES,
 };
