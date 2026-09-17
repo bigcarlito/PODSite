@@ -48,7 +48,8 @@ export async function setMockupScene(
   input: { data: Buffer; mimeType: string },
   actor: ActivityActor,
   origin: string,
-  colors?: MockupSceneColor[]
+  colors?: MockupSceneColor[],
+  defaultPrice?: { priceCents: number; currency?: string }
 ) {
   const asset = await uploadStoreAsset(store.id, { kind: "mockup-scene", ...input }, actor);
   const imageUrl = `${origin}${asset.url}`;
@@ -60,6 +61,9 @@ export async function setMockupScene(
       productType,
       imageUrl,
       colors: (colors ?? []) as Prisma.InputJsonValue,
+      ...(defaultPrice
+        ? { defaultPriceCents: defaultPrice.priceCents, defaultCurrency: defaultPrice.currency ?? "USD" }
+        : {}),
     },
     // Only touch colors if the caller actually supplied them, so replacing
     // just the photo doesn't wipe out a previously-set color lineup. Base
@@ -70,6 +74,9 @@ export async function setMockupScene(
       imageUrl,
       baseImages: {},
       ...(colors ? { colors: colors as Prisma.InputJsonValue } : {}),
+      ...(defaultPrice
+        ? { defaultPriceCents: defaultPrice.priceCents, ...(defaultPrice.currency ? { defaultCurrency: defaultPrice.currency } : {}) }
+        : {}),
     },
   });
 

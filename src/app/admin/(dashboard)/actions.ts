@@ -22,12 +22,15 @@ import {
   setDesignArea,
 } from "@/lib/store/mockup-scenes";
 import { setShippingRate } from "@/lib/store/shipping";
+import { createDesignBatch } from "@/lib/design/design-batches";
+import { rejectDesign, quickPublishDesign } from "@/lib/design/designs";
 import {
   storeUpdateSchema,
   mockupGenerateSchema,
   aiMockupGenerateSchema,
   aiProductCreateSchema,
   designAreaSchema,
+  designBatchCreateSchema,
   productUpdateSchema,
   shippingRateUpsertSchema,
 } from "@/lib/store/schemas";
@@ -357,13 +360,25 @@ export async function uploadMockupScene(
   }
 
   const colorsRaw = String(formData.get("colors") ?? "").trim();
+  const defaultPriceRaw = String(formData.get("defaultPrice") ?? "").trim();
 
   try {
     const colors = colorsRaw ? parseJsonField(formData, "colors", "Colors") : undefined;
     const data = Buffer.from(await file.arrayBuffer());
     const origin = originFromHeaders(await headers());
+    const defaultPrice = defaultPriceRaw
+      ? { priceCents: Math.round(Number(defaultPriceRaw) * 100) }
+      : undefined;
 
-    await setMockupScene(store, productType, { data, mimeType: file.type }, "admin", origin, colors);
+    await setMockupScene(
+      store,
+      productType,
+      { data, mimeType: file.type },
+      "admin",
+      origin,
+      colors,
+      defaultPrice
+    );
   } catch (e) {
     return {
       error: e instanceof StoreError ? e.message : "Couldn't upload scene photo — try again.",
@@ -704,5 +719,94 @@ export async function pruneProductsAction(): Promise<PruneProductsState> {
     };
   } catch (e) {
     return { error: e instanceof StoreError ? e.message : "Couldn't delete products — try again." };
+  }
+}
+
+export type BatchGenerateState = {
+  error?: string;
+  result?: {
+    batchLabel: string;
+    succeeded: number;
+    failed: number;
+    failures: Array<{ name: string; error: string }>;
+  };
+};
+
+/**
+ * Admin-side form wrapper over createDesignBatch (the same function
+ * POST /api/agent/designs/batch calls) — generates a batch of t-shirt
+ * design concepts (defaulting niche/targetCustomer from this store's own
+ * audience) and immediately runs each through the existing design
+ * pipeline. Results land in status "generated"/"rejected" for review at
+ * /admin/designs.
+ */
+export async function generateDesignBatchAction(
+  _prevState: BatchGenerateState,
+  formData: FormData
+): Promise<BatchGenerateState> {
+  const store = await requireCurrentStore();
+
+  try {
+    const lockDesignTypeRaw = String(formData.get("lockDesignType") ?? "").trim();
+    const input = designBatchCreateSchema.parse({
+      niche: String(formData.get("niche") ?? "").trim() || undefined,
+      targetCustomer: String(formData.get("targetCustomer") ?? "").trim() || undefined,
+      count: Number(formData.get("count") ?? 5),
+      lockDesignType: lockDesignTypeRaw || undefined,
+      productType: String(formData.get("productType") ?? "").trim() || undefined,
+    });
+
+    const origin = originFromHeaders(await headers());
+    const result = await createDesignBatch(store, input, "admin", origin);
+    revalidatePath("/admin/designs");
+
+    return {
+      result: {
+        batchLabel: result.batchLabel,
+        succeeded: result.results.filter((r) => r.design).length,
+        failed: result.results.filter((r) => r.error).length,
+        failures: result.results
+          .filter((r): r is typeof r & { error: string } => Boolean(r.error))
+          .map((r) => ({ name: r.concept.name, error: r.error })),
+      },
+    };
+  } catch (e) {
+    if (e instanceof ZodError) {
+      const first = e.issues[0];
+      return { error: `${first.path.join(".")}: ${first.message}` };
+    }
+    return {
+      error: e instanceof StoreError ? e.message : "Couldn't generate the batch — try again.",
+    };
+  }
+}
+
+/** Manually rejects a "generated" design the admin doesn't want to keep. */
+export async function rejectDesignAction(designId: string) {
+  const store = await requireCurrentStore();
+  await rejectDesign(store, designId, "admin");
+  revalidatePath("/admin/designs");
+}
+
+export type QuickPublishState = { error?: string; success?: boolean; productId?: string };
+
+/**
+ * One-click "make this a product" for a design in the review queue — see
+ * quickPublishDesign in src/lib/design/designs.ts for how it picks a price
+ * and colors.
+ */
+export async function quickPublishDesignAction(designId: string): Promise<QuickPublishState> {
+  const store = await requireCurrentStore();
+
+  try {
+    const origin = originFromHeaders(await headers());
+    const result = await quickPublishDesign(store, designId, "admin", origin);
+    revalidatePath("/admin/designs");
+    revalidatePath("/admin/products");
+    return { success: true, productId: result.products[0]?.product.id };
+  } catch (e) {
+    return {
+      error: e instanceof StoreError ? e.message : "Couldn't publish this design — try again.",
+    };
   }
 }

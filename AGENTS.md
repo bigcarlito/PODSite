@@ -257,30 +257,55 @@ Every design carries the recipe that made it — that's what turns sales
 into a model of what actually works for a store's audience, instead of
 design-by-design guessing.
 
-**Phase 1+2 (current)**: `src/lib/design/aspects.ts` (vocabulary),
-`prompt.ts` (compiler), `providers/` (pluggable image generation, mirrors
-`src/lib/fulfillment/`), `qc.ts` (the four-check QC gate), `upscale.ts`
-(resize to the 4500×5400 master canvas), `print-templates.ts`
+**Phase 1+2 (current)**: `src/lib/design/aspects.ts` (vocabulary, version 2
+— adds `designType`/`archetype`/`distressLevel` to the original nine
+axes), `prompt.ts` (compiler), `providers/` (pluggable image generation,
+mirrors `src/lib/fulfillment/`), `qc.ts` (the four-check QC gate),
+`upscale.ts` (resize to the 4500×5400 master canvas), `print-templates.ts`
 (per-provider/product-type pixel specs + deriving a provider's exact file
 from the master), `designs.ts` (`createDesign`/`regenerateDesign`/
-`publishDesign`/`getDesign`/`listDesigns`), the `Design` and
-`PrintTemplate` models, and the full `/api/agent/designs*` +
-`/api/agent/print-templates*` surface (see `docs/AGENT_API.md`). A design
-reaches `status: "generated"` (QC-passed, `masterImageUrl` set) or
-`"rejected"` (failed QC every retry, `masterImageUrl` stays null); publish
-moves a `"generated"` design to `"published"`.
+`publishDesign`/`rejectDesign`/`quickPublishDesign`/`getDesign`/
+`listDesigns`), the `Design` and `PrintTemplate` models, and the full
+`/api/agent/designs*` + `/api/agent/print-templates*` surface (see
+`docs/AGENT_API.md`). A design reaches `status: "generated"` (QC-passed,
+`masterImageUrl` set) or `"rejected"` (failed QC every retry, or manually
+rejected via `rejectDesign`/`POST /api/agent/designs/:id/reject`,
+`masterImageUrl` stays null); publish moves a `"generated"` design to
+`"published"`.
+
+**Design concepts + batch review queue**: `concepts.ts`
+(`generateDesignConcepts()` — one text-generation call producing a batch
+of t-shirt design concepts per `tshirt-design-concepts.md`'s methodology,
+no image spent yet) and `design-batches.ts` (`createDesignBatch()` — runs
+each concept through the unchanged `createDesign()` pipeline, tagging
+every result with a shared `Design.batchLabel`), exposed as `POST
+/api/agent/designs/concepts` (concepts only) and `POST
+/api/agent/designs/batch` (concepts → real Designs, capped at 5 per
+call). `niche`/`targetCustomer` default from `Store.audience`/`tone`/
+`brief` — every store already carries this persona (rule #8), so a batch
+needs no new input to target the right buyer. `/admin/designs` is the
+human review queue this exists for: a thumbnail grid per `batchLabel`/
+`status`, each card either **Reject** (`rejectDesign`) or **Make product
+→** (`quickPublishDesign`/`POST /api/agent/designs/:id/quick-publish`,
+which uses the design's own `params.targetProductType` and that type's
+`MockupScene.defaultPriceCents` + full color lineup — set a default price
+via `PUT /api/agent/mockup-scenes/:productType` first, or it's a `422
+NO_DEFAULT_PRICE`). Editing `tshirt-design-concepts.md` changes future
+batches without a code change.
 
 **Not built yet (Phase 3+)**: `DesignEvent` view tracking, `DesignBatch`
-flights (a controlled experiment varying one aspect, everything else —
-including the image provider — held constant), and the aspect-level
-insights rollup (`GET /api/agent/designs/insights`) that's the actual
-point of all this: knowing which `hook`/`layout`/`artStyle`/`colorScheme`/
-`complexity` value wins for a store's audience. Building any of these:
-keep provider-specific logic inside `providers/*.ts` (never a conditional
-in the pipeline, per rule #6's reasoning), keep every new capability
-zod-validated and store-scoped (rules #2, #11), and update this section
-plus `docs/AGENT_API.md`/`skills/pod-platform-agent/SKILL.md` in the same
-change (rule #3).
+flights (a *controlled experiment* varying one aspect, everything else —
+including the image provider — held constant; not to be confused with
+the batch-review `batchLabel` above, which is just a grouping tag with no
+experiment-design guarantees), and the aspect-level insights rollup (`GET
+/api/agent/designs/insights`) that's the actual point of all this:
+knowing which `hook`/`layout`/`artStyle`/`colorScheme`/`complexity`/
+`designType`/`archetype` value wins for a store's audience. Building any
+of these: keep provider-specific logic inside `providers/*.ts` (never a
+conditional in the pipeline, per rule #6's reasoning), keep every new
+capability zod-validated and store-scoped (rules #2, #11), and update
+this section plus `docs/AGENT_API.md`/`skills/pod-platform-agent/SKILL.md`
+in the same change (rule #3).
 
 ## Where things are
 
@@ -346,7 +371,11 @@ src/lib/store/mockup-scenes.ts  MockupScene CRUD — one shared "blank
                                 agent upload their own base for one color
                                 instead of the AI recolor — stored
                                 identically, so a later generate-bases
-                                call simply overwrites it
+                                call simply overwrites it. Also carries
+                                defaultPriceCents/defaultCurrency — this
+                                product type's default price for the
+                                one-click "make product" review-queue flow
+                                (see quickPublishDesign() above)
 src/lib/store/ai-mockups.ts     generateAIProductMockups() — composites a
                                 design onto a MockupScene's pre-generated
                                 base for each variant color (a
@@ -401,13 +430,38 @@ src/lib/design/print-templates.ts Per-store, per-(provider,productType)
                                 exact spec at publish time, never a
                                 regeneration
 src/lib/design/designs.ts       createDesign()/regenerateDesign()/
-                                publishDesign()/getDesign()/listDesigns()
-                                — validates aspects, compiles the prompt,
-                                calls the chosen provider, runs the QC
-                                gate (retrying once), upscales on pass,
-                                and (via publishDesign) wraps
+                                publishDesign()/rejectDesign()/
+                                quickPublishDesign()/getDesign()/
+                                listDesigns() — validates aspects, compiles
+                                the prompt, calls the chosen provider, runs
+                                the QC gate (retrying once), upscales on
+                                pass, and (via publishDesign) wraps
                                 generateProductFromDesign once per garment
-                                type — see "Structured designs" above
+                                type — see "Structured designs" above.
+                                quickPublishDesign() is publishDesign()
+                                with every input defaulted from the
+                                design's own params.targetProductType and
+                                that type's MockupScene (colors + default
+                                price) — the /admin/designs review queue's
+                                one-click "make product" button
+src/lib/design/tshirt-design-concepts.md The concept-generation
+                                methodology, loaded verbatim into
+                                concepts.ts's prompt — edit this file to
+                                change future batches, no code change
+                                needed
+src/lib/design/concepts.ts      generateDesignConcepts() — one
+                                text-generation call producing a batch of
+                                t-shirt design concepts (angle/designType/
+                                archetype/copy/aspects) per
+                                tshirt-design-concepts.md, validated
+                                against the same aspectsSchema createDesign
+                                uses — no image generated yet
+src/lib/design/design-batches.ts createDesignBatch() — turns a batch of
+                                concepts (freshly generated, or supplied
+                                as-is by the caller) into real Designs via
+                                the unchanged createDesign() pipeline,
+                                tagging every result with one
+                                Design.batchLabel for review as a set
 src/lib/store/ai-product-create.ts generateProductFromDesign() — the
                                 "upload a design, get a finished product"
                                 flow: AI-writes title/description, builds

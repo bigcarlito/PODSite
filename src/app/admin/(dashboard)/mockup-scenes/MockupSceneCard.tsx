@@ -88,6 +88,8 @@ export function MockupSceneCard({
     colors: Array<{ name: string; hex: string }>;
     baseImages: Record<string, string>;
     hasDesignArea: boolean;
+    defaultPriceCents: number | null;
+    defaultCurrency: string;
   };
 }) {
   const [state, formAction, pending] = useActionState(generateMockupSceneBasesAction, initialState);
@@ -106,6 +108,11 @@ export function MockupSceneCard({
       <p className="mt-2 font-medium">{scene.productType}</p>
       <p className="mt-1 text-muted">
         {scene.colors.map((c) => c.name).join(", ") || "No colors set"}
+      </p>
+      <p className="mt-1 text-muted">
+        {scene.defaultPriceCents != null
+          ? `Default price: $${(scene.defaultPriceCents / 100).toFixed(2)} ${scene.defaultCurrency}`
+          : "No default price set"}
       </p>
 
       {scene.colors.length > 0 && (

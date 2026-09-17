@@ -20,7 +20,10 @@ export const PUT = withAgentAuth(async (request, store, ctx: Ctx) => {
     { data, mimeType: input.mimeType },
     "agent",
     origin,
-    input.colors
+    input.colors,
+    input.defaultPriceCents
+      ? { priceCents: input.defaultPriceCents, currency: input.defaultCurrency }
+      : undefined
   );
   return Response.json({ scene });
 });

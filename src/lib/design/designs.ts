@@ -6,6 +6,7 @@ import { logActivity, type ActivityActor } from "@/lib/store/activity";
 import { uploadStoreAsset } from "@/lib/store/assets";
 import type { DesignCreateInput, DesignPublishInput, DesignRegenerateInput } from "@/lib/store/schemas";
 import { generateProductFromDesign } from "@/lib/store/ai-product-create";
+import { getMockupScene } from "@/lib/store/mockup-scenes";
 import { ASPECTS_VERSION, aspectsSchema, type DesignAspects } from "./aspects";
 import { compileDesignPrompt, type CompiledDesignPrompt } from "./prompt";
 import { getImageProvider } from "./providers/registry";
@@ -84,9 +85,16 @@ export async function getDesign(storeId: string, id: string) {
   return design;
 }
 
-export function listDesigns(storeId: string, opts?: { status?: string; take?: number }) {
+export function listDesigns(
+  storeId: string,
+  opts?: { status?: string; batchLabel?: string; take?: number }
+) {
   return prisma.design.findMany({
-    where: { storeId, ...(opts?.status ? { status: opts.status } : {}) },
+    where: {
+      storeId,
+      ...(opts?.status ? { status: opts.status } : {}),
+      ...(opts?.batchLabel ? { batchLabel: opts.batchLabel } : {}),
+    },
     orderBy: { createdAt: "desc" },
     take: opts?.take ?? 50,
   });
@@ -252,12 +260,14 @@ export async function createDesign(
       provider: input.provider,
       model: outcome.model,
       seed: outcome.seed,
+      batchLabel: input.batchLabel,
       params: {
         aspectRatioBucket: compiled.aspectRatioBucket,
         colorRoles: compiled.colorRoles,
         exclusions: compiled.exclusions,
         qc: outcome.qc.checks,
         attempts: outcome.attempts,
+        ...(input.meta ?? {}),
       } as unknown as Prisma.InputJsonValue,
       previewImageUrl: outcome.previewImageUrl,
       masterImageUrl: outcome.masterImageUrl,
@@ -337,6 +347,38 @@ export async function regenerateDesign(
   });
 
   return design;
+}
+
+/**
+ * Manually rejects a QC-passed design an admin/agent doesn't want to
+ * publish — the counterpart to the automatic QC rejection generateWithQc
+ * already produces. Only a "generated" design can be rejected this way;
+ * a design QC already rejected, or one already published, is left alone
+ * (409) rather than silently no-op'd, so a caller notices the mismatch.
+ */
+export async function rejectDesign(store: Store, id: string, actor: ActivityActor) {
+  const design = await getDesign(store.id, id);
+  if (design.status !== "generated") {
+    throw new StoreError(
+      "DESIGN_NOT_REJECTABLE",
+      `Design status is "${design.status}" — only a "generated" design can be rejected.`,
+      { status: 409 }
+    );
+  }
+
+  const updated = await prisma.design.update({
+    where: { id: design.id },
+    data: { status: "rejected" },
+  });
+
+  await logActivity(store.id, {
+    actor,
+    category: "design",
+    summary: `Rejected design "${design.slug}"`,
+    details: { designId: design.id },
+  });
+
+  return updated;
 }
 
 /**
@@ -446,4 +488,50 @@ export async function publishDesign(
   });
 
   return { design: updated, products };
+}
+
+/**
+ * One-click "make this a product" for the /admin/designs review queue:
+ * publishes a design using its own targetProductType (set by
+ * createDesignBatch() into Design.params, defaulting to "tshirt" for a
+ * design created outside a batch) and that product type's MockupScene
+ * defaults — every color the scene has (generateProductFromDesign already
+ * builds one variant per color, see AGENTS.md) and its defaultPriceCents.
+ * Throws NO_DEFAULT_PRICE (422) rather than guessing a price if the store
+ * hasn't set one yet (PUT /api/agent/mockup-scenes/:productType).
+ */
+export async function quickPublishDesign(store: Store, id: string, actor: ActivityActor, origin: string) {
+  const design = await getDesign(store.id, id);
+  const params = (design.params as Record<string, unknown>) ?? {};
+  const productType = typeof params.targetProductType === "string" ? params.targetProductType : "tshirt";
+
+  const scene = await getMockupScene(store.id, productType);
+  if (scene.defaultPriceCents == null) {
+    throw new StoreError(
+      "NO_DEFAULT_PRICE",
+      `No default price is set for product type "${productType}" — set one via ` +
+        `PUT /api/agent/mockup-scenes/${encodeURIComponent(productType)} (or the mockup scene admin form) first.`,
+      { status: 422, field: "productType" }
+    );
+  }
+
+  return publishDesign(
+    store,
+    id,
+    {
+      productTypes: [
+        {
+          productType,
+          priceCents: scene.defaultPriceCents,
+          currency: scene.defaultCurrency,
+          sizes: ["S", "M", "L", "XL"],
+          colorOptionName: "color",
+          sizeOptionName: "size",
+          provider: "PRINTFUL",
+        },
+      ],
+    },
+    actor,
+    origin
+  );
 }
