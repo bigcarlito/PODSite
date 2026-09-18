@@ -754,6 +754,8 @@ export async function generateDesignBatchAction(
       count: Number(formData.get("count") ?? 5),
       lockDesignType: lockDesignTypeRaw || undefined,
       productType: String(formData.get("productType") ?? "").trim() || undefined,
+      model: String(formData.get("model") ?? "").trim() || undefined,
+      textModel: String(formData.get("textModel") ?? "").trim() || undefined,
     });
 
     const origin = originFromHeaders(await headers());
