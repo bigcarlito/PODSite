@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { Store } from "@prisma/client";
 import { DEFAULT_TEXT_MODEL, generateTextWithOpenRouter } from "@/lib/ai/openrouter";
 import { StoreError } from "@/lib/store/errors";
-import { aspectsSchema, type DesignType } from "./aspects";
+import { aspectsSchema, DESIGN_VOCABULARY, type DesignType } from "./aspects";
 
 /** Loaded once at module load — editing this file changes what
  * generateDesignConcepts() produces without a code change (see the file's
@@ -75,9 +75,23 @@ export async function generateDesignConcepts(
     .map(([k, v]) => `- ${k}: ${Array.isArray(v) ? v.join("; ") : String(v)}`)
     .join("\n");
 
+  // The markdown methodology only spells out the hook/designType/archetype/
+  // distressLevel tables in prose — every other field (layout, artStyle,
+  // colorScheme, complexity, designedForShade, printRatio, placement) has
+  // no legal-values list anywhere else the model can see, so without this
+  // it guesses plausible-sounding strings that don't match aspectsSchema's
+  // strict enums and every concept fails validation below. This is the
+  // one place those exact enum values are ever true, so it's built from
+  // DESIGN_VOCABULARY rather than duplicated by hand.
+  const vocabularyLines = Object.entries(DESIGN_VOCABULARY)
+    .filter(([key]) => key !== "version")
+    .map(([key, values]) => `- ${key}: ${(values as readonly string[]).join(", ")}`)
+    .join("\n");
+
   const prompt = [
     SKILL_MARKDOWN,
     "---",
+    `Every field in the output JSON must use ONLY these exact legal values (case-sensitive):\n${vocabularyLines}`,
     `Niche: ${niche}`,
     `Target customer: ${targetCustomer}`,
     tone ? `Brand tone: ${tone}` : "",
@@ -123,21 +137,26 @@ export async function generateDesignConcepts(
   }
 
   const concepts: DesignConcept[] = [];
-  const rejected: Array<{ index: number; error: string }> = [];
+  const rejected: Array<{ index: number; issues: string[] }> = [];
   parsed.forEach((item, index) => {
     const result = designConceptSchema.safeParse(item);
     if (result.success) {
       concepts.push(result.data);
     } else {
-      rejected.push({ index, error: result.error.message });
+      rejected.push({
+        index,
+        issues: result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`),
+      });
     }
   });
 
   if (concepts.length === 0) {
-    throw new StoreError("AI_PROVIDER_ERROR", "None of the generated concepts passed validation.", {
-      status: 502,
-      details: { rejected, raw },
-    });
+    const sample = rejected[0];
+    throw new StoreError(
+      "AI_PROVIDER_ERROR",
+      `None of the generated concepts passed validation — e.g. concept ${sample.index}: ${sample.issues.join("; ")}`,
+      { status: 502, details: { rejected, raw } }
+    );
   }
 
   return concepts.slice(0, count);
