@@ -65,6 +65,44 @@ export function BatchGenerateForm({ defaultNiche }: { defaultNiche: string }) {
           ))}
         </select>
       </label>
+      <div className="flex gap-4">
+        <label className="block flex-1">
+          <span className="mb-1 block text-xs font-medium text-muted">
+            Image model (optional)
+          </span>
+          <input
+            name="model"
+            list="design-image-models"
+            placeholder="google/gemini-2.5-flash-image"
+            className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+          />
+          <datalist id="design-image-models">
+            <option value="google/gemini-2.5-flash-image" />
+            <option value="openai/gpt-image-1" />
+          </datalist>
+        </label>
+        <label className="block flex-1">
+          <span className="mb-1 block text-xs font-medium text-muted">
+            Text model (optional)
+          </span>
+          <input
+            name="textModel"
+            list="design-text-models"
+            placeholder="google/gemini-2.5-flash"
+            className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+          />
+          <datalist id="design-text-models">
+            <option value="google/gemini-2.5-flash" />
+            <option value="anthropic/claude-sonnet-4.5" />
+            <option value="openai/gpt-5" />
+          </datalist>
+        </label>
+      </div>
+      <p className="text-[11px] text-muted">
+        Any OpenRouter model slug — leave blank to use this store&apos;s
+        configured default for each. Image model generates each design;
+        text model writes the concepts themselves.
+      </p>
 
       {state.error && (
         <p className="text-sm text-red-600" role="alert">
