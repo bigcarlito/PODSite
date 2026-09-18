@@ -23,7 +23,7 @@ import {
 } from "@/lib/store/mockup-scenes";
 import { setShippingRate } from "@/lib/store/shipping";
 import { createDesignBatch } from "@/lib/design/design-batches";
-import { rejectDesign, quickPublishDesign } from "@/lib/design/designs";
+import { rejectDesign, quickPublishDesign, regenerateDesign } from "@/lib/design/designs";
 import {
   storeUpdateSchema,
   mockupGenerateSchema,
@@ -809,6 +809,51 @@ export async function quickPublishDesignAction(designId: string): Promise<QuickP
   } catch (e) {
     return {
       error: e instanceof StoreError ? e.message : "Couldn't publish this design — try again.",
+    };
+  }
+}
+
+export type RegenerateDesignState = {
+  error?: string;
+  design?: {
+    previewImageUrl: string | null;
+    status: string;
+    params: Record<string, unknown>;
+  };
+};
+
+/**
+ * "Try again" (no editPrompt) or "edit and regenerate" (with one) for a
+ * design in the review queue — see regenerateDesign in
+ * src/lib/design/designs.ts for the two modes. Returns just the fields
+ * the review-queue card needs to update itself without a full page reload.
+ */
+export async function regenerateDesignAction(
+  designId: string,
+  editPrompt?: string
+): Promise<RegenerateDesignState> {
+  const store = await requireCurrentStore();
+
+  try {
+    const origin = originFromHeaders(await headers());
+    const design = await regenerateDesign(
+      store,
+      designId,
+      { editPrompt: editPrompt?.trim() || undefined },
+      "admin",
+      origin
+    );
+    revalidatePath("/admin/designs");
+    return {
+      design: {
+        previewImageUrl: design.previewImageUrl,
+        status: design.status,
+        params: (design.params as Record<string, unknown>) ?? {},
+      },
+    };
+  } catch (e) {
+    return {
+      error: e instanceof StoreError ? e.message : "Couldn't regenerate this design — try again.",
     };
   }
 }
