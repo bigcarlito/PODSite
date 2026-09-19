@@ -974,6 +974,18 @@ automatic QC rejection above. Returns `{ "design": {...} }` with `status:
 "rejected"`. Fails with `409 DESIGN_NOT_REJECTABLE` on any other status
 (already rejected, or already published).
 
+### `DELETE /api/agent/designs/:id`
+
+No body. Permanently removes a `"rejected"` design from the review queue
+— for clearing out a bad aspect combination nobody wants to retry or
+publish. Only a `"rejected"` design can be deleted this way; fails with
+`409 DESIGN_NOT_DELETABLE` on any other status (`"generated"` can still
+be force-published, see `force` above, and `"published"` has real
+`Product`s referencing it via `Product.designId`). Doesn't delete the
+underlying preview/master `StoreAsset` rows — `POST
+/api/agent/store/prune-assets` sweeps those up like any other
+unreferenced asset. Returns `{ "ok": true }`.
+
 ### `POST /api/agent/designs/:id/quick-publish`
 
 No body required — the agent-facing equivalent of the `/admin/designs`

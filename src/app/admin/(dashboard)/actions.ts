@@ -24,7 +24,12 @@ import {
 } from "@/lib/store/mockup-scenes";
 import { setShippingRate } from "@/lib/store/shipping";
 import { createDesignBatch } from "@/lib/design/design-batches";
-import { rejectDesign, quickPublishDesign, regenerateDesign } from "@/lib/design/designs";
+import {
+  rejectDesign,
+  quickPublishDesign,
+  regenerateDesign,
+  deleteDesign,
+} from "@/lib/design/designs";
 import {
   storeUpdateSchema,
   mockupGenerateSchema,
@@ -822,6 +827,27 @@ export async function rejectDesignAction(designId: string) {
   const store = await requireCurrentStore();
   await rejectDesign(store, designId, "admin");
   revalidatePath("/admin/designs");
+}
+
+export type DeleteDesignState = { error?: string; success?: boolean };
+
+/**
+ * Permanently removes a "rejected" design from the review queue — see
+ * deleteDesign() in src/lib/design/designs.ts. Only a "rejected" design
+ * can be deleted this way.
+ */
+export async function deleteDesignAction(designId: string): Promise<DeleteDesignState> {
+  const store = await requireCurrentStore();
+
+  try {
+    await deleteDesign(store, designId, "admin");
+    revalidatePath("/admin/designs");
+    return { success: true };
+  } catch (e) {
+    return {
+      error: e instanceof StoreError ? e.message : "Couldn't delete this design — try again.",
+    };
+  }
 }
 
 export type QuickPublishState = { error?: string; success?: boolean; productId?: string };

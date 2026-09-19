@@ -286,17 +286,21 @@ call). `niche`/`targetCustomer` default from `Store.audience`/`tone`/
 needs no new input to target the right buyer. `/admin/designs` is the
 human review queue this exists for: a thumbnail grid per `batchLabel`/
 `status`, a rejected card showing its QC failure detail(s) straight from
-`Design.params.qc` (see the QC gate below), each card either **Reject**
-(`rejectDesign`), **Try again**/**Edit & regenerate** (`regenerateDesign`
-— see below), or **Make product →** (`quickPublishDesign`/`POST
-/api/agent/designs/:id/quick-publish`, which uses the design's own
+`Design.params.qc` (see the QC gate below). A `"generated"` card gets
+**Reject** (`rejectDesign`) and **Make product →** (`quickPublishDesign`/
+`POST /api/agent/designs/:id/quick-publish`, which uses the design's own
 `params.targetProductType` and that type's `MockupScene.defaultPriceCents`
 + full color lineup — set a default price via `PUT
 /api/agent/mockup-scenes/:productType` first, or it's a `422
-NO_DEFAULT_PRICE`). A rejected card also gets **Publish anyway** —
-`quickPublishDesign(..., force: true)` / `POST
+NO_DEFAULT_PRICE`). A `"rejected"` card gets four: icon buttons **Edit**
+(toggles the `editPrompt` field for `regenerateDesign()`'s image-to-image
+mode — see below), **Retry** (`regenerateDesign()` with no `editPrompt`,
+a plain reroll), **Delete** (`deleteDesign`/`DELETE
+/api/agent/designs/:id` — permanently removes it; `409
+DESIGN_NOT_DELETABLE` on any other status), and a **Publish** word button
+(`quickPublishDesign(..., force: true)` / `POST
 /api/agent/designs/:id/publish` or `/quick-publish` with `{"force":
-true}` in the body — for when the QC gate's call looks wrong on
+true}` in the body) — for when the QC gate's call looks wrong on
 inspection: it upscales the design's existing QC-failed preview to the
 master canvas in place (flipping status to `"generated"` first, logging
 the override), then publishes normally through the same
