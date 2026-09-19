@@ -863,18 +863,32 @@ the per-check detail.
 
 ### `POST /api/agent/designs/:id/regenerate`
 
-Re-runs generation for an existing design's aspects — a new seed/attempt
-through the same QC gate and upscale, replacing the design's
-prompt/preview/master/status in place (not a new row):
+Re-runs generation for an existing design — a new seed/attempt through the
+same QC gate and upscale, replacing the design's prompt/preview/master/
+status in place (not a new row). Two modes:
 
 ```json
 { "provider": "openrouter", "model": "...", "negativePrompt": "..." }
 ```
 
-All fields optional — omitted means "same as the design already has".
-Use this after a `"rejected"` design's QC detail suggests the same
+A plain reroll — same aspects, same provider/model unless overridden. All
+fields optional — omitted means "same as the design already has". Use
+this after a `"rejected"` design's QC detail suggests the same
 provider/aspects just need another roll, rather than a different aspect
 combination (which should be a new `POST /api/agent/designs` instead).
+
+```json
+{ "editPrompt": "remove the outer keyline, add more distress" }
+```
+
+An **image-to-image edit**: feeds the design's own existing
+`previewImageUrl` back to the provider as a reference and asks only for
+the described change, instead of generating from the aspects prompt alone
+— "keep everything identical, add X" rather than a fresh reroll. Still
+runs the full QC gate and upscale on the result, so it can still come back
+`"rejected"`. Fails with `409 DESIGN_NOT_READY` if the design has no
+preview yet. The edit prompt used is kept at `params.lastEditPrompt` for
+the record.
 
 ### `GET /api/agent/designs/:id`
 

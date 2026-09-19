@@ -256,12 +256,19 @@ export const designCreateSchema = z.object({
 });
 
 /// Re-runs generation for an existing design — a new seed/attempt, same
-/// aspects. All fields optional: omitted means "same as the design already
-/// has" (see regenerateDesign in src/lib/design/designs.ts).
+/// aspects, or (with `editPrompt`) an image-to-image edit of the design's
+/// own preview. All fields optional: omitted means "same as the design
+/// already has" (see regenerateDesign in src/lib/design/designs.ts).
 export const designRegenerateSchema = z.object({
   provider: z.string().min(1).optional(),
   model: z.string().min(1).optional(),
   negativePrompt: z.string().optional(),
+  /// Turns this into an image-to-image edit of the design's own existing
+  /// preview ("remove the outer keyline", "add more distress") instead of
+  /// a from-scratch reroll of the same aspects — see regenerateDesign() in
+  /// src/lib/design/designs.ts. Requires the design to already have a
+  /// previewImageUrl (409 DESIGN_NOT_READY otherwise).
+  editPrompt: z.string().min(1).max(500).optional(),
 });
 
 /// Sets the pixel spec one fulfillment provider expects for one product

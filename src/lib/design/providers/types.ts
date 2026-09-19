@@ -4,6 +4,17 @@ export type GenerateDesignOpts = {
   /** Model slug to use, provider-specific — falls back to the adapter's own default. */
   model?: string;
   negativePrompt?: string;
+  /**
+   * When both this and `editPrompt` are set, a provider that supports
+   * image-editing (see openrouter.ts) feeds this image back in as a
+   * reference and asks for only the described change, rather than
+   * generating from `spec.promptText` alone — "keep everything identical,
+   * add heavy vintage screen-print distress and remove the outer keyline"
+   * instead of a fresh reroll. Must be a publicly fetchable absolute URL.
+   */
+  referenceImageUrl?: string;
+  /** Free-text instruction for what to change — only meaningful alongside `referenceImageUrl`. */
+  editPrompt?: string;
 };
 
 export type GeneratedDesignImage = {

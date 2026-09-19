@@ -328,6 +328,13 @@ below), or `published`.
   gate, replacing the design's prompt/preview/master/status in place. Use
   after a rejection when the aspects themselves seem fine and it's worth
   another roll; a different aspect combination should be a new design.
+  Pass `{"editPrompt":"remove the outer keyline, add more distress"}`
+  instead for an **image-to-image edit** — feeds the design's own
+  `previewImageUrl` back as a reference and asks only for that change,
+  rather than a from-scratch reroll; still re-runs QC/upscale, so it can
+  still come back `"rejected"` (`409 DESIGN_NOT_READY` if there's no
+  preview yet to edit from). The prompt used lands in
+  `params.lastEditPrompt`.
 - `GET /api/agent/designs/:id` — one design. `GET
   /api/agent/designs?status=&batchLabel=&take=` — list, most recent first.
 - `POST /api/agent/designs/:id/publish` — `{"productTypes":[{"productType":
