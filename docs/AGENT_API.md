@@ -558,6 +558,19 @@ product" flow in `/admin/designs` and `POST /api/agent/designs/:id/quick-publish
 (below) — without it, that flow fails with `422 NO_DEFAULT_PRICE` rather
 than guessing a price.
 
+#### `PUT /api/agent/mockup-scenes/:productType/default-price`
+
+```json
+{ "priceCents": 2999, "currency": "USD" }
+```
+
+Sets an existing scene's default price alone, without touching its photo
+or colors — the endpoint above always re-uploads a photo even for a
+price-only change, so use this one just to update the price (also the
+`/admin/mockup-scenes` card's "Edit" link next to the price). `currency`
+defaults to `"USD"`. Fails with `422 NO_MOCKUP_SCENE` if that product type
+has no scene yet — set one with a photo via the endpoint above first.
+
 #### `POST /api/agent/mockup-scenes/:productType/generate-bases`
 
 ```json

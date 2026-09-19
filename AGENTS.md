@@ -398,7 +398,14 @@ src/lib/store/mockup-scenes.ts  MockupScene CRUD — one shared "blank
                                 defaultPriceCents/defaultCurrency — this
                                 product type's default price for the
                                 one-click "make product" review-queue flow
-                                (see quickPublishDesign() above)
+                                (see quickPublishDesign() above).
+                                setMockupSceneDefaultPrice() sets just the
+                                price on an existing scene, without the
+                                photo re-upload setMockupScene() otherwise
+                                requires — PUT
+                                /api/agent/mockup-scenes/:productType/default-price,
+                                and the "Edit" link next to the price on
+                                each /admin/mockup-scenes card
 src/lib/store/ai-mockups.ts     generateAIProductMockups() — composites a
                                 design onto a MockupScene's pre-generated
                                 base for each variant color (a

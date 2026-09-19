@@ -127,6 +127,14 @@ export const mockupSceneBaseImageUploadSchema = z.object({
   mimeType: z.enum(["image/png", "image/jpeg", "image/webp"]),
 });
 
+/// Sets an existing MockupScene's default price alone, without
+/// re-uploading its photo — see setMockupSceneDefaultPrice() in
+/// mockup-scenes.ts and PUT /api/agent/mockup-scenes/:productType/default-price.
+export const mockupSceneDefaultPriceSchema = z.object({
+  priceCents: z.number().int().positive(),
+  currency: z.string().length(3).default("USD"),
+});
+
 /// Auto-creates a product from a design: generates a title/description
 /// with an AI text model, builds one variant per color (x size) using the
 /// product type's MockupScene color lineup, then generates AI mockups for
@@ -357,6 +365,7 @@ export type DesignAreaInput = z.infer<typeof designAreaSchema>;
 export type GenerateMockupSceneBasesInput = z.infer<typeof generateMockupSceneBasesSchema>;
 export type MockupSceneUploadInput = z.infer<typeof mockupSceneUploadSchema>;
 export type MockupSceneBaseImageUploadInput = z.infer<typeof mockupSceneBaseImageUploadSchema>;
+export type MockupSceneDefaultPriceInput = z.infer<typeof mockupSceneDefaultPriceSchema>;
 export type AiProductCreateInput = z.infer<typeof aiProductCreateSchema>;
 export type ProductCreateInput = z.infer<typeof productCreateSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
