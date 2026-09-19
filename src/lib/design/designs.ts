@@ -432,13 +432,59 @@ export async function publishDesign(
   actor: ActivityActor,
   origin: string
 ) {
-  const design = await getDesign(store.id, id);
+  let design = await getDesign(store.id, id);
 
   if (design.status === "published") {
     throw new StoreError("ALREADY_PUBLISHED", "This design has already been published.", {
       status: 409,
     });
   }
+
+  if (design.status === "rejected") {
+    if (!input.force) {
+      throw new StoreError(
+        "DESIGN_NOT_READY",
+        `Design status is "rejected" — it failed QC on every generation attempt. Pass ` +
+          `force: true to publish it anyway from its existing preview, or regenerate/edit it first.`,
+        { status: 409 }
+      );
+    }
+    if (!design.previewImageUrl) {
+      throw new StoreError(
+        "DESIGN_NOT_READY",
+        "This design has no preview image to publish from — regenerate it first.",
+        { status: 409 }
+      );
+    }
+
+    // Override: upscale the QC-failed preview to the master canvas anyway,
+    // rather than silently ignoring why it was rejected — see AGENTS.md's
+    // design-system notes on the QC gate.
+    const upscaled = await upscaleToMasterCanvas(toAbsolute(design.previewImageUrl, origin));
+    const masterAsset = await uploadStoreAsset(
+      store.id,
+      { kind: "design-master", data: upscaled.data, mimeType: upscaled.mimeType },
+      actor
+    );
+    design = await prisma.design.update({
+      where: { id: design.id, storeId: store.id },
+      data: {
+        masterImageUrl: masterAsset.url,
+        masterWidthPx: upscaled.width,
+        masterHeightPx: upscaled.height,
+        status: "generated",
+      },
+    });
+
+    const qcChecks = (design.params as Record<string, unknown> | null)?.qc;
+    await logActivity(store.id, {
+      actor,
+      category: "design",
+      summary: `Force-published rejected design "${design.slug}" — published despite failed QC check(s)`,
+      details: { designId: design.id, qc: qcChecks },
+    });
+  }
+
   if (design.status !== "generated" || !design.masterImageUrl || !design.previewImageUrl) {
     throw new StoreError(
       "DESIGN_NOT_READY",
@@ -534,9 +580,17 @@ export async function publishDesign(
  * defaults — every color the scene has (generateProductFromDesign already
  * builds one variant per color, see AGENTS.md) and its defaultPriceCents.
  * Throws NO_DEFAULT_PRICE (422) rather than guessing a price if the store
- * hasn't set one yet (PUT /api/agent/mockup-scenes/:productType).
+ * hasn't set one yet (PUT /api/agent/mockup-scenes/:productType). Pass
+ * `force: true` to also publish a "rejected" design — see publishDesign's
+ * `force` handling above.
  */
-export async function quickPublishDesign(store: Store, id: string, actor: ActivityActor, origin: string) {
+export async function quickPublishDesign(
+  store: Store,
+  id: string,
+  actor: ActivityActor,
+  origin: string,
+  force = false
+) {
   const design = await getDesign(store.id, id);
   const params = (design.params as Record<string, unknown>) ?? {};
   const productType = typeof params.targetProductType === "string" ? params.targetProductType : "tshirt";
@@ -566,6 +620,7 @@ export async function quickPublishDesign(store: Store, id: string, actor: Activi
           provider: "PRINTFUL",
         },
       ],
+      force,
     },
     actor,
     origin

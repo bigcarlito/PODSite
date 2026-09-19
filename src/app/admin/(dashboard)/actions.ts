@@ -795,14 +795,19 @@ export type QuickPublishState = { error?: string; success?: boolean; productId?:
 /**
  * One-click "make this a product" for a design in the review queue — see
  * quickPublishDesign in src/lib/design/designs.ts for how it picks a price
- * and colors.
+ * and colors. `force` also publishes a "rejected" design, upscaling its
+ * existing QC-failed preview instead of refusing — the review queue's
+ * "Publish anyway" button for a rejected card.
  */
-export async function quickPublishDesignAction(designId: string): Promise<QuickPublishState> {
+export async function quickPublishDesignAction(
+  designId: string,
+  force = false
+): Promise<QuickPublishState> {
   const store = await requireCurrentStore();
 
   try {
     const origin = originFromHeaders(await headers());
-    const result = await quickPublishDesign(store, designId, "admin", origin);
+    const result = await quickPublishDesign(store, designId, "admin", origin, force);
     revalidatePath("/admin/designs");
     revalidatePath("/admin/products");
     return { success: true, productId: result.products[0]?.product.id };

@@ -293,8 +293,15 @@ human review queue this exists for: a thumbnail grid per `batchLabel`/
 `params.targetProductType` and that type's `MockupScene.defaultPriceCents`
 + full color lineup — set a default price via `PUT
 /api/agent/mockup-scenes/:productType` first, or it's a `422
-NO_DEFAULT_PRICE`). Editing `tshirt-design-concepts.md` changes future
-batches without a code change.
+NO_DEFAULT_PRICE`). A rejected card also gets **Publish anyway** —
+`quickPublishDesign(..., force: true)` / `POST
+/api/agent/designs/:id/publish` or `/quick-publish` with `{"force":
+true}` in the body — for when the QC gate's call looks wrong on
+inspection: it upscales the design's existing QC-failed preview to the
+master canvas in place (flipping status to `"generated"` first, logging
+the override), then publishes normally through the same
+`generateProductFromDesign` flow. Editing `tshirt-design-concepts.md`
+changes future batches without a code change.
 
 `regenerateDesign()` has two modes: a plain reroll (same aspects, new
 attempt), or — when `input.editPrompt` is set — an **image-to-image

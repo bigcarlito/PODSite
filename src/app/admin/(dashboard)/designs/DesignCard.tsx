@@ -55,10 +55,10 @@ export function DesignCard({
     });
   }
 
-  function handlePublish() {
+  function handlePublish(force = false) {
     setError(null);
     startTransition(async () => {
-      const result = await quickPublishDesignAction(design.id);
+      const result = await quickPublishDesignAction(design.id, force);
       if (result.error) {
         setError(result.error);
       } else if (result.productId) {
@@ -145,10 +145,21 @@ export function DesignCard({
             <button
               type="button"
               disabled={pending}
-              onClick={handlePublish}
+              onClick={() => handlePublish()}
               className="flex-1 rounded-full bg-accent px-3 py-1.5 font-medium text-white hover:bg-accent-dark disabled:opacity-50"
             >
               {pending ? "Working…" : "Make product →"}
+            </button>
+          )}
+          {status === "rejected" && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => handlePublish(true)}
+              title="Publishes using this design's existing preview even though it failed QC"
+              className="flex-1 rounded-full bg-accent px-3 py-1.5 font-medium text-white hover:bg-accent-dark disabled:opacity-50"
+            >
+              {pending ? "Working…" : "Publish anyway"}
             </button>
           )}
         </div>
