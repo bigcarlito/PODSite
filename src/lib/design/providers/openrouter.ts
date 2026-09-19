@@ -3,6 +3,8 @@ import sharp from "sharp";
 import {
   DEFAULT_DESIGN_MODEL,
   editImageWithOpenRouter,
+  generateImageWithOpenRouter,
+  usesOpenRouterImagesEndpoint,
   parseDataUrl,
 } from "@/lib/ai/openrouter";
 import { StoreError } from "@/lib/store/errors";
@@ -73,12 +75,24 @@ export const openRouterImageProvider: ImageProvider = {
       ...(isEdit ? { editOf: opts.referenceImageUrl } : {}),
     };
 
-    const resultDataUrl = await editImageWithOpenRouter({
-      apiKey,
-      model,
-      prompt,
-      images: isEdit ? [opts.referenceImageUrl!] : [],
-    });
+    const usesImagesEndpoint = usesOpenRouterImagesEndpoint(model);
+    if (isEdit && usesImagesEndpoint) {
+      throw new StoreError(
+        "UNSUPPORTED_MODEL_EDIT",
+        `"${model}" doesn't support the image-to-image editPrompt regeneration mode through ` +
+          `this adapter yet — regenerate without editPrompt, or switch to google/gemini-2.5-flash-image first.`,
+        { status: 422, field: "model" }
+      );
+    }
+
+    const resultDataUrl = usesImagesEndpoint
+      ? await generateImageWithOpenRouter({ apiKey, model, prompt })
+      : await editImageWithOpenRouter({
+          apiKey,
+          model,
+          prompt,
+          images: isEdit ? [opts.referenceImageUrl!] : [],
+        });
     const parsed = parseDataUrl(resultDataUrl);
     // Some models (e.g. Nano Banana / gemini-2.5-flash-image) don't
     // reliably honor the "transparent background" instruction and render
