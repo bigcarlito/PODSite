@@ -38,7 +38,10 @@ export async function upscaleToMasterCanvas(
       background: { r: 0, g: 0, b: 0, alpha: 0 },
       kernel: "lanczos3",
     })
-    .png()
+    // Max zlib compression — still lossless, just smaller, which matters
+    // at 4500x5400: a busy/distressed design can otherwise clear
+    // MAX_ASSET_BYTES (see assets.ts) at the default compression level.
+    .png({ compressionLevel: 9, adaptiveFiltering: true })
     .toBuffer();
 
   return {

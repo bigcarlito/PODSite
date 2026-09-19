@@ -4,7 +4,19 @@ import { StoreError, notFound } from "./errors";
 import { logActivity, type ActivityActor } from "./activity";
 
 export const ALLOWED_ASSET_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
+/// 8MB matches next.config.ts's serverActions.bodySizeLimit — the real
+/// constraint for anything a human/agent actually uploads (hero image,
+/// logo, mockup scene photo/base). A server-derived print file never
+/// passes through that limit (it's a Buffer built mid-request, not a
+/// request body), so it gets its own, higher cap below.
 export const MAX_ASSET_BYTES = 8 * 1024 * 1024; // 8MB
+/// The print-ready master canvas is a fixed 4500x5400 — a busy/distressed
+/// design can clear 8MB even at max PNG compression (see upscale.ts),
+/// and there's no smaller resolution to fall back to without breaking
+/// providers' print specs. "design-print-file" (deriveProviderFile's
+/// per-provider crop/resize of the master) can be just as large.
+const MAX_DERIVED_PRINT_ASSET_BYTES = 32 * 1024 * 1024; // 32MB
+const DERIVED_PRINT_ASSET_KINDS = new Set(["design-master", "design-print-file"]);
 
 /**
  * Stores an uploaded image for a store (e.g. the homepage hero image) and
@@ -27,10 +39,13 @@ export async function uploadStoreAsset(
       { status: 415, field: "mimeType" }
     );
   }
-  if (input.data.byteLength > MAX_ASSET_BYTES) {
+  const maxBytes = DERIVED_PRINT_ASSET_KINDS.has(input.kind)
+    ? MAX_DERIVED_PRINT_ASSET_BYTES
+    : MAX_ASSET_BYTES;
+  if (input.data.byteLength > maxBytes) {
     throw new StoreError(
       "PAYLOAD_TOO_LARGE",
-      `Image is ${input.data.byteLength} bytes — max is ${MAX_ASSET_BYTES} bytes`,
+      `Image is ${input.data.byteLength} bytes — max is ${maxBytes} bytes`,
       { status: 413 }
     );
   }
