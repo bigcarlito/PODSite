@@ -418,6 +418,39 @@ export async function rejectDesign(store: Store, id: string, actor: ActivityActo
 }
 
 /**
+ * Permanently removes a "rejected" design from the review queue — for
+ * clearing out a bad aspect combination nobody wants to retry or publish.
+ * Only a "rejected" design can be deleted this way (409
+ * DESIGN_NOT_DELETABLE otherwise): a "generated" design might still be
+ * force-published (see publishDesign's `force`), and a "published" design
+ * has real Products referencing it via Product.designId, so neither is
+ * safe to remove silently. Doesn't touch the underlying StoreAsset rows
+ * (preview/master images) — pruneOrphanedAssets() sweeps those up like
+ * any other unreferenced asset.
+ */
+export async function deleteDesign(store: Store, id: string, actor: ActivityActor) {
+  const design = await getDesign(store.id, id);
+  if (design.status !== "rejected") {
+    throw new StoreError(
+      "DESIGN_NOT_DELETABLE",
+      `Design status is "${design.status}" — only a "rejected" design can be deleted.`,
+      { status: 409 }
+    );
+  }
+
+  await prisma.design.delete({ where: { id: design.id, storeId: store.id } });
+
+  await logActivity(store.id, {
+    actor,
+    category: "design",
+    summary: `Deleted rejected design "${design.slug}"`,
+    details: { designId: design.id },
+  });
+
+  return { ok: true };
+}
+
+/**
  * Turns a QC-passed design into one or more real products, one per garment
  * type — wraps the existing generateProductFromDesign flow (same "upload a
  * design, get a finished product" pipeline any store already uses), except

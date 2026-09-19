@@ -359,6 +359,12 @@ below), or `published`.
 - `POST /api/agent/designs/:id/reject` — no body. Manually marks a
   `"generated"` design `"rejected"` without publishing it (`409
   DESIGN_NOT_REJECTABLE` on any other status).
+- `DELETE /api/agent/designs/:id` — no body. Permanently removes a
+  `"rejected"` design (`409 DESIGN_NOT_DELETABLE` on any other status —
+  force-publish a `"generated"` one, or note a `"published"` one has real
+  `Product`s referencing it). Returns `{"ok":true}`. Doesn't delete its
+  preview/master image assets; `POST /api/agent/store/prune-assets`
+  sweeps up unreferenced ones.
 - `POST /api/agent/designs/:id/quick-publish` — no body required. One-click
   publish using the design's own `params.targetProductType` (set by the
   batch endpoint below, default `"tshirt"`) and that type's `MockupScene`
