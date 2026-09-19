@@ -346,15 +346,22 @@ below), or `published`.
   file from `masterImageUrl` via that store's `PrintTemplate` (falls back
   to the master's own dimensions + an activity note if none set) and calls
   the same product-creation flow as `generate-from-design`, once per
-  entry, setting `Product.designId`. Returns `{design, products}`.
+  entry, setting `Product.designId`. Returns `{design, products}`. Add
+  `"force":true` to also publish a `"rejected"` design — upscales its
+  existing QC-failed preview to the master canvas in place, logs the
+  override, then publishes normally; without it a `"rejected"` design
+  still gets `409 DESIGN_NOT_READY`. No-op on an already-`"generated"`
+  design.
 - `POST /api/agent/designs/:id/reject` — no body. Manually marks a
   `"generated"` design `"rejected"` without publishing it (`409
   DESIGN_NOT_REJECTABLE` on any other status).
-- `POST /api/agent/designs/:id/quick-publish` — no body. One-click publish
-  using the design's own `params.targetProductType` (set by the batch
-  endpoint below, default `"tshirt"`) and that type's `MockupScene`
+- `POST /api/agent/designs/:id/quick-publish` — no body required. One-click
+  publish using the design's own `params.targetProductType` (set by the
+  batch endpoint below, default `"tshirt"`) and that type's `MockupScene`
   defaults (every color it has, its `defaultPriceCents`). `422
   NO_DEFAULT_PRICE` if that product type has no default price set yet.
+  Same `{"force":true}` override as `publish` above for a `"rejected"`
+  design.
 - `POST /api/agent/designs/concepts` — `{"niche?","targetCustomer?","count?"
   (1-5, default 5),"lockDesignType?"}`. Generates a batch of t-shirt design
   concepts (angle/designType/archetype/copy/aspects) via one text call

@@ -944,6 +944,15 @@ second garment type for the same design by minting a new design instead
 (structured aspects are cheap to regenerate; a Design row is meant to
 represent one specific rendered artwork, not a family of them).
 
+Add `"force": true` to the body to publish a `"rejected"` design anyway —
+for when a human (or agent) looks at the QC-failed preview and judges the
+QC gate was wrong. This upscales the design's existing preview to the
+master canvas in place (flipping its status to `"generated"` first) and
+logs an activity entry noting the override, then publishes normally. With
+`force` omitted or `false`, a `"rejected"` design still gets `409
+DESIGN_NOT_READY` telling you to pass `force: true`, regenerate, or edit
+it instead. `force` on an already-`"generated"` design is a no-op.
+
 ### `POST /api/agent/designs/:id/reject`
 
 Manually rejects a `"generated"` design an admin/agent looked at and
@@ -954,7 +963,7 @@ automatic QC rejection above. Returns `{ "design": {...} }` with `status:
 
 ### `POST /api/agent/designs/:id/quick-publish`
 
-One call, no body — the agent-facing equivalent of the `/admin/designs`
+No body required — the agent-facing equivalent of the `/admin/designs`
 review queue's one-click "make product" button. Publishes using the
 design's own target product type (set by `POST /api/agent/designs/batch`
 into `Design.params.targetProductType`, defaulting to `"tshirt"` for a
@@ -965,6 +974,12 @@ above). Same response shape as `publish`. Fails with `422
 NO_DEFAULT_PRICE` if that product type has no default price set yet — set
 one first, or use `POST /api/agent/designs/:id/publish` directly for
 per-call control over price/sizes/provider.
+
+Pass `{"force": true}` to also publish a `"rejected"` design — same
+override `publish` supports above (`/admin/designs`' rejected-design
+cards call this with `force: true` via their "Publish anyway" button).
+Without it, a `"rejected"` design still fails with `409
+DESIGN_NOT_READY`.
 
 ## Design concepts
 

@@ -310,6 +310,10 @@ export const designPublishSchema = z.object({
   productTypes: z.array(designPublishProductTypeSchema).min(1),
   /// Overrides OPENROUTER_TEXT_MODEL for each product's title/description call.
   textModel: z.string().optional(),
+  /// Publishes a "rejected" design anyway — upscales its existing
+  /// QC-failed preview to the master canvas instead of throwing
+  /// DESIGN_NOT_READY. Ignored for a design that's already "generated".
+  force: z.boolean().default(false),
 });
 
 /// Generates a batch of t-shirt design concepts (no image yet) from a
