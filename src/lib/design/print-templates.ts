@@ -74,6 +74,8 @@ export async function deriveProviderFile(
   });
 
   const isJpeg = template.format.toLowerCase() === "jpg" || template.format.toLowerCase() === "jpeg";
-  const data = isJpeg ? await resized.jpeg({ quality: 95 }).toBuffer() : await resized.png().toBuffer();
+  const data = isJpeg
+    ? await resized.jpeg({ quality: 95 }).toBuffer()
+    : await resized.png({ compressionLevel: 9, adaptiveFiltering: true }).toBuffer();
   return { data, mimeType: isJpeg ? "image/jpeg" : "image/png" };
 }
