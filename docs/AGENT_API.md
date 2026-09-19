@@ -816,10 +816,14 @@ an auto-derived slug that collides (e.g. regenerating the same phrase
 after a rejection) gets a numeric suffix automatically; an explicitly
 passed `slug` that collides is a hard `409 SLUG_TAKEN`.
 `provider` defaults to `"openrouter"` — the only adapter implemented so far
-(reaches any OpenRouter model whose backend supports the `modalities:
-["image","text"]` chat-completions shape — not every image model does;
-`openai/gpt-image-1` currently 404s here since it needs its own distinct
-request shape); `model` falls back to `OPENROUTER_DESIGN_MODEL` (default
+(most models reach OpenRouter's `modalities: ["image","text"]`
+chat-completions shape; `openai/gpt-image-1` instead routes to
+OpenRouter's dedicated images endpoint, transparently — same `model`
+field either way. `openai/gpt-image-1` doesn't support the image-to-image
+`editPrompt` regeneration mode yet — see `POST
+/api/agent/designs/:id/regenerate` below — and gets `422
+UNSUPPORTED_MODEL_EDIT` if you try); `model` falls back to
+`OPENROUTER_DESIGN_MODEL` (default
 `google/gemini-2.5-flash-image` — a separate env var from the AI mockup
 pipeline's `OPENROUTER_MOCKUP_MODEL`, since the two tasks have different
 requirements and are tuned independently). A repeated call with the same

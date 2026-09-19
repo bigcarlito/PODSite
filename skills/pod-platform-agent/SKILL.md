@@ -311,9 +311,11 @@ below), or `published`.
 - `POST /api/agent/designs` — `{"aspects": {...}}` (the nine version-1 keys
   required except `phrase`/`subject`, which default to `null`;
   `designType`/`archetype`/`distressLevel` optional). `provider` defaults
-  to `"openrouter"` (only reaches OpenRouter models whose backend
-  supports the `modalities: ["image","text"]` chat-completions shape —
-  `openai/gpt-image-1` isn't one of them); `model` falls back to
+  to `"openrouter"` (most models go through OpenRouter's
+  `modalities: ["image","text"]` chat-completions shape; `model:
+  "openai/gpt-image-1"` transparently routes to OpenRouter's dedicated
+  images endpoint instead — no `editPrompt` support for it yet, `422
+  UNSUPPORTED_MODEL_EDIT` on regenerate if tried); `model` falls back to
   `OPENROUTER_DESIGN_MODEL` (default `google/gemini-2.5-flash-image`,
   independent of the AI mockup pipeline's own `OPENROUTER_MOCKUP_MODEL`);
   `slug` auto-derives from `phrase`/`subject` if omitted. Validates → compiles →
