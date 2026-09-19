@@ -48,13 +48,37 @@ export const openRouterImageProvider: ImageProvider = {
     // (same reconciliation GPT Image 1 / Nano Banana need per the plan).
     const exclusionsHint =
       spec.exclusions.length > 0 ? `Do not include: ${spec.exclusions.join(", ")}.` : "";
-    const prompt = [spec.promptText, aspectHint, opts.negativePrompt, exclusionsHint]
-      .filter(Boolean)
-      .join(" ");
 
-    const rawParams = { model, prompt, aspectRatioBucket: spec.aspectRatioBucket };
+    // An edit request feeds the existing image back in as a reference and
+    // asks for only the described change — regenerating from spec.promptText
+    // alone here would fight the reference image and produce an unrelated
+    // design instead of a fix (see the iterative-repair guidance this
+    // mirrors in tshirt-design-concepts.md's "Model-specific notes").
+    const isEdit = Boolean(opts.referenceImageUrl && opts.editPrompt);
+    const prompt = isEdit
+      ? [
+          "Keep this design's composition, subject, lettering, and colors identical to the reference image.",
+          `Apply only this change: ${opts.editPrompt}`,
+          aspectHint,
+          exclusionsHint,
+        ]
+          .filter(Boolean)
+          .join(" ")
+      : [spec.promptText, aspectHint, opts.negativePrompt, exclusionsHint].filter(Boolean).join(" ");
 
-    const resultDataUrl = await editImageWithOpenRouter({ apiKey, model, prompt, images: [] });
+    const rawParams = {
+      model,
+      prompt,
+      aspectRatioBucket: spec.aspectRatioBucket,
+      ...(isEdit ? { editOf: opts.referenceImageUrl } : {}),
+    };
+
+    const resultDataUrl = await editImageWithOpenRouter({
+      apiKey,
+      model,
+      prompt,
+      images: isEdit ? [opts.referenceImageUrl!] : [],
+    });
     const parsed = parseDataUrl(resultDataUrl);
     // Some models (e.g. Nano Banana / gemini-2.5-flash-image) don't
     // reliably honor the "transparent background" instruction and render

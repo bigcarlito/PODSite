@@ -285,13 +285,29 @@ call). `niche`/`targetCustomer` default from `Store.audience`/`tone`/
 `brief` — every store already carries this persona (rule #8), so a batch
 needs no new input to target the right buyer. `/admin/designs` is the
 human review queue this exists for: a thumbnail grid per `batchLabel`/
-`status`, each card either **Reject** (`rejectDesign`) or **Make product
-→** (`quickPublishDesign`/`POST /api/agent/designs/:id/quick-publish`,
-which uses the design's own `params.targetProductType` and that type's
-`MockupScene.defaultPriceCents` + full color lineup — set a default price
-via `PUT /api/agent/mockup-scenes/:productType` first, or it's a `422
+`status`, a rejected card showing its QC failure detail(s) straight from
+`Design.params.qc` (see the QC gate below), each card either **Reject**
+(`rejectDesign`), **Try again**/**Edit & regenerate** (`regenerateDesign`
+— see below), or **Make product →** (`quickPublishDesign`/`POST
+/api/agent/designs/:id/quick-publish`, which uses the design's own
+`params.targetProductType` and that type's `MockupScene.defaultPriceCents`
++ full color lineup — set a default price via `PUT
+/api/agent/mockup-scenes/:productType` first, or it's a `422
 NO_DEFAULT_PRICE`). Editing `tshirt-design-concepts.md` changes future
 batches without a code change.
+
+`regenerateDesign()` has two modes: a plain reroll (same aspects, new
+attempt), or — when `input.editPrompt` is set — an **image-to-image
+edit**: the design's own `previewImageUrl` is fed back to the provider
+(`ImageProvider.generate()`'s `referenceImageUrl`/`editPrompt` opts) as a
+reference, asking only for the described change ("remove the outer
+keyline", "add more distress") rather than a from-scratch reroll on the
+same aspects prompt. Still runs the same QC gate and upscale on the
+result, so an edit can still come back `"rejected"`. Only the OpenRouter
+adapter implements this today (`providers/openrouter.ts`'s `isEdit`
+branch) — a future provider without image-editing support just ignores
+the opts and does a plain reroll, since they're optional on
+`GenerateDesignOpts`.
 
 **Not built yet (Phase 3+)**: `DesignEvent` view tracking, `DesignBatch`
 flights (a *controlled experiment* varying one aspect, everything else —

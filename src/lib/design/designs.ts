@@ -127,7 +127,7 @@ async function generateWithQc(
   aspects: DesignAspects,
   compiled: CompiledDesignPrompt,
   provider: ImageProvider,
-  opts: { model?: string; negativePrompt?: string },
+  opts: { model?: string; negativePrompt?: string; referenceImageUrl?: string; editPrompt?: string },
   actor: ActivityActor,
   origin: string
 ): Promise<GenerationOutcome> {
@@ -144,6 +144,8 @@ async function generateWithQc(
       generated = await provider.generate(compiled, {
         model: opts.model,
         negativePrompt: opts.negativePrompt,
+        referenceImageUrl: opts.referenceImageUrl,
+        editPrompt: opts.editPrompt,
       });
     } catch (cause) {
       throw new StoreError(
@@ -288,10 +290,17 @@ export async function createDesign(
 }
 
 /**
- * Re-runs generation for an existing design's aspects — a new seed/attempt,
- * same aspects, same provider/model unless overridden. Replaces the
- * design's prompt/preview/master/status in place rather than creating a
- * new row, since it's the same design being re-tried, not a new one.
+ * Re-runs generation for an existing design. Two modes: with no
+ * `editPrompt`, a plain reroll — a new seed/attempt, same aspects, same
+ * provider/model unless overridden (for when a rejected design's QC
+ * detail suggests the same combination just needs another try). With
+ * `editPrompt`, an image-to-image edit — the existing preview is fed back
+ * to the provider as a reference and only the described change is
+ * requested ("remove the outer keyline", "add more distress"), rather
+ * than generating from the aspects prompt alone; still re-runs the full
+ * QC gate and upscale on the result. Either way, replaces the design's
+ * prompt/preview/master/status in place rather than creating a new row,
+ * since it's the same design being re-tried, not a new one.
  */
 export async function regenerateDesign(
   store: Store,
@@ -306,16 +315,36 @@ export async function regenerateDesign(
   const providerName = input.provider || existing.provider;
   const provider = getImageProvider(providerName);
 
+  if (input.editPrompt && !existing.previewImageUrl) {
+    throw new StoreError(
+      "DESIGN_NOT_READY",
+      "This design has no preview image yet to edit from — regenerate without editPrompt first.",
+      { status: 409 }
+    );
+  }
+
   const outcome = await generateWithQc(
     store,
     aspects,
     compiled,
     provider,
-    { model: input.model, negativePrompt: input.negativePrompt ?? existing.negativePrompt ?? undefined },
+    {
+      model: input.model,
+      negativePrompt: input.negativePrompt ?? existing.negativePrompt ?? undefined,
+      // An edit request feeds the existing preview back in as a reference
+      // and asks only for the described change — see openrouter.ts's
+      // isEdit branch — rather than a from-scratch reroll on the same
+      // aspects (what a plain regenerate without editPrompt still does).
+      referenceImageUrl: input.editPrompt
+        ? toAbsolute(existing.previewImageUrl!, origin)
+        : undefined,
+      editPrompt: input.editPrompt,
+    },
     actor,
     origin
   );
 
+  const existingParams = (existing.params as Record<string, unknown>) ?? {};
   const design = await prisma.design.update({
     where: { id: existing.id },
     data: {
@@ -325,11 +354,16 @@ export async function regenerateDesign(
       model: outcome.model,
       seed: outcome.seed,
       params: {
+        // Preserves any batch-review metadata (name/whySells/
+        // targetProductType — see createDesignBatch) a plain object
+        // replacement here would otherwise silently drop.
+        ...existingParams,
         aspectRatioBucket: compiled.aspectRatioBucket,
         colorRoles: compiled.colorRoles,
         exclusions: compiled.exclusions,
         qc: outcome.qc.checks,
         attempts: outcome.attempts,
+        ...(input.editPrompt ? { lastEditPrompt: input.editPrompt } : {}),
       } as unknown as Prisma.InputJsonValue,
       previewImageUrl: outcome.previewImageUrl,
       masterImageUrl: outcome.masterImageUrl,
@@ -342,8 +376,10 @@ export async function regenerateDesign(
   await logActivity(store.id, {
     actor,
     category: "design",
-    summary: `${outcome.status === "generated" ? "Regenerated" : "Re-rejected"} design "${existing.slug}"`,
-    details: { designId: design.id, provider: providerName, attempts: outcome.attempts },
+    summary: `${outcome.status === "generated" ? "Regenerated" : "Re-rejected"} design "${existing.slug}"${
+      input.editPrompt ? ` with edit: "${input.editPrompt}"` : ""
+    }`,
+    details: { designId: design.id, provider: providerName, attempts: outcome.attempts, editPrompt: input.editPrompt },
   });
 
   return design;
