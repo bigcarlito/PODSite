@@ -5,11 +5,81 @@ import { useActionState, useState, useTransition } from "react";
 import {
   generateMockupSceneBasesAction,
   uploadMockupSceneBaseImage,
+  setMockupSceneDefaultPriceAction,
   type GenerateBasesState,
 } from "../actions";
 import { DeleteMockupSceneButton } from "./DeleteMockupSceneButton";
 
 const initialState: GenerateBasesState = {};
+
+function DefaultPriceEditor({
+  productType,
+  defaultPriceCents,
+  defaultCurrency,
+}: {
+  productType: string;
+  defaultPriceCents: number | null;
+  defaultCurrency: string;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [editing, setEditing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [price, setPrice] = useState(
+    defaultPriceCents != null ? (defaultPriceCents / 100).toFixed(2) : ""
+  );
+
+  function handleSave() {
+    setError(null);
+    startTransition(async () => {
+      const result = await setMockupSceneDefaultPriceAction(productType, price);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setEditing(false);
+      }
+    });
+  }
+
+  if (!editing) {
+    return (
+      <p className="mt-1 text-muted">
+        {defaultPriceCents != null
+          ? `Default price: $${(defaultPriceCents / 100).toFixed(2)} ${defaultCurrency}`
+          : "No default price set"}{" "}
+        <button type="button" onClick={() => setEditing(true)} className="text-accent underline">
+          Edit
+        </button>
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-1 flex items-center justify-center gap-1.5">
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        value={price}
+        onChange={(e) => setPrice(e.target.value)}
+        placeholder="29.99"
+        className="w-20 rounded border border-border bg-background px-1.5 py-1 text-[11px] outline-none focus:border-accent"
+      />
+      <button
+        type="button"
+        disabled={pending}
+        onClick={handleSave}
+        className="rounded border border-border px-2 py-1 text-[11px] font-medium hover:border-accent disabled:opacity-50"
+      >
+        {pending ? "Saving…" : "Save"}
+      </button>
+      {error && (
+        <span className="text-[10px] text-red-600" role="alert">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
 
 function ColorBaseImage({
   productType,
@@ -109,11 +179,11 @@ export function MockupSceneCard({
       <p className="mt-1 text-muted">
         {scene.colors.map((c) => c.name).join(", ") || "No colors set"}
       </p>
-      <p className="mt-1 text-muted">
-        {scene.defaultPriceCents != null
-          ? `Default price: $${(scene.defaultPriceCents / 100).toFixed(2)} ${scene.defaultCurrency}`
-          : "No default price set"}
-      </p>
+      <DefaultPriceEditor
+        productType={scene.productType}
+        defaultPriceCents={scene.defaultPriceCents}
+        defaultCurrency={scene.defaultCurrency}
+      />
 
       {scene.colors.length > 0 && (
         <div className="mt-3 flex flex-wrap justify-center gap-2">

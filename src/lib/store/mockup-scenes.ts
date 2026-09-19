@@ -90,6 +90,39 @@ export async function setMockupScene(
   return scene;
 }
 
+/**
+ * Sets an existing scene's default price alone — for when only the price
+ * needs to change, not the photo/colors. setMockupScene() above always
+ * requires a photo (it's an upload-and-set-in-one-step, mirroring
+ * setHeroImage), so without this a price-only edit would force
+ * re-uploading the same photo just to reach the price fields. 404s via
+ * getMockupScene if the product type has no scene yet — set one with a
+ * photo first via setMockupScene()/PUT /api/agent/mockup-scenes/:productType.
+ */
+export async function setMockupSceneDefaultPrice(
+  store: Store,
+  productType: string,
+  priceCents: number,
+  currency: string,
+  actor: ActivityActor
+) {
+  await getMockupScene(store.id, productType);
+
+  const scene = await prisma.mockupScene.update({
+    where: { storeId_productType: { storeId: store.id, productType } },
+    data: { defaultPriceCents: priceCents, defaultCurrency: currency },
+  });
+
+  await logActivity(store.id, {
+    actor,
+    category: "mockup-scene",
+    summary: `Set default price for product type "${productType}" to ${priceCents} ${currency}`,
+    details: { productType, priceCents, currency },
+  });
+
+  return scene;
+}
+
 function apiKeyOrThrow(): string {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {

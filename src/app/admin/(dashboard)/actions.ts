@@ -19,6 +19,7 @@ import {
   deleteMockupScene,
   generateMockupSceneBases,
   setMockupSceneBaseImage,
+  setMockupSceneDefaultPrice,
   setDesignArea,
 } from "@/lib/store/mockup-scenes";
 import { setShippingRate } from "@/lib/store/shipping";
@@ -393,6 +394,39 @@ export async function deleteMockupSceneAction(productType: string) {
   const store = await requireCurrentStore();
   await deleteMockupScene(store.id, productType, "admin");
   revalidatePath("/admin/mockup-scenes");
+}
+
+export type MockupSceneDefaultPriceState = { error?: string; success?: boolean };
+
+/**
+ * Sets an existing scene's default price alone — the review queue's
+ * "Make product" button needs one set for a product type before it can
+ * publish (422 NO_DEFAULT_PRICE otherwise), but the main "Save scene" form
+ * requires re-uploading the photo to reach the price field. This is the
+ * price-only path, wrapping setMockupSceneDefaultPrice (rule #1). Takes
+ * plain args (not FormData/useActionState) so the review-queue-style card
+ * editor can call it directly and close itself on success.
+ */
+export async function setMockupSceneDefaultPriceAction(
+  productType: string,
+  priceRaw: string
+): Promise<MockupSceneDefaultPriceState> {
+  const store = await requireCurrentStore();
+  const priceCents = Math.round(Number(priceRaw.trim()) * 100);
+
+  if (!priceRaw.trim() || !Number.isFinite(priceCents) || priceCents <= 0) {
+    return { error: "Enter a price greater than $0." };
+  }
+
+  try {
+    await setMockupSceneDefaultPrice(store, productType, priceCents, "USD", "admin");
+    revalidatePath("/admin/mockup-scenes");
+    return { success: true };
+  } catch (e) {
+    return {
+      error: e instanceof StoreError ? e.message : "Couldn't save the default price — try again.",
+    };
+  }
 }
 
 /**

@@ -244,7 +244,11 @@ you don't repeat a failed experiment.
   `defaultPriceCents`/`defaultCurrency` (optional, keeps the existing value
   if omitted) set this type's default price for the design review queue's
   one-click "make product" flow (`POST /api/agent/designs/:id/quick-publish`
-  below) — without it, that flow fails with `422 NO_DEFAULT_PRICE`.
+  below) — without it, that flow fails with `422 NO_DEFAULT_PRICE`. To
+  change just the price without re-uploading the photo, `PUT
+  /api/agent/mockup-scenes/:productType/default-price` with
+  `{"priceCents": 2999, "currency": "USD"}` (`currency` optional, defaults
+  `"USD"`; `422 NO_MOCKUP_SCENE` if the type has no scene yet).
   `GET /api/agent/mockup-scenes` lists what's set (including cached
   `baseImages` and `designArea`); `DELETE /api/agent/mockup-scenes/:productType`
   removes one.
