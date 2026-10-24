@@ -1,0 +1,21 @@
+{
+  "name": "ShihTshirts",
+  "tagline": "Small dog. Enormous main-character energy.",
+  "description": "For the humans whose camera roll, sofa, and entire schedule belong to a Shih Tzu. Yes, we know the look. We get it too.",
+  "tone": "Knowing, affectionate, dry humor. An inside joke between Shih Tzu people.",
+  "audience": "Shih Tzu owners who recognize the stubborn little roommate behind the perfect topknot.",
+  "theme": {
+    "accent": "#9b432d",
+    "accentDark": "#70301f",
+    "commerce": {
+      "checkoutEnabled": false,
+      "fulfillmentMode": "manual"
+    },
+    "storefront": {
+      "eyebrow": "For people owned by a Shih Tzu",
+      "shopLabel": "Find your kind of Shih Tzu energy",
+      "featuredTitle": "Your dog's personality. Your next favorite tee."
+    }
+  },
+  "trustBadges": []
+}

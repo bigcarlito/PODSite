@@ -1,5 +1,6 @@
 "use server";
 
+import { getCommercePolicy } from "@/lib/storefront-theme";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getCart, cartTotalCents } from "@/lib/cart";
@@ -18,6 +19,7 @@ export async function placeOrder(
   formData: FormData
 ): Promise<CheckoutState> {
   const store = await requireCurrentStore();
+  if (!getCommercePolicy(store).checkoutEnabled) return { error: "Checkout is not open yet. Please check back soon." };
   const cart = await getCart(store.id);
   if (!cart || cart.items.length === 0) {
     return { error: "Your cart is empty." };

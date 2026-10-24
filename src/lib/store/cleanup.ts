@@ -23,6 +23,12 @@ async function collectReferencedAssetIds(storeId: string): Promise<Set<string>> 
   const theme = (store.theme as { heroImageUrl?: string; logoUrl?: string } | null) ?? {};
   if (theme.heroImageUrl) urls.push(theme.heroImageUrl);
   if (theme.logoUrl) urls.push(theme.logoUrl);
+  // Artwork slots may nest URLs in story, promos, and decorative overlays.
+  const collect = (value: unknown): void => {
+    if (typeof value === "string") urls.push(value);
+    else if (value && typeof value === "object") Object.values(value).forEach(collect);
+  };
+  collect(store.theme);
   for (const scene of scenes) {
     urls.push(scene.imageUrl);
     urls.push(...Object.values((scene.baseImages as Record<string, string> | null) ?? {}));

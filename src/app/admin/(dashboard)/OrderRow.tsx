@@ -21,10 +21,11 @@ export type AdminOrder = {
   shippingCents: number;
   createdAt: string;
   shippingName: string;
+  shippingAddress: string;
   items: AdminOrderItem[];
 };
 
-export function OrderRow({ order }: { order: AdminOrder }) {
+export function OrderRow({ order, manualFulfillment = false }: { order: AdminOrder; manualFulfillment?: boolean }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -74,7 +75,7 @@ export function OrderRow({ order }: { order: AdminOrder }) {
                 Mark Paid
               </button>
             )}
-            {order.status !== "SUBMITTED_TO_FULFILLMENT" && (
+            {!manualFulfillment && order.status === "PAID" && (
               <button
                 disabled={pending}
                 onClick={() =>
@@ -99,6 +100,7 @@ export function OrderRow({ order }: { order: AdminOrder }) {
       {expanded && (
         <tr className="border-b border-border bg-black/[0.02]">
           <td colSpan={4} className="py-3 pl-8 pr-4">
+            <p className="mb-3 text-sm"><strong>Ship to:</strong> {order.shippingName}, {order.shippingAddress}</p>
             <table className="w-full text-left text-xs">
               <tbody>
                 {order.items.map((item) => (

@@ -1,3 +1,5 @@
+import { StoreArtwork } from "@/components/StoreArtwork";
+import { getStoreBranding } from "@/lib/store-branding";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentStore } from "@/lib/store-context";
@@ -52,6 +54,7 @@ export default async function CollectionPage({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+      {collection.heroImage && <StoreArtwork src={collection.heroImage} alt="" className="mb-8 aspect-[2/1] w-full rounded-3xl object-cover sm:aspect-[3/1]" />}
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
         {collection.title}
       </h1>
@@ -71,6 +74,8 @@ export default async function CollectionPage({
             <ProductCard
               key={p.id}
               product={{
+                badge: getStoreBranding(store).storefront.productBadges?.[p.slug],
+                currency: p.variants[0]?.currency,
                 slug: p.slug,
                 title: p.title,
                 imageUrl: p.images[0]?.url,

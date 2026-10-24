@@ -1,3 +1,4 @@
+import { storefrontSchema } from "./storefront-theme";
 import type { Store } from "@prisma/client";
 
 export type NavLink = { label: string; href: string };
@@ -17,6 +18,7 @@ export function getStoreBranding(store: Store) {
       | { accent?: string; accentDark?: string; heroImageUrl?: string; logoUrl?: string }
       | null) ?? {};
   return {
+    storefront: storefrontSchema.catch({}).parse((store.theme as { storefront?: unknown } | null)?.storefront ?? {}),
     name: store.name,
     tagline: store.tagline,
     description: store.description,

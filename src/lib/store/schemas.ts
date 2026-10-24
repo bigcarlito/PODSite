@@ -1,3 +1,4 @@
+import { storefrontSchema, commerceSchema } from "@/lib/storefront-theme";
 import { z } from "zod";
 import { navLinkSchema } from "@/lib/platform-schemas";
 import { aspectsSchema, DESIGN_TYPE_VALUES } from "@/lib/design/aspects";
@@ -182,6 +183,8 @@ export const storeUpdateSchema = z.object({
   brief: z.record(z.string(), z.unknown()).optional(),
   theme: z
     .object({
+      storefront: storefrontSchema,
+      commerce: commerceSchema,
       accent: z.string(),
       accentDark: z.string(),
       /// Either an absolute URL (an externally-hosted image) or a

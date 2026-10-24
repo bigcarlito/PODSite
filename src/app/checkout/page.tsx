@@ -1,3 +1,4 @@
+import { getCommercePolicy } from "@/lib/storefront-theme";
 import type { Metadata } from "next";
 import { redirect, notFound } from "next/navigation";
 import { getCart, cartTotalCents } from "@/lib/cart";
@@ -14,6 +15,7 @@ export const metadata: Metadata = { title: "Checkout" };
 export default async function CheckoutPage() {
   const store = await getCurrentStore();
   if (!store) notFound();
+  if (!getCommercePolicy(store).checkoutEnabled) return <div className="mx-auto max-w-3xl px-6 py-24 text-center"><h1 className="text-3xl font-semibold">A little more primping.</h1><p className="mt-4 text-muted">Checkout is not open yet. Please check back soon.</p></div>;
   const cart = await getCart(store.id);
   if (!cart || cart.items.length === 0) {
     redirect("/cart");

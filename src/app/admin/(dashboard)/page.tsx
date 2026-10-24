@@ -1,3 +1,4 @@
+import { isManualFulfillment } from "@/lib/storefront-theme";
 import type { Metadata } from "next";
 import { listOrders } from "@/lib/store/orders";
 import { requireCurrentStore } from "@/lib/store-context";
@@ -14,6 +15,7 @@ export default async function AdminOrdersPage() {
   return (
     <div>
       <h1 className="text-xl font-semibold">Orders</h1>
+      {isManualFulfillment(store) && <p className="mt-4 rounded-xl border border-border p-4 text-sm">Manual fulfillment: monitor PAID orders below. Supplier submission is disabled. Expand an order for its shipping address and items; arrange fulfillment and tracking with the customer outside this dashboard.</p>}
 
       {orders.length === 0 ? (
         <p className="mt-6 text-sm text-muted">No orders yet.</p>
@@ -32,6 +34,7 @@ export default async function AdminOrdersPage() {
               {orders.map((o) => (
                 <OrderRow
                   key={o.id}
+                  manualFulfillment={isManualFulfillment(store)}
                   order={{
                     id: o.id,
                     orderNumber: o.orderNumber,
@@ -41,6 +44,7 @@ export default async function AdminOrdersPage() {
                     shippingCents: o.shippingCents,
                     createdAt: o.createdAt.toISOString(),
                     shippingName: o.shippingName,
+                    shippingAddress: [o.shippingAddress1, o.shippingAddress2, o.shippingCity, o.shippingState, o.shippingZip, o.shippingCountry].filter(Boolean).join(", "),
                     items: o.items.map((item) => ({
                       id: item.id,
                       productName: item.productName,

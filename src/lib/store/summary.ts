@@ -1,3 +1,4 @@
+import { getCommercePolicy, isManualFulfillment } from "@/lib/storefront-theme";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { hasAnyShippingRate } from "./shipping";
@@ -73,7 +74,14 @@ export async function getStoreSummary(storeId: string) {
     select: { orderNumber: true, createdAt: true, email: true },
   });
 
+  const store = await prisma.store.findUniqueOrThrow({ where: { id: storeId } });
+  const manualPaidOrders = isManualFulfillment(store) ? await prisma.order.findMany({
+    where: { storeId, status: "PAID" },
+    select: { id: true, orderNumber: true, createdAt: true },
+    orderBy: { createdAt: "asc" },
+  }) : [];
   return {
+    commerce: { ...getCommercePolicy(store), fulfillmentMode: isManualFulfillment(store) ? "manual" : "automatic" },
     products: {
       total: productCount,
       active: activeProductCount,
@@ -88,6 +96,7 @@ export async function getStoreSummary(storeId: string) {
     },
     revenueCents: revenue._sum.subtotalCents ?? 0,
     attention: {
+      manualPaidOrders,
       outOfStockVariants,
       variantsMissingPrice: zeroPriceVariants,
       /// true when this store has zero ShippingRate rows — every order
