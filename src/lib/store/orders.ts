@@ -1,3 +1,4 @@
+import { isManualFulfillment } from "@/lib/storefront-theme";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getFulfillmentProvider } from "@/lib/fulfillment/registry";
@@ -185,11 +186,12 @@ export async function markOrderPaid(
       { status: 409 }
     );
   }
-  const updated = await prisma.order.update({
-    where: { id: order.id },
+  const changed = await prisma.order.updateMany({
+    where: { id: order.id, storeId, status: "PENDING_PAYMENT" },
     data: { status: "PAID" },
-    include: orderInclude,
   });
+  if (changed.count !== 1) throw new StoreError("INVALID_STATUS", "Order is already paid or no longer payable", { status: 409 });
+  const updated = await getOrder(storeId, order.id);
 
   await logActivity(storeId, {
     actor,
@@ -219,6 +221,10 @@ export async function markOrderPaidAndFulfill(
   actor: ActivityActor = "system"
 ) {
   const paidOrder = await markOrderPaid(store.id, idOrNumber, actor);
+  if (isManualFulfillment(store)) {
+    await logActivity(store.id, { actor, category: "fulfillment", summary: `Manual fulfillment required for paid order ${paidOrder.orderNumber}`, details: { orderId: paidOrder.id } });
+    return paidOrder;
+  }
   try {
     return await submitOrderToFulfillment(store, paidOrder.id, origin, actor);
   } catch (err) {
@@ -240,6 +246,7 @@ export async function submitOrderToFulfillment(
   origin: string,
   actor: ActivityActor = "agent"
 ) {
+  if (isManualFulfillment(store)) throw new StoreError("MANUAL_FULFILLMENT_REQUIRED", "Supplier submission is disabled; fulfill this paid order manually.", { status: 409 });
   const order = await getOrder(store.id, idOrNumber);
 
   if (order.status === "SUBMITTED_TO_FULFILLMENT") {
@@ -249,6 +256,8 @@ export async function submitOrderToFulfillment(
       { status: 409 }
     );
   }
+
+  if (order.status !== "PAID") throw new StoreError("INVALID_STATUS", "Only paid orders can be submitted", { status: 409 });
 
   const missing = order.items.filter((i) => !i.variant.providerVariantId);
   if (missing.length > 0) {
@@ -291,7 +300,7 @@ export async function submitOrderToFulfillment(
   );
 
   const updated = await prisma.order.update({
-    where: { id: order.id },
+    where: { id: order.id, storeId: store.id },
     data: {
       status: "SUBMITTED_TO_FULFILLMENT",
       providerOrderId: result.providerOrderId,

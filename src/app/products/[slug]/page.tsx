@@ -1,3 +1,4 @@
+import { getStoreBranding } from "@/lib/store-branding";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentStore } from "@/lib/store-context";
@@ -88,6 +89,8 @@ export default async function ProductPage({
               <ProductCard
                 key={p.id}
                 product={{
+                  badge: getStoreBranding(store).storefront.productBadges?.[p.slug],
+                  currency: p.variants[0]?.currency,
                   slug: p.slug,
                   title: p.title,
                   imageUrl: p.images[0]?.url,

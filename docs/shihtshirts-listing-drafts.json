@@ -1,0 +1,92 @@
+[
+  {
+    "slug": "the-look",
+    "title": "The Look",
+    "description": "For the human who knows a silent stare can mean dinner is three minutes late.",
+    "isActive": false,
+    "isFeatured": false,
+    "productType": "tshirt",
+    "status": "unpublished-owner-review",
+    "preferredBlank": "Bella+Canvas 3001 (unverified; do not advertise yet)",
+    "requirements": [
+      "Owner approves listing name and copy; these are editorial drafts, not approved shirt slogans.",
+      "Owner supplies approved print-ready transparent PNG with documented print dimensions, DPI, color/placement approval and usage rights.",
+      "Owner supplies approved garment mockups matching that exact print file and each offered color.",
+      "Verify Bella+Canvas 3001 availability, catalog variant IDs, sizes, colors, base costs, shipping and margin in chosen supplier account; enter integer-cent retail pricing only after verification."
+    ],
+    "images": [],
+    "variants": []
+  },
+  {
+    "slug": "sofa-supervisor",
+    "title": "Sofa Supervisor",
+    "description": "Your seat is taken. Your supervisor has four paws and no plans to move.",
+    "isActive": false,
+    "isFeatured": false,
+    "productType": "tshirt",
+    "status": "unpublished-owner-review",
+    "preferredBlank": "Bella+Canvas 3001 (unverified; do not advertise yet)",
+    "requirements": [
+      "Owner approves listing name and copy; these are editorial drafts, not approved shirt slogans.",
+      "Owner supplies approved print-ready transparent PNG with documented print dimensions, DPI, color/placement approval and usage rights.",
+      "Owner supplies approved garment mockups matching that exact print file and each offered color.",
+      "Verify Bella+Canvas 3001 availability, catalog variant IDs, sizes, colors, base costs, shipping and margin in chosen supplier account; enter integer-cent retail pricing only after verification."
+    ],
+    "images": [],
+    "variants": []
+  },
+  {
+    "slug": "walk-negotiator",
+    "title": "Walk Negotiator",
+    "description": "A tribute to the tiny dog who decides when the walk is over.",
+    "isActive": false,
+    "isFeatured": false,
+    "productType": "tshirt",
+    "status": "unpublished-owner-review",
+    "preferredBlank": "Bella+Canvas 3001 (unverified; do not advertise yet)",
+    "requirements": [
+      "Owner approves listing name and copy; these are editorial drafts, not approved shirt slogans.",
+      "Owner supplies approved print-ready transparent PNG with documented print dimensions, DPI, color/placement approval and usage rights.",
+      "Owner supplies approved garment mockups matching that exact print file and each offered color.",
+      "Verify Bella+Canvas 3001 availability, catalog variant IDs, sizes, colors, base costs, shipping and margin in chosen supplier account; enter integer-cent retail pricing only after verification."
+    ],
+    "images": [],
+    "variants": []
+  },
+  {
+    "slug": "topknot-management",
+    "title": "Topknot Management",
+    "description": "For the person doing hair appointments for someone who pays no rent.",
+    "isActive": false,
+    "isFeatured": false,
+    "productType": "tshirt",
+    "status": "unpublished-owner-review",
+    "preferredBlank": "Bella+Canvas 3001 (unverified; do not advertise yet)",
+    "requirements": [
+      "Owner approves listing name and copy; these are editorial drafts, not approved shirt slogans.",
+      "Owner supplies approved print-ready transparent PNG with documented print dimensions, DPI, color/placement approval and usage rights.",
+      "Owner supplies approved garment mockups matching that exact print file and each offered color.",
+      "Verify Bella+Canvas 3001 availability, catalog variant IDs, sizes, colors, base costs, shipping and margin in chosen supplier account; enter integer-cent retail pricing only after verification."
+    ],
+    "images": [],
+    "variants": []
+  },
+  {
+    "slug": "personal-space",
+    "title": "Personal Space Is Shared Space",
+    "description": "For the Shih Tzu household where even a bathroom trip needs supervision.",
+    "isActive": false,
+    "isFeatured": false,
+    "productType": "tshirt",
+    "status": "unpublished-owner-review",
+    "preferredBlank": "Bella+Canvas 3001 (unverified; do not advertise yet)",
+    "requirements": [
+      "Owner approves listing name and copy; these are editorial drafts, not approved shirt slogans.",
+      "Owner supplies approved print-ready transparent PNG with documented print dimensions, DPI, color/placement approval and usage rights.",
+      "Owner supplies approved garment mockups matching that exact print file and each offered color.",
+      "Verify Bella+Canvas 3001 availability, catalog variant IDs, sizes, colors, base costs, shipping and margin in chosen supplier account; enter integer-cent retail pricing only after verification."
+    ],
+    "images": [],
+    "variants": []
+  }
+]

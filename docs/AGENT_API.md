@@ -1362,3 +1362,26 @@ Deleting a product cascades to its `ProductVariant`, `ProductImage`, and
   /api/agent/designs/insights` (an aspect-level rollup of which values
   actually sell). Phases 1-2 (aspects → prompt → QC gate → upscale →
   publish) are built — see "Designs" above.
+
+
+### Storefront artwork and launch controls
+`PATCH /api/agent/store` accepts `theme.storefront` (theme is replaced, not merged).
+Keep existing theme keys when updating. Slots: `hero: {src, mobileSrc?, alt}`;
+`story: {src, mobileSrc?, alt, title, text}`; `promos: [{src, mobileSrc?, alt,
+title, collectionSlug}]` (up to 6); `decorations: [{src, side: "left"|"right",
+widthPercent: 5..25, bottomPercent: 0..30}]` (up to 2, decorative and hidden on
+small screens); `productBadges: {"product-slug": "Popular"}`. Optional copy:
+`eyebrow`, `shopLabel`, `featuredTitle`. Use approved artwork only. URLs must
+be HTTP(S) or same-origin paths. Existing heroImageUrl remains supported.
+`theme.commerce: {checkoutEnabled: false, fulfillmentMode: "manual"}` closes
+checkout before order/session creation and blocks all supplier submissions.
+ShihTshirts slugs `shihtshirts`/`shihttshirts` default closed/manual; other
+existing tenants keep their behavior. Invalid commerce configuration fails
+closed for checkout. Manual paid orders remain PAID in the existing admin
+order queue and agent orders/summary, with a fulfillment activity entry.
+Webhook processing requires a paid session, matching store/order metadata,
+locked order total and currency; concurrent duplicate deliveries cannot mark
+paid twice. Manual fulfillment never contacts a supplier, including /fulfill.
+See docs/SHIHTTSHIRTS_REVIEW.md for draft setup and owner launch requirements.
+
+The summary includes `commerce` policy and `attention.manualPaidOrders` (oldest first). The admin order queue explains manual mode, hides supplier submission and exposes shipping addresses on expansion.

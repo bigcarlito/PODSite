@@ -1,3 +1,4 @@
+import { getStoreBranding } from "@/lib/store-branding";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -32,8 +33,7 @@ export default async function ProductsPage() {
 
       {products.length === 0 ? (
         <p className="mt-8 text-sm text-muted">
-          No products yet. Run the seed script or add products via the admin
-          dashboard.
+          Our first drop is getting ready. Check back soon.
         </p>
       ) : (
         <div className="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
@@ -41,6 +41,8 @@ export default async function ProductsPage() {
             <ProductCard
               key={p.id}
               product={{
+                badge: getStoreBranding(store).storefront.productBadges?.[p.slug],
+                currency: p.variants[0]?.currency,
                 slug: p.slug,
                 title: p.title,
                 imageUrl: p.images[0]?.url,

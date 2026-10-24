@@ -67,6 +67,6 @@ export function cartItemCount(items: { quantity: number }[]) {
  * so an abandoned checkout leaves the cart intact instead of silently
  * losing the customer's items.
  */
-export async function clearCart(cartId: string) {
-  await prisma.cartItem.deleteMany({ where: { cartId } });
+export async function clearCart(storeId: string, cartId: string) {
+  await prisma.cartItem.deleteMany({ where: { cartId, cart: { storeId } } });
 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { formatCents } from "@/lib/money";
 
 export type ProductCardData = {
+  badge?: string;
   slug: string;
   title: string;
   imageUrl?: string | null;
@@ -28,6 +29,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
             <span className="text-sm font-medium">{product.title}</span>
           </div>
         )}
+        {product.badge && <span className="absolute right-3 top-3 max-w-[80%] rounded-full bg-background px-3 py-1 text-xs font-semibold">{product.badge}</span>}
         {product.compareAtCents && product.compareAtCents > product.priceCents && (
           <span className="absolute left-3 top-3 rounded-full bg-accent px-2.5 py-1 text-xs font-semibold text-white">
             Sale
