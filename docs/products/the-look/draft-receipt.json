@@ -1,0 +1,22 @@
+{
+  "productId": "cmvnb5ci00007xcukkw33n8pj",
+  "storeId": "cmv4ltgcl0000mv0xwdfdvzg3",
+  "storeSlug": "shihtshirt",
+  "domain": "shihtshirts.com",
+  "slug": "the-look-shih-tzu-comfort-colors-1717",
+  "isActive": false,
+  "variantCount": 35,
+  "allVariantsUnavailable": true,
+  "allSupplierIdsAbsent": true,
+  "commerce": {
+    "checkoutEnabled": false,
+    "fulfillmentMode": "manual"
+  },
+  "adminUrl": "https://shihtshirts.com/admin/products/cmvnb5ci00007xcukkw33n8pj",
+  "mockupAdminUrl": "https://shihtshirts.com/admin/products/cmvnb5ci00007xcukkw33n8pj/mockups",
+  "publicProductExpected": "404 while inactive",
+  "mockups": 5,
+  "artworkPreview": "/api/assets/cmvnb59xc0003xcuk5ckp6wk9",
+  "primaryColor": "Ivory",
+  "mockupReceipt": "mockup-receipt.json"
+}

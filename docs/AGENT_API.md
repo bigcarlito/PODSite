@@ -671,6 +671,15 @@ Response shape matches the mockups-only endpoint plus the generated copy:
 
 ### `POST /api/agent/products/:id/mockups/ai`
 
+Uploaded blank photographs are supported through the same scene path; the bases
+do not have to be AI-generated. Optional `existingBasesOnly:true` refuses missing
+or malformed cached bases before rendering (`422 MISSING_MOCKUP_BASE`) and never
+calls a recolor provider. Optional `primaryColor:"Ivory"` puts that generated
+image first and retains all unrelated images and color associations. The primary
+must be a selected product color (`422 INVALID_PRIMARY_COLOR`); if its render
+fails, no gallery replacement occurs (`502 PRIMARY_MOCKUP_FAILED`). Both options
+are also exposed in the human admin mockup form. Omit them to retain existing behavior.
+
 An alternative to the Printful mockup generator above, for a non-generic,
 non-white-background result: composites the design onto this product
 type's pre-generated, per-color base mockup (see mockup scenes above),

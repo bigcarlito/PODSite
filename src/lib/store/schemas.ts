@@ -86,6 +86,10 @@ export const aiMockupGenerateSchema = z.object({
   colorOptionName: z.string().default("color"),
   /// Restrict to these garment colors; omitted means every color the product has.
   colors: z.array(z.string()).optional(),
+  /// Refuse missing bases instead of silently generating an AI recolor.
+  existingBasesOnly: z.boolean().optional(),
+  /// Put this rendered color first, retaining all other product images.
+  primaryColor: z.string().min(1).optional(),
 });
 
 /// Sets the rectangle a design gets placed into on a MockupScene, as

@@ -334,6 +334,17 @@ capability zod-validated and store-scoped (rules #2, #11), and update
 this section plus `docs/AGENT_API.md`/`skills/pod-platform-agent/SKILL.md`
 in the same change (rule #3).
 
+### Verified blank garment mockups
+
+The existing scene compositor accepts uploaded, color-specific blank photographs;
+it does not require AI-recolored bases. `POST /api/agent/products/:id/mockups/ai`
+and the admin mockup form accept `existingBasesOnly:true` to fail before rendering
+if a requested base is missing, and `primaryColor` to put that rendered color first
+while retaining other images. Defaults preserve the existing self-healing behavior.
+Use a garment-specific product type and each tenant's own scene/assets. Reusable
+unbranded source templates can be imported into another store with the existing
+scene/base-image operations; never copy another tenant's designs or product images.
+
 ## Where things are
 
 ```
