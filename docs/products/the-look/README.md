@@ -34,7 +34,7 @@ works, with no cart or checkout action. It is labeled noindex and unpublished.
 
 `draft-receipt.json` records the read-back state. The public product page should
 404 while inactive. Owner review uses admin or the local artifact, never temporary
-activation. No order, payment, Printify product, supplier request, or publication
+activation. No order, payment, Printify product, supplier submission, or publication
 was made.
 
 ## Artwork quality
