@@ -1,5 +1,12 @@
 # The Look — inactive owner-review product
 
+**Mockup completion update:** Five color-specific PODSite composites are now
+attached, with Ivory primary. See [the completed pipeline and review instructions](MOCKUP_PIPELINE.md)
+and `mockup-receipt.json`. `review.html` and the screenshots have been refreshed.
+Printify access is still needed for supplier catalog/cost verification, **not for
+mockup generation**. The remaining sections below retain the original draft-stage
+record; their zero-mockup/login-blocker statements describe that earlier state.
+
 **Real database draft created:** `cmvnb5ci00007xcukkw33n8pj`.
 [Open product in ShihTshirts admin](https://shihtshirts.com/admin/products/cmvnb5ci00007xcukkw33n8pj).
 Admin authentication is required. This is an actual product row, not just a listing brief.

@@ -117,6 +117,14 @@ export function AIMockupTestForm({ productId }: { productId: string }) {
           <input name="colors" placeholder="Black, White" className={inputClass} />
         </Field>
 
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="existingBasesOnly" />
+          Use uploaded bases only; fail if a color is missing
+        </label>
+        <Field label="Primary image color" hint="Optional. Must be one of the colors being rendered.">
+          <input name="primaryColor" placeholder="Ivory" className={inputClass} />
+        </Field>
+
         {state.error && (
           <p className="text-sm text-red-600" role="alert">
             {state.error}

@@ -5,6 +5,7 @@ import { requireCurrentStore } from "@/lib/store-context";
 import { MockupTestForm } from "./MockupTestForm";
 import { AIMockupTestForm } from "./AIMockupTestForm";
 import { ProductTypeForm } from "../ProductTypeForm";
+import { Gallery } from "@/components/Gallery";
 
 export const dynamic = "force-dynamic";
 
@@ -57,15 +58,24 @@ export default async function ProductMockupsPage({
         ))}
       </p>
 
+      {product.images.length > 0 && (
+        <section className="mt-6 max-w-xl" aria-label="Saved product images">
+          <h2 className="mb-2 text-sm font-semibold">Saved product images</h2>
+          {!product.isActive && <p className="mb-3 text-xs text-muted">Inactive product — images are available for admin review.</p>}
+          <Gallery title={product.title} images={product.images.map(image => ({ url: image.url, altText: image.altText, optionValues: image.optionValues as Record<string, string> | null }))} />
+        </section>
+      )}
+
       <MockupTestForm productId={product.id} />
 
       <hr className="my-10 border-border" />
 
-      <h2 className="text-lg font-semibold">AI mockup (custom scene)</h2>
+      <h2 className="text-lg font-semibold">Scene mockup (uploaded or generated blanks)</h2>
       <p className="mt-1 text-xs text-muted">
-        Recolors a shared scene photo for this product&apos;s type and
-        composites the design onto it via OpenRouter — an alternative to the
-        Printful mockup above for a non-generic, non-white-background result.
+        Locally composites the design onto this product type&apos;s per-color
+        blank images. Upload exact garment photos on Mockup scenes, or let
+        OpenRouter create a missing color base. Select uploaded bases only below
+        to prevent recoloring. Supplier variant IDs are not required for this path.
         Calls the same <code>generateAIProductMockups</code> function as{" "}
         <code>POST /api/agent/products/{id}/mockups/ai</code>. Manage scene
         photos per product type on{" "}

@@ -1,0 +1,72 @@
+{
+  "garment": "Comfort Colors 1717",
+  "productType": "comfort-colors-1717",
+  "source": "S&S Activewear labeled front-view catalog images",
+  "retrievedOn": "2026-10-25",
+  "baseImagesRecolored": false,
+  "swatchHexMeaning": "Mean RGB sampled from each supplied photo; a UI guide, not a dye standard",
+  "designArea": {
+    "x": 0.325,
+    "y": 0.205,
+    "width": 0.35,
+    "height": 0.264
+  },
+  "placementNotice": "Same screen-space rectangle in all five 1000x1250 images; physical print placement still requires supplier approval",
+  "colors": [
+    {
+      "name": "Ivory",
+      "file": "ivory.jpg",
+      "hex": "#f1e9de",
+      "sourceColorId": 47202,
+      "sourceUrl": "https://cdn.ssactivewear.com/Images/Color/47202_f_fl.jpg",
+      "sourceProductUrl": "https://www.ssactivewear.com/p/comfort_colors/1717",
+      "width": 1000,
+      "height": 1250,
+      "sha256": "bf7ea76df9087056602f1120e6aa4166502f8a279a6584345f2fede591cb3bdf"
+    },
+    {
+      "name": "Blossom",
+      "file": "blossom.jpg",
+      "hex": "#f8d6e6",
+      "sourceColorId": 47186,
+      "sourceUrl": "https://cdn.ssactivewear.com/Images/Color/47186_f_fl.jpg",
+      "sourceProductUrl": "https://www.ssactivewear.com/p/comfort_colors/1717",
+      "width": 1000,
+      "height": 1250,
+      "sha256": "a11ffb6e65be1297912dbc0278dd87dbc358459565475f5e4f44c9d0ee0a6b4c"
+    },
+    {
+      "name": "Butter",
+      "file": "butter.jpg",
+      "hex": "#ffe3ae",
+      "sourceColorId": 47188,
+      "sourceUrl": "https://cdn.ssactivewear.com/Images/Color/47188_f_fl.jpg",
+      "sourceProductUrl": "https://www.ssactivewear.com/p/comfort_colors/1717",
+      "width": 1000,
+      "height": 1250,
+      "sha256": "0c5403986ded577fd7b38b6f13b8a6f776527de8d7b84e74b8cd7ecff99c231b"
+    },
+    {
+      "name": "Bay",
+      "file": "bay.jpg",
+      "hex": "#bbc4b7",
+      "sourceColorId": 47184,
+      "sourceUrl": "https://cdn.ssactivewear.com/Images/Color/47184_f_fl.jpg",
+      "sourceProductUrl": "https://www.ssactivewear.com/p/comfort_colors/1717",
+      "width": 1000,
+      "height": 1250,
+      "sha256": "bbfdc8d82a4fad28d6d97cf536fded05c7d1e849cc4a0dd992fbe918d4198983"
+    },
+    {
+      "name": "Espresso",
+      "file": "espresso.jpg",
+      "hex": "#806557",
+      "sourceColorId": 104178,
+      "sourceUrl": "https://cdn.ssactivewear.com/Images/Color/104178_f_fl.jpg",
+      "sourceProductUrl": "https://www.ssactivewear.com/p/comfort_colors/1717",
+      "width": 1000,
+      "height": 1250,
+      "sha256": "d0d215a02837b07094da1848bf7931bc4f0a47b101c4e85f076ff8d194d913e0"
+    }
+  ]
+}

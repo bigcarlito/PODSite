@@ -60,6 +60,21 @@ export async function generateAIProductMockups(
     );
   }
 
+  if (input.primaryColor && !colors.has(input.primaryColor)) {
+    throw new StoreError("INVALID_PRIMARY_COLOR", "Primary color must be one of the requested product colors.", { status: 422, field: "primaryColor" });
+  }
+  const existingBases = (scene.baseImages as Record<string, string> | null) ?? {};
+  if (input.existingBasesOnly) {
+    const missing = [...colors].filter(color => {
+      if (!sceneColors.some(c => c.name === color)) return true;
+      try {
+        const url = new URL(existingBases[color]);
+        return !["http:", "https:"].includes(url.protocol) || !url.hostname;
+      } catch { return true; }
+    });
+    if (missing.length) throw new StoreError("MISSING_MOCKUP_BASE", `Upload verified blank bases before rendering: ${missing.join(", ")}`, { status: 422 });
+  }
+
   const rendered: Array<{ color: string; mockupUrl: string }> = [];
   const failed: Array<{ color: string; error: string }> = [];
 
@@ -75,7 +90,7 @@ export async function generateAIProductMockups(
       // Generates and caches the base on first use — see
       // ensureMockupSceneBase — so this never hard-fails just because
       // nobody ran the bulk "generate bases" step first.
-      const baseImageUrl = await ensureMockupSceneBase(
+      const baseImageUrl = input.existingBasesOnly ? existingBases[color] : await ensureMockupSceneBase(
         store,
         product.productType,
         sceneColor,
@@ -112,8 +127,14 @@ export async function generateAIProductMockups(
     );
   }
 
+  if (input.primaryColor) {
+    const primary = rendered.findIndex(r => r.color === input.primaryColor);
+    if (primary < 0) throw new StoreError("PRIMARY_MOCKUP_FAILED", "The requested primary mockup failed; existing product images were retained.", { status: 502, details: { failed } });
+    rendered.unshift(...rendered.splice(primary, 1));
+  }
+
   await prisma.$transaction(async (tx) => {
-    const existing = await tx.productImage.findMany({ where: { productId } });
+    const existing = await tx.productImage.findMany({ where: { productId, product: { storeId: store.id } }, orderBy: { position: "asc" } });
     const supersededIds = existing
       .filter((image) => {
         const values = (image.optionValues as Record<string, string> | null) ?? null;
@@ -123,10 +144,18 @@ export async function generateAIProductMockups(
       .map((image) => image.id);
 
     if (supersededIds.length > 0) {
-      await tx.productImage.deleteMany({ where: { id: { in: supersededIds } } });
+      await tx.productImage.deleteMany({ where: { id: { in: supersededIds }, productId, product: { storeId: store.id } } });
     }
 
-    const basePosition = existing.reduce((max, image) => Math.max(max, image.position + 1), 0);
+    const basePosition = input.primaryColor ? 0 : existing.reduce((max, image) => Math.max(max, image.position + 1), 0);
+    if (input.primaryColor) {
+      const retained = existing.filter(image => !supersededIds.includes(image.id));
+      for (const [index, image] of retained.entries()) {
+        // Own assets must be relative for next/image; no per-tenant host allowlist.
+        const url = image.url.startsWith(`${origin}/api/assets/`) ? image.url.slice(origin.length) : image.url;
+        await tx.productImage.updateMany({ where: { id: image.id, productId, product: { storeId: store.id } }, data: { position: rendered.length + index, url } });
+      }
+    }
 
     await tx.productImage.createMany({
       data: rendered.map((r, index) => ({
@@ -148,6 +177,8 @@ export async function generateAIProductMockups(
       designUrl: input.designUrl,
       rendered: rendered.map((r) => r.color),
       failed,
+      existingBasesOnly: input.existingBasesOnly ?? false,
+      ...(input.primaryColor ? { primaryColor: input.primaryColor } : {}),
     },
   });
 

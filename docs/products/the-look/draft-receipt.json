@@ -15,6 +15,8 @@
   "adminUrl": "https://shihtshirts.com/admin/products/cmvnb5ci00007xcukkw33n8pj",
   "mockupAdminUrl": "https://shihtshirts.com/admin/products/cmvnb5ci00007xcukkw33n8pj/mockups",
   "publicProductExpected": "404 while inactive",
-  "mockups": 0,
-  "artworkPreview": "/api/assets/cmvnb59xc0003xcuk5ckp6wk9"
+  "mockups": 5,
+  "artworkPreview": "/api/assets/cmvnb59xc0003xcuk5ckp6wk9",
+  "primaryColor": "Ivory",
+  "mockupReceipt": "mockup-receipt.json"
 }

@@ -225,8 +225,16 @@ you don't repeat a failed experiment.
   (`NO_MOCKUP_VARIANTS` otherwise). Other errors: `DESIGN_UNREADABLE`,
   `EMPTY_DESIGN`, `PROVIDER_ERROR`.
 
-- `POST /api/agent/products/:id/mockups/ai` — alternative to the above for
-  a non-generic, non-white-background result: composites the design onto
+- `POST /api/agent/products/:id/mockups/ai` — local scene-based compositing.
+
+  Uploaded, color-specific blank photos work without AI recoloring. Set
+  `existingBasesOnly:true` to reject a missing/invalid base before rendering
+  (`MISSING_MOCKUP_BASE`, 422), and `primaryColor` to promote a selected rendered
+  color while retaining other images. Invalid primary: `INVALID_PRIMARY_COLOR`
+  (422); primary render failure: `PRIMARY_MOCKUP_FAILED` (502), gallery unchanged.
+  Omit these options for the existing behavior. Both have matching admin controls.
+
+  It composites the design onto
   this product type's pre-generated, per-color **base mockup** (a blank
   garment in a real scene, already AI-recolored), scaled to fit the
   scene's `designArea` and blended on at 85% opacity. This is a
