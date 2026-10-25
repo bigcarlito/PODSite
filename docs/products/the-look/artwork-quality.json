@@ -1,0 +1,51 @@
+{
+  "images": [
+    {
+      "file": "public/designs/shihtshirts/the-look.png",
+      "sha256": "1f08f81bb44e736acd6b493f1c41c6443631a053100a4981455e940b21c82e5e",
+      "width": 1293,
+      "height": 1217,
+      "hasAlpha": true,
+      "metadataDensity": 72,
+      "transparentPixels": 568202,
+      "partialAlphaPixels": 1005040,
+      "opaquePixels": 339,
+      "nonzeroAlphaBounds": {
+        "left": 0,
+        "top": 0,
+        "right": 1274,
+        "bottom": 1216,
+        "width": 1275,
+        "height": 1217
+      },
+      "effectiveDpiAt12Inches": 106.25,
+      "effectiveDpiAt11_8Inches": 108.05084745762711
+    },
+    {
+      "file": "public/designs/shihtshirts/the-look-upscaled.png",
+      "sha256": "604b162e884cf38f3d8a92bd333cf989507f0fadfb61417270867a5c1eee12d2",
+      "width": 4221,
+      "height": 3973,
+      "hasAlpha": true,
+      "metadataDensity": 72,
+      "transparentPixels": 6971798,
+      "partialAlphaPixels": 565607,
+      "opaquePixels": 9232628,
+      "nonzeroAlphaBounds": {
+        "left": 376,
+        "top": 0,
+        "right": 3920,
+        "bottom": 3962,
+        "width": 3545,
+        "height": 3963
+      },
+      "effectiveDpiAt12Inches": 295.4166666666667,
+      "effectiveDpiAt11_8Inches": 300.4237288135593
+    }
+  ],
+  "visualReview": {
+    "text": "THE LOOK / IF YOU KNOW, YOU KNOW",
+    "result": "Both lines legible and visually faithful on comparison. No regeneration or retouching performed.",
+    "limitations": "Upscaling increases pixel dimensions, not guaranteed source detail. Fine hair and small distressed lettering require physical print/sample inspection. Artwork touches top edge; avoid clipping in provider placement."
+  }
+}

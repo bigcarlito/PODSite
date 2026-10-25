@@ -1,0 +1,47 @@
+{
+  "storeDomain": "shihtshirts.com",
+  "colors": [
+    {"name":"Ivory","previewHex":"#F5F0E4"},
+    {"name":"Blossom","previewHex":"#EDCAD4"},
+    {"name":"Butter","previewHex":"#F4E4A4"},
+    {"name":"Bay","previewHex":"#94A596"},
+    {"name":"Espresso","previewHex":"#66564C"}
+  ],
+  "colorPreviewNotice": "Approximate screen colors for artwork contrast review only. These are not supplier mockups or color standards.",
+  "candidateSizes": ["S","M","L","XL","2XL","3XL","4XL"],
+  "variantStatus": "Planned matrix only. Public catalog lists S–4XL overall; availability of each selected color/size has not been verified. Every draft variant is out of stock, with no supplier ID.",
+  "priceProposalCents": {"S":3200,"M":3200,"L":3200,"XL":3200,"2XL":3500,"3XL":3800,"4XL":3800},
+  "currency":"USD",
+  "supplier": {
+    "name":"Printify",
+    "garment":"Comfort Colors 1717",
+    "catalogUrl":"https://printify.com/app/products/706/comfort-colors/unisex-garment-dyed-t-shirt",
+    "observedOn":"2026-10-24",
+    "blueprintId":706,
+    "printProviderId":null,
+    "providerChoice":"Owner must confirm print provider or Printify Choice",
+    "variantIds":null,
+    "productionCostsCents":null,
+    "shippingCostsCents":null,
+    "destination":null,
+    "accountPlan":null,
+    "verifiedFacts":["Public catalog names Comfort Colors 1717","Public overall size guide lists S, M, L, XL, 2XL, 3XL, 4XL","6.1 oz heavyweight fabric; relaxed fit; pre-shrunk 100% ring-spun US cotton"],
+    "unverifiedFacts":["Exact provider-specific color names and combinations","Current stock","Per-variant IDs","Production cost by size/color/print area and account plan","Shipping method, destination, first/additional item and surcharges","Authentic mockups for all five colors","Exact front print-area template and placement"],
+    "accessBlocker":"No Printify token in configured PODSite environment. Browser catalog Details redirects to Printify login; no authenticated session available."
+  },
+  "seo": {
+    "title":"The Look Shih Tzu Tee | ShihTshirts",
+    "description":"Know that Shih Tzu look? Meet The Look, a vintage-style Shih Tzu design planned for a relaxed Comfort Colors tee in five soft, garment-dyed shades.",
+    "proposedCanonical":"https://shihtshirts.com/products/the-look-shih-tzu-comfort-colors-1717",
+    "draftRobots":"noindex, nofollow",
+    "status":"Proposal only. Existing product page reads title; Product has no SEO description/canonical fields. No SEO platform feature added."
+  },
+  "mockups": [],
+  "lifestyleImage": null,
+  "artwork": {
+    "original":"public/designs/shihtshirts/the-look.png",
+    "approvedUpscaled":"public/designs/shihtshirts/the-look-upscaled.png",
+    "proposedPrintWidthInches":11.8,
+    "status":"Visually faithful and transparent; sample and exact provider template approval pending. Do not regenerate."
+  }
+}
