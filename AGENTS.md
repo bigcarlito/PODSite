@@ -1,0 +1,2 @@
+# Disposable bridge reliability fixture
+Read this file before editing. Change only src/add.mjs to implement addition. Run npm ci, npm test, npm run build (original Turbopack), and git diff --check. Build must generate Prisma Client. Test Windows file operations, Node account lookup and junctions through the existing tests. Never migrate a database, deploy, merge or access production. This branch has no application credentials. Include the phrase BRIDGE_INSTRUCTIONS_READ in your final summary.
