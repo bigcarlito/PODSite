@@ -16,8 +16,22 @@ export default async function HomePage() {
   const branding = getStoreBranding(store);
   const boutique = isBoutiqueTenant(store.slug) ? boutiqueSchema.parse(branding.storefront.boutique ?? {}) : null;
 
+  if (boutique) {
+    const products = await prisma.product.findMany({
+      where: { storeId: store.id, isActive: true },
+      orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }, { id: "asc" }],
+      take: boutique.featuredCount,
+      include: { images: { orderBy: { position: "asc" }, take: 2 }, variants: { orderBy: { priceCents: "asc" } } },
+    });
+    const preview = await prisma.product.findFirst({
+      where: { storeId: store.id, isActive: false, slug: "the-look-shih-tzu-comfort-colors-1717" },
+      include: { images: { orderBy: { position: "asc" }, take: 2 } },
+    });
+    return <BoutiqueHome config={boutique} artwork={branding.storefront} products={products.map(p => ({ slug: p.slug, title: p.title, imageUrl: p.images[0]?.url, secondaryImageUrl: p.images[1]?.url, priceCents: p.variants[0]?.priceCents, currency: p.variants[0]?.currency }))} preview={preview ? { slug: preview.slug, title: preview.title, imageUrl: preview.images[0]?.url, secondaryImageUrl: preview.images[1]?.url } : undefined} />;
+  }
+
   const featured = await prisma.product.findMany({
-    ...featuredProductsQuery(store.id, boutique?.featuredCount ?? 8),
+    ...featuredProductsQuery(store.id, 8),
     include: {
       images: { orderBy: { position: "asc" }, take: 1 },
       variants: { orderBy: { priceCents: "asc" }, take: 1 },
@@ -26,7 +40,6 @@ export default async function HomePage() {
 
   const art = branding.storefront;
   const hero = art.hero ?? (branding.theme.heroImageUrl ? { src: branding.theme.heroImageUrl, alt: "" } : undefined);
-  if (boutique) return <BoutiqueHome config={boutique} artwork={{ ...art, hero }} products={featured.map(p => ({ slug: p.slug, title: p.title, imageUrl: p.images[0]?.url, priceCents: p.variants[0]?.priceCents ?? 0, currency: p.variants[0]?.currency }))} />;
   return (
     <div>
       <section className="relative overflow-hidden bg-accent/5">
@@ -122,3 +135,4 @@ export default async function HomePage() {
     </div>
   );
 }
+

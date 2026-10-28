@@ -1,4 +1,4 @@
-﻿import { test } from "node:test";
+import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { boutiqueSchema, featuredProductsQuery, getCommercePolicy, isBoutiqueTenant, storefrontSchema } from "../src/lib/storefront-theme";
@@ -9,7 +9,7 @@ test("boutique homepage is isolated to the real shihtshirt tenant", () => {
   for (const slug of ["bird-nerd", "birdnerd", "other", "shihtshirts"]) assert.equal(isBoutiqueTenant(slug), false);
   const page = readFileSync("src/app/page.tsx", "utf8");
   assert.match(page, /isBoutiqueTenant\(store.slug\)/);
-  assert.match(page, /if \(boutique\) return <BoutiqueHome/);
+  assert.match(page, /if \(boutique\) \{/);
 });
 
 test("featured database query excludes inactive products and other tenants", () => {
@@ -21,7 +21,7 @@ test("featured database query excludes inactive products and other tenants", () 
     { storeId: "tenant-a", isActive: true, isFeatured: false, title: "Unfeatured" },
   ];
   assert.equal(fixture.filter(p => Object.entries(query.where).every(([key, value]) => p[key as keyof typeof p] === value)).length, 0);
-  assert.match(readFileSync("src/app/page.tsx", "utf8"), /\.\.\.featuredProductsQuery\(store.id, boutique\?\.featuredCount \?\? 8\)/);
+  assert.match(readFileSync("src/app/page.tsx", "utf8"), /\.\.\.featuredProductsQuery\(store.id, 8\)/);
 });
 
 test("homepage settings validate count, section toggles, copy and approved image slots", () => {
@@ -34,4 +34,54 @@ test("homepage settings validate count, section toggles, copy and approved image
   for (const featuredCount of [0, 13, 1.5]) assert.equal(boutiqueSchema.safeParse({ featuredCount }).success, false);
   assert.equal(storefrontSchema.safeParse({ boutique: { sami: { src: "javascript:alert(1)" } } }).success, false);
   assert.equal(storefrontSchema.parse({ boutique: { finalLabel: "Explore" } }).boutique?.finalLabel, "Explore");
+});
+
+
+// Render the actual retail component with a CSS-module stub under the Node runner.
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { createRequire } from "node:module";
+const requireModule = createRequire(import.meta.url);
+requireModule.extensions[".css"] = module => { module.exports = { __esModule: true, default: new Proxy({}, { get: (_target, name) => String(name) }) }; };
+
+test("retail rendering handles empty catalog, unavailable preview and active products", async () => {
+  const { BoutiqueHome } = await import("../src/components/BoutiqueHome");
+  const render = (props: Partial<React.ComponentProps<typeof BoutiqueHome>>) => renderToStaticMarkup(React.createElement(BoutiqueHome, { config: boutiqueSchema.parse({}), artwork: {}, products: [], ...props }));
+  const empty = render({});
+  assert.match(empty, /Nothing is available to purchase/);
+  assert.doesNotMatch(empty, /href="\/products\//);
+  const preview = render({ preview: { slug: "the-look", title: "The Look", imageUrl: "/api/assets/real-mockup" } });
+  assert.match(preview, /Coming Soon/);
+  assert.match(preview, /\/api\/assets\/real-mockup/);
+  assert.match(preview, /Not available to purchase/);
+  assert.doesNotMatch(preview, /href="\/products\/the-look"|\$0|Add to cart/);
+  const active = render({ products: [{ slug: "real-tee", title: "Real tee", priceCents: 2800, currency: "USD", imageUrl: "/real.jpg" }] });
+  assert.match(active, /href="\/products\/real-tee"/);
+  assert.match(active, /\$28.00/);
+  assert.equal((active.match(/<h3>Real tee<\/h3>/g) ?? []).length, 1);
+  assert.match(active, /id="collection"/);
+  assert.match(active, /alt="Real tee"/);
+  assert.match(active, /aria-labelledby="featured-title"/);
+  const noPrice = render({ products: [{ slug: "draft-price", title: "No price" }] });
+  assert.match(noPrice, /Pricing coming soon/);
+  assert.doesNotMatch(noPrice, /\$0/);
+});
+
+test("retail queries and responsive styles preserve boundaries", () => {
+  const page = readFileSync("src/app/page.tsx", "utf8");
+  assert.match(page, /where: \{ storeId: store.id, isActive: true \}/);
+  assert.match(page, /where: \{ storeId: store.id, isActive: false, slug: "the-look-shih-tzu-comfort-colors-1717" \}/);
+  const css = readFileSync("src/components/BoutiqueHome.module.css", "utf8");
+  assert.match(css, /repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(css, /repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(css, /:focus-visible/);
+  assert.match(readFileSync("src/app/products/[slug]/page.tsx", "utf8"), /isActive: true/);
+});
+
+test("inactive product cannot be added directly or checked out from a stale cart", () => {
+  const cart = readFileSync("src/app/cart/actions.ts", "utf8");
+  assert.match(cart, /product: \{ storeId: store.id, isActive: true \}/);
+  const checkout = readFileSync("src/app/checkout/actions.ts", "utf8");
+  assert.ok(checkout.indexOf("!item.variant.product.isActive") < checkout.indexOf("const order = await createPendingOrder"));
+  assert.match(checkout, /item.variant.product.storeId !== store.id/);
 });

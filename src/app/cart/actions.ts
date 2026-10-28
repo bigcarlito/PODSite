@@ -9,7 +9,7 @@ export async function addToCart(variantId: string, quantity: number = 1) {
   const store = await requireCurrentStore();
 
   const variant = await prisma.productVariant.findFirst({
-    where: { id: variantId, storeId: store.id },
+    where: { id: variantId, storeId: store.id, product: { storeId: store.id, isActive: true } },
   });
   if (!variant) throw new Error("Variant not found for this store");
 

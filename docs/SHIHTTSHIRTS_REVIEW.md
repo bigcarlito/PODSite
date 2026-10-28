@@ -21,9 +21,9 @@ Only a separately authorized launch may enable public checkout. No real payment 
 
 ## ShihTshirts fixed boutique homepage
 
-Only the exact tenant slug `shihtshirt` uses the six-section boutique homepage.
+Only the exact tenant slug `shihtshirt` uses the product-led boutique homepage.
 Other stores retain the existing homepage. No product, variant, mockup or commerce
-policy is changed. The Look remains inactive and absent from public featured results;
+policy is changed. The Look remains inactive and appears only as a labeled Coming Soon preview;
 Comfort Colors 1717 colors and durable StoreAsset references are untouched.
 
 Use existing authenticated `PATCH /api/agent/store` with `theme.storefront.boutique`
@@ -38,7 +38,7 @@ Boutique fields: `heroTitle`, `heroText`, `personalityTitle`, `personalityText`,
 `featuredCount` (integer 1–12, default 4). `sami` and `bogey` accept
 `{src,mobileSrc?,alt}` for approved photos only. `sections` accepts booleans
 `hero`, `featured`, `personality`, `mascots`, `values`, `final`, default true.
-Shop links always browse `/products`; they do not bypass availability or checkout.
+Collection buttons target the homepage collection; active cards browse product detail.
 Absent or failed images render honest text placeholders, with no invented dogs or listings.
 
 ### Homepage manual QA
@@ -47,7 +47,7 @@ Use a disposable local database only; do not apply settings to production.
 1. Open `/?store=shihtshirt` at 375, 768 and 1440px. Check the six sections,
    wrapping, no horizontal overflow, tab focus, contrast and heading order.
 2. With only inactive The Look, confirm the honest empty collection message and
-   no product card or purchase control. In a disposable fixture, feature an active
+   a Coming Soon preview with no price, product link or purchase control. In a disposable fixture, feature an active
    product in this tenant and one in another: only this tenant's active card appears.
 3. Override copy/count/toggles through the existing settings API. Test approved hero
    and mascot images, mobile sources, missing images and deliberate 404 URLs; ensure
@@ -58,3 +58,23 @@ Use a disposable local database only; do not apply settings to production.
 
 Database-backed browser QA requires a configured disposable database and remains a
 manual follow-up; local unit tests do not establish visual or production readiness.
+
+
+## Retail homepage revision
+The exact `shihtshirt` tenant now leads with real catalog photography and a
+2-column mobile / 3–4-column desktop collection. Active products need not be
+featured. The inactive `the-look-shih-tzu-comfort-colors-1717` product is queried
+separately within this tenant for a Coming Soon preview: no price, detail link,
+cart or checkout control. Its database images are reused without copying assets
+or activating the record. Missing data/images receive honest fallbacks. Alternate
+views are labeled as the same design. No swatches are guessed. Sami/Bogey are a
+small text mention; existing boutique copy/visibility settings remain supported.
+The collection remains visible regardless of the old `featured` toggle so the
+hero's collection anchor always has a destination. Hero campaign/mascot slots
+remain stored but do not replace product photography in this layout.
+
+Review with a disposable DB at 375/768/1440px: no products; inactive The Look;
+active unfeatured products; missing images/prices; and another tenant's products.
+Verify preview is not linked, active cards use authentic names/prices, keyboard
+focus is visible, and Bird Nerd keeps its original layout. No live DB was used.
+

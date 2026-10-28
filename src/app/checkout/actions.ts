@@ -24,6 +24,9 @@ export async function placeOrder(
   if (!cart || cart.items.length === 0) {
     return { error: "Your cart is empty." };
   }
+  if (cart.items.some(item => !item.variant.product.isActive || item.variant.product.storeId !== store.id)) {
+    return { error: "A product in your cart is no longer available. Please remove it before checking out." };
+  }
 
   const email = String(formData.get("email") ?? "").trim();
   const shippingName = String(formData.get("name") ?? "").trim();
