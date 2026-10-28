@@ -42,3 +42,7 @@ yarn-error.log*
 next-env.d.ts
 
 /.local/
+
+# Generated product review exports (durable originals live in StoreAsset)
+/docs/products/*/mockups/*.jpg
+/docs/products/*/review-*.jpg

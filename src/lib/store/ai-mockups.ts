@@ -103,7 +103,7 @@ export async function generateAIProductMockups(
         designUrl: input.designUrl,
         area: designArea,
       });
-      const asset = await uploadStoreAsset(store.id, { kind: "ai-mockup", data, mimeType }, actor);
+      const asset = await uploadStoreAsset(store.id, { kind: "ai-mockup", data, mimeType, mockup: { productId, color } }, actor);
       // Stored relative — ProductImage.url is only ever rendered by
       // next/image on our own storefront, and next.config.ts can't (and
       // architecturally shouldn't) allow-list every store's own domain.
