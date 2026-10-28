@@ -610,3 +610,10 @@ See docs/SHIHTTSHIRTS_REVIEW.md for draft setup and owner launch requirements.
 The summary includes `commerce` policy and `attention.manualPaidOrders` (oldest first). The admin order queue explains manual mode, hides supplier submission and exposes shipping addresses on expansion.
 
 Generated scene mockups persist in PostgreSQL StoreAsset bytes with tenant/product/color/UUID IDs and immutable public URLs. Review exports are disposable; see docs/products/the-look/MOCKUP_PIPELINE.md for lifecycle and rollout. Keep approved art/templates tracked; never replace durable references with filesystem paths.
+
+The exact `shihtshirt` tenant now has a fixed six-section boutique homepage.
+`theme.storefront.boutique` configures copy, mascot images, section visibility and
+featured count via the existing store settings API. Existing hero/shopLabel/
+featuredTitle slots are reused. Only active featured products from that tenant are
+queried; inactive designs are never promotional purchasable cards. See
+`docs/SHIHTTSHIRTS_REVIEW.md` for fields and manual QA. Other tenant homepages are unchanged.

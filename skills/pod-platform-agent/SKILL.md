@@ -520,3 +520,17 @@ See docs/SHIHTTSHIRTS_REVIEW.md for draft setup and owner launch requirements.
 The summary includes `commerce` policy and `attention.manualPaidOrders` (oldest first). The admin order queue explains manual mode, hides supplier submission and exposes shipping addresses on expansion.
 
 Generated scene mockups persist in PostgreSQL StoreAsset bytes before ProductImage attachment. Treat returned asset URLs as immutable public references; new IDs encode tenant/product/exact-color scope plus UUID. No new storage credentials. See docs/products/the-look/MOCKUP_PIPELINE.md for retention/rollout; never run regeneration or destructive cleanup as an asset migration.
+
+### Fixed ShihTshirts homepage settings
+On the exact `shihtshirt` tenant, existing `PATCH /api/agent/store` accepts
+`theme.storefront.boutique`. Theme updates replace the theme: preserve existing
+keys and closed/manual commerce settings. Copy fields: `heroTitle`, `heroText`,
+`personalityTitle`, `personalityText`, `mascotsTitle`, `samiText`, `bogeyText`,
+`valueTitle`, `finalTitle`, `finalText`, `finalLabel`, `emptyText`. `values` is up
+to three `{title,text}` entries. `featuredCount` is an integer 1–12 (default 4).
+`sections` has booleans `hero`, `featured`, `personality`, `mascots`, `values`,
+`final` (default true). `sami` and `bogey` use `{src,mobileSrc?,alt}` approved
+image slots; absent/failed photos show labeled placeholders. Existing storefront
+`hero`, `eyebrow`, `shopLabel`, `featuredTitle` apply. Layout and shop destinations
+are fixed. Featured results require this store's active, featured products; no
+inactive product is exposed. Other tenants keep the existing homepage.

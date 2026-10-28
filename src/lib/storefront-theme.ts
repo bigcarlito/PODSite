@@ -5,7 +5,35 @@ export const artworkUrl = z.string().max(2000).refine(
   "Use an http(s) URL or a same-origin path"
 );
 const image = z.object({ src: artworkUrl, mobileSrc: artworkUrl.optional(), alt: z.string().max(200).default("") });
+export const boutiqueSchema = z.object({
+  heroTitle: z.string().max(150).default("Small dogs. Big personalities."),
+  heroText: z.string().max(500).default("For the humans who know who’s really in charge."),
+  personalityTitle: z.string().max(150).default("They may be little. Their opinions aren’t."),
+  personalityText: z.string().max(1000).default("The side-eye. The selective hearing. The very strong feelings about your spot on the sofa. If you know, you know."),
+  mascotsTitle: z.string().max(150).default("Meet the little bosses"),
+  sami: image.optional(),
+  bogey: image.optional(),
+  samiText: z.string().max(500).default("Sami · Shih Tzu. Small dog, main-character energy."),
+  bogeyText: z.string().max(500).default("Bogey · Shih-poo. A little fluff, a lot of personality."),
+  valueTitle: z.string().max(150).default("Your kind of people. Your kind of tee."),
+  values: z.array(z.object({ title: z.string().max(100), text: z.string().max(500) })).max(3).default([
+    { title: "Original designs", text: "A little art. A lot of personality. Inspired by the dogs who run our lives." },
+    { title: "Comfortable tees", text: "Easygoing style for slow mornings, dog walks, and your favorite spot on the sofa." },
+    { title: "An inside joke, worn out loud", text: "For the people who understand that one look says everything." },
+  ]),
+  finalTitle: z.string().max(150).default("Wear your Shih Tzu heart on your tee."),
+  finalText: z.string().max(500).default("A little something for the humans behind the big personalities."),
+  finalLabel: z.string().max(80).default("Find your favorite"),
+  emptyText: z.string().max(500).default("Our first collection is getting its finishing touches. Nothing is available to purchase just yet."),
+  featuredCount: z.number().int().min(1).max(12).default(4),
+  sections: z.object({ hero: z.boolean().default(true), featured: z.boolean().default(true), personality: z.boolean().default(true), mascots: z.boolean().default(true), values: z.boolean().default(true), final: z.boolean().default(true) }).default({}),
+});
+export function isBoutiqueTenant(slug: string) { return slug === "shihtshirt"; }
+export function featuredProductsQuery(storeId: string, take: number) {
+  return { where: { storeId, isActive: true, isFeatured: true }, take };
+}
 export const storefrontSchema = z.object({
+  boutique: boutiqueSchema.optional(),
   eyebrow: z.string().max(100).optional(),
   shopLabel: z.string().max(80).optional(),
   featuredTitle: z.string().max(100).optional(),
