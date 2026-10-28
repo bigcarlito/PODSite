@@ -1410,3 +1410,15 @@ image slots; absent/failed photos show labeled placeholders. Existing storefront
 `hero`, `eyebrow`, `shopLabel`, `featuredTitle` apply. Layout and shop destinations
 are fixed. Featured results require this store's active, featured products; no
 inactive product is exposed. Other tenants keep the existing homepage.
+
+### Optional shihtshirt masthead
+`PATCH /api/agent/store` supports `theme.storefront.masthead`:
+`{style: "branded"|"standard", tagline?, sami?: {src, mobileSrc?, alt},
+bogey?: {src, mobileSrc?, alt}, palette?: [{label, color}], benefits?: string[]}`.
+The exact `shihtshirt` tenant defaults to branded; other tenants ignore it.
+`standard` restores the shared header. Palette requires five entries with
+six-digit hex colors; benefits requires four strings. Defaults are Espresso,
+Peach, Honey, Sage, Cream and the four Shih Tzu benefits. Images are optional
+approved artwork slots with text fallbacks; existing Store.name/theme.logoUrl
+supply the identity. Theme replacement semantics apply: fetch current settings
+and retain all existing theme keys. These are brand swatches, never inventory.

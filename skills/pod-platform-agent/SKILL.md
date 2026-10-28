@@ -534,3 +534,13 @@ image slots; absent/failed photos show labeled placeholders. Existing storefront
 `hero`, `eyebrow`, `shopLabel`, `featuredTitle` apply. Layout and shop destinations
 are fixed. Featured results require this store's active, featured products; no
 inactive product is exposed. Other tenants keep the existing homepage.
+
+### shihtshirt header settings
+Use `PATCH /api/agent/store` with `theme.storefront.masthead` to configure
+`style` (`branded` or `standard`), `tagline` (max 150), optional `sami`/`bogey`
+images (`{src, mobileSrc?, alt}`), `palette` (exactly five `{label, color}`
+entries, hex #RRGGBB), and `benefits` (exactly four strings, max 100 each).
+Only exact slug `shihtshirt` uses the branded default; other tenants are
+unchanged. Set style standard to opt out. Retain the full current theme when
+patching. Reuse approved artwork only; absent/failed images show text. The
+store name/logo remain authoritative; palette is branding, not garment stock.

@@ -632,3 +632,16 @@ stale carts containing inactive or foreign products before creating an order or
 payment session. This defense closes the existing direct-action bypass without
 changing any activation, fulfillment or tenant commerce configuration.
 
+
+### Branded masthead
+Only `shihtshirt` defaults to the compact branded header. Set
+`theme.storefront.masthead.style` to `standard` to restore the shared header,
+or `branded` to enable it. Other tenants ignore this setting. Configuration
+uses the existing validated PATCH /api/agent/store; preserve the full theme
+when patching (replacement semantics). Optional fields: `tagline` (150 chars),
+`sami` and `bogey` ({src, mobileSrc?, alt}), `palette` (exactly five
+{label, color: "#RRGGBB"} entries), and `benefits` (exactly four strings).
+The existing store name and theme.logoUrl remain authoritative. Missing or
+failed images use text, never invented pet portraits. Palette circles are
+brand decoration, not purchasable garment options. No database write is
+needed to use the defaults; no homepage/catalog/checkout behavior changes.

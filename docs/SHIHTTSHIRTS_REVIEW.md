@@ -78,3 +78,17 @@ active unfeatured products; missing images/prices; and another tenant's products
 Verify preview is not linked, active cards use authentic names/prices, keyboard
 focus is visible, and Bird Nerd keeps its original layout. No live DB was used.
 
+
+### Masthead QA (no live writes required)
+- Open shihtshirt at 320px, 390px, 768px and desktop widths. Check readable
+  branding, no horizontal scroll, visible Shop/About/Cart links, two-column
+  mobile benefits and four-column desktop benefits. Header scrolls away.
+- Confirm existing product grid and Coming Soon preview remain intact.
+- Follow Shop, About, logo/home and Cart; add a real active item and confirm
+  the header count follows the existing cart. Do not proceed to checkout.
+- With fixture settings, try standard style, custom copy, five palette entries,
+  four benefits, approved logo/pet images and failing image URLs. Confirm text
+  fallbacks and no pretend pet portrait. Desktop portraits are hidden on mobile
+  to keep the header compact. Brand swatches must not act as product selectors.
+- Open Bird Nerd and another tenant: shared header and navigation unchanged,
+  even if a masthead configuration is present. No live settings were changed.
