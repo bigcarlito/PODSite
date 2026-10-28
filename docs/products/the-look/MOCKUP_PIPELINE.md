@@ -1,6 +1,6 @@
 # The Look — completed PODSite mockups
 
-Five 1,000 × 1,250 JPEG mockups are in `mockups/`: **Ivory, Blossom, Butter,
+Five 1,000 by 1,250 mockups are persisted at the URLs in `mockup-receipt.json`: **Ivory, Blossom, Butter,
 Bay, and Espresso**. They are also attached to the existing inactive product
 `cmvnb5ci00007xcukkw33n8pj`, with Ivory first. The artwork-only image is retained
 after the five color images. All 35 variants, prices, supplier placeholders and
@@ -134,7 +134,7 @@ review was checked at 375, 768 and 1440 pixels: all five mockups loaded, color
 selection changed the hero image, and purchase stayed disabled, without overflow.
 The authenticated admin gallery on the local production build also loaded all six
 persisted images and switched Ivory/Espresso correctly. Screenshots are saved as
-`admin-desktop.jpg` and `admin-mobile.jpg` in `mockups/`. The existing admin navigation
+disposable admin screenshots (removed from Git). The existing admin navigation
 overflows on mobile; the new gallery fits its container and scrolls its thumbnails.
 No unrelated admin layout refactoring was included.
 
@@ -142,3 +142,42 @@ Owner review: inspect the five color images, approve print scale/placement and
 copy, then resolve Printify catalog IDs, availability, costs and shipping separately.
 No Printify mockup access is required. Product publication, checkout, supplier orders,
 and deployment remain outside this task.
+
+## Durable generated mockups
+
+Generated scene mockups use the existing PostgreSQL `StoreAsset` byte storage,
+not a filesystem or a new bucket. Configure the existing `DATABASE_URL` against
+persistent PostgreSQL with backups; no new storage credentials or migration are
+required. New mockup IDs encode tenant, product and exact color as lossless hex
+segments followed by a random UUID. Product ownership is checked before upload.
+URLs remain immutable `/api/assets/<id>` public image capabilities; public reads
+are deliberately unauthenticated and must never contain private data.
+
+The five existing The Look color URLs and ProductImage IDs in
+`mockup-receipt.json` are unchanged. Their database bytes were already persisted
+by PR #48; removed JPEGs and screenshots were duplicate local review exports.
+Original/upscaled art and all reusable CC1717 templates remain tracked unchanged.
+No live database inspection or mutation is part of this cleanup.
+
+Lifecycle: save bytes before attaching ProductImage references. Regeneration
+creates new assets and only replaces successful colors; failed renders retain
+old references. Unattached uploads and superseded assets are handled by existing
+store-scoped orphan cleanup, dry-run by default. Never run destructive cleanup
+as part of rollout; inspect references and backups first. Database backups must
+include StoreAsset bytes. Local receipts alone are not cleanup retention roots.
+
+Rollout: deploy normally after validation, with the same persistent database.
+No asset migration or regeneration is necessary. Manual verification by an
+operator: open each of the five recorded URLs, compare the hashes in
+`mockups/render-manifest.json`, verify Ivory first and all five color associations
+in the inactive product gallery, then repeat after restart/redeploy. Missing
+assets must return JSON 404, never an artwork fallback. This verification was
+not run against production in this task.
+
+`node scripts/build-the-look-review.mjs` rebuilds the tracked review HTML using
+persisted URLs (including swatch changes), failing if a receipt color is missing.
+`node --conditions=react-server --import tsx scripts/shihtshirts-the-look-mockups.ts`
+creates optional local composites only under ignored `.local/the-look/mockups`.
+Its historical `--apply` path is for explicit operator use only, refuses existing
+scenes and is not a migration command. Do not run it for this rollout.
+Screenshots belong in ignored `.local` or ignored review exports, never Git.

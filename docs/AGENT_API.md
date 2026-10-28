@@ -1394,3 +1394,5 @@ paid twice. Manual fulfillment never contacts a supplier, including /fulfill.
 See docs/SHIHTTSHIRTS_REVIEW.md for draft setup and owner launch requirements.
 
 The summary includes `commerce` policy and `attention.manualPaidOrders` (oldest first). The admin order queue explains manual mode, hides supplier submission and exposes shipping addresses on expansion.
+
+Generated scene mockup results persist in PostgreSQL StoreAsset bytes before ProductImage attachment; returned URLs are immutable public asset URLs. New IDs include tenant/product/exact-color scope and a UUID. No storage API change or bucket configuration is required. See docs/products/the-look/MOCKUP_PIPELINE.md for retention and rollout.

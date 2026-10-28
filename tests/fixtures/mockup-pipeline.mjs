@@ -97,3 +97,19 @@ test('existing compositor centers without stretching and retains transparent reg
   assert(pixel(30,28)[2]>200); // letterbox above the short artwork remains blue
   assert(pixel(57,40)[2]>200); // transparent right half remains blue
 });
+
+test('durable mockups isolate tenant/product/color and never overwrite prior renders',async()=>{
+  const {uploadStoreAsset,getStoreAsset}=await import('../../src/lib/store/assets.ts');
+  const rows=new Map();
+  mock.method(prisma.product,'findFirst',async({where})=>where.storeId==='store-a'&&where.id==='product-a'?{id:where.id}:null);
+  mock.method(prisma.storeAsset,'create',async({data})=>{assert(!rows.has(data.id));rows.set(data.id,structuredClone(data));return data;});
+  prisma.storeAsset.findUnique=async({where})=>rows.get(where.id)??null;
+  mock.method(prisma.activityLogEntry,'create',async()=>({}));
+  const save=color=>uploadStoreAsset('store-a',{kind:'ai-mockup',data:Buffer.from('persisted'),mimeType:'image/jpeg',mockup:{productId:'product-a',color}},'agent');
+  const assets=await Promise.all(['Blue/Green','Blue-Green','Blue/Green'].map(save));
+  assert.equal(new Set(assets.map(a=>a.url)).size,3);
+  for(const asset of assets){assert.equal(asset.url,`/api/assets/${asset.id}`);assert.equal(Buffer.from((await getStoreAsset(asset.id)).data).toString(),'persisted');}
+  for(const [storeId,productId] of [['store-b','product-a'],['store-a','product-b']])await assert.rejects(uploadStoreAsset(storeId,{kind:'ai-mockup',data:Buffer.from('x'),mimeType:'image/jpeg',mockup:{productId,color:'Ivory'}},'agent'),{code:'NOT_FOUND'});
+  await assert.rejects(getStoreAsset('missing'),{code:'NOT_FOUND'});
+  assert.equal(rows.size,3);
+});

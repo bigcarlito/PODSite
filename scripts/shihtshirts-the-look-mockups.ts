@@ -17,7 +17,7 @@ import { logActivity } from "../src/lib/store/activity";
 const digest = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const dataUrl = (type: string, bytes: Buffer) => `data:${type};base64,${bytes.toString("base64")}`;
 const templateRoot = "public/mockup-templates/comfort-colors-1717";
-const outputRoot = "docs/products/the-look/mockups";
+const outputRoot = ".local/the-look/mockups";
 const productId = "cmvnb5ci00007xcukkw33n8pj";
 const origin = "https://shihtshirts.com";
 const names = ["Ivory", "Blossom", "Butter", "Bay", "Espresso"];
@@ -76,7 +76,7 @@ async function main() {
     }
     await logActivity(store.id,{actor:"agent",category:"product-review",summary:"The Look: five local composites on labeled S&S Comfort Colors 1717 blanks; owner review required",details:{productId,source:"S&S Activewear 1717 catalog front images",templateManifest:`${templateRoot}/manifest.json`,artworkHash,baseRecoloring:false,primaryColor:"Ivory",supplierVariantPlaceholdersUnchanged:true}});
     const receipt={productId,storeId:store.id,productType:manifest.productType,isActive:after.isActive,variantCount:after.variants.length,variantsUnchanged:true,commerce:policy,primaryColor:"Ivory",masterAsset:master.url,artworkHash,rendered:result.rendered,images:after.images.map(({id,url,position,optionValues})=>({id,url,position,optionValues})),source:"S&S Activewear catalog blanks; composited locally by PODSite",printifyGenerationUsed:false};
-    await writeFile("docs/products/the-look/mockup-receipt.json",JSON.stringify(receipt,null,2)+"\n");
+    await writeFile(".local/the-look/mockup-receipt.json",JSON.stringify(receipt,null,2)+"\n");
     console.log(JSON.stringify(receipt));
   } finally {await prisma.$disconnect();}
 }

@@ -14,7 +14,7 @@ The original creation used the existing configured PODSite database connection.
 No merge or deployment was performed.
 
 Open `review.html` from this checkout for the local, interactive owner-review page.
-`review-desktop.jpg` and `review-mobile.jpg` show the reviewed artifact. It is a local
+Review screenshots are disposable exports and have been removed from Git. Rebuild review.html to view the persisted five-color mockups. It is a local
 presentation of the draft, not a newly deployed storefront route. Color/size selection
 works, with no cart or checkout action. It is labeled noindex and unpublished.
 

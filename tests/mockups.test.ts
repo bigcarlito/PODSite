@@ -8,5 +8,5 @@ test("scene mockups preserve alpha, reject missing bases and isolate gallery cha
   for (const key of Object.keys(env)) if (/DATABASE_URL|OPENROUTER|PRINTFUL|PRINTIFY/.test(key)) delete env[key];
   const child = spawnSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--test", "tests/fixtures/mockup-pipeline.mjs"], { env, encoding:"utf8", timeout:30000 });
   assert.equal(child.status, 0, child.stdout + child.stderr);
-  assert.match(child.stdout, /tests 7/);
+  assert.match(child.stdout, /tests 8/);
 });
