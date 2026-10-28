@@ -5,6 +5,24 @@ export const artworkUrl = z.string().max(2000).refine(
   "Use an http(s) URL or a same-origin path"
 );
 const image = z.object({ src: artworkUrl, mobileSrc: artworkUrl.optional(), alt: z.string().max(200).default("") });
+export const mastheadSchema = z.object({
+  style: z.enum(["standard", "branded"]).default("branded"),
+  tagline: z.string().max(150).default("Small dogs. Big attitude."),
+  sami: image.optional(),
+  bogey: image.optional(),
+  palette: z.array(z.object({ label: z.string().min(1).max(40), color: z.string().regex(/^#[0-9a-fA-F]{6}$/) })).length(5).default([
+    { label: "Espresso", color: "#51382f" }, { label: "Peach", color: "#edb59d" },
+    { label: "Honey", color: "#c89542" }, { label: "Sage", color: "#929e81" }, { label: "Cream", color: "#f5ead4" },
+  ]),
+  benefits: z.array(z.string().min(1).max(100)).length(4).default([
+    "Unique Shih Tzu designs", "Soft, comfy premium shirts", "Perfect for Shih Tzu people", "Dogs with personality",
+  ]),
+});
+export function getMasthead(slug: string, config?: unknown) {
+  if (slug !== "shihtshirt") return null;
+  const parsed = mastheadSchema.safeParse(config ?? {});
+  return parsed.success && parsed.data.style === "branded" ? parsed.data : null;
+}
 export const boutiqueSchema = z.object({
   heroTitle: z.string().max(150).default("Small dogs. Big personalities."),
   heroText: z.string().max(500).default("For the humans who know who’s really in charge."),
@@ -33,6 +51,7 @@ export function featuredProductsQuery(storeId: string, take: number) {
   return { where: { storeId, isActive: true, isFeatured: true }, take };
 }
 export const storefrontSchema = z.object({
+  masthead: mastheadSchema.optional(),
   boutique: boutiqueSchema.optional(),
   eyebrow: z.string().max(100).optional(),
   shopLabel: z.string().max(80).optional(),
