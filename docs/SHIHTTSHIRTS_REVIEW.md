@@ -18,3 +18,43 @@ Checkout must show the closed message and direct placeOrder calls must create ne
 4. Assign an owner to monitor PAID orders and activity, manually fulfill, communicate tracking/delays and handle refunds. Supplier submission is blocked in manual mode; this sprint does not add an automated manual-order tracking workflow.
 
 Only a separately authorized launch may enable public checkout. No real payment or supplier order should be used for this review. Database-backed and visual review require a disposable configured environment and are not claimed by local source/unit checks.
+
+## ShihTshirts fixed boutique homepage
+
+Only the exact tenant slug `shihtshirt` uses the six-section boutique homepage.
+Other stores retain the existing homepage. No product, variant, mockup or commerce
+policy is changed. The Look remains inactive and absent from public featured results;
+Comfort Colors 1717 colors and durable StoreAsset references are untouched.
+
+Use existing authenticated `PATCH /api/agent/store` with `theme.storefront.boutique`
+for copy and visibility. Preserve the entire existing theme when patching (replacement,
+not merge), especially `commerce: {checkoutEnabled:false, fulfillmentMode:"manual"}`.
+No new endpoint, schema migration or page builder is needed. Existing storefront
+`hero`, `eyebrow`, `shopLabel`, `featuredTitle` apply to this layout too.
+
+Boutique fields: `heroTitle`, `heroText`, `personalityTitle`, `personalityText`,
+`mascotsTitle`, `samiText`, `bogeyText`, `valueTitle`, `values` (up to three
+`{title,text}` items), `finalTitle`, `finalText`, `finalLabel`, `emptyText`,
+`featuredCount` (integer 1–12, default 4). `sami` and `bogey` accept
+`{src,mobileSrc?,alt}` for approved photos only. `sections` accepts booleans
+`hero`, `featured`, `personality`, `mascots`, `values`, `final`, default true.
+Shop links always browse `/products`; they do not bypass availability or checkout.
+Absent or failed images render honest text placeholders, with no invented dogs or listings.
+
+### Homepage manual QA
+
+Use a disposable local database only; do not apply settings to production.
+1. Open `/?store=shihtshirt` at 375, 768 and 1440px. Check the six sections,
+   wrapping, no horizontal overflow, tab focus, contrast and heading order.
+2. With only inactive The Look, confirm the honest empty collection message and
+   no product card or purchase control. In a disposable fixture, feature an active
+   product in this tenant and one in another: only this tenant's active card appears.
+3. Override copy/count/toggles through the existing settings API. Test approved hero
+   and mascot images, mobile sources, missing images and deliberate 404 URLs; ensure
+   placeholders appear and meaningful alt text is supplied for real imagery.
+4. Visit Bird Nerd and another tenant in fresh sessions: confirm their original
+   layouts and catalog remain unchanged. Confirm checkout remains closed for the
+   ShihTshirts fixture and The Look remains inactive. Do not activate it for QA.
+
+Database-backed browser QA requires a configured disposable database and remains a
+manual follow-up; local unit tests do not establish visual or production readiness.

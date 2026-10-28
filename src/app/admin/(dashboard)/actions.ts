@@ -320,6 +320,8 @@ export async function generateAIMockupsAction(
       colors: colorsRaw
         ? colorsRaw.split(",").map((c) => c.trim()).filter(Boolean)
         : undefined,
+      existingBasesOnly: formData.get("existingBasesOnly") === "on",
+      primaryColor: String(formData.get("primaryColor") ?? "").trim() || undefined,
     });
 
     const origin = originFromHeaders(await headers());

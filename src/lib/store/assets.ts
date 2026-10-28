@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { StoreError, notFound } from "./errors";
 import { logActivity, type ActivityActor } from "./activity";
@@ -29,9 +30,20 @@ const DERIVED_PRINT_ASSET_KINDS = new Set(["design-master", "design-print-file"]
  */
 export async function uploadStoreAsset(
   storeId: string,
-  input: { kind: string; data: Buffer; mimeType: string },
+  input: { kind: string; data: Buffer; mimeType: string; mockup?: { productId: string; color: string } },
   actor: ActivityActor
 ) {
+  let id: string | undefined;
+  if (input.mockup) {
+    const { productId, color } = input.mockup;
+    if (!color.trim()) throw new StoreError("INVALID_COLOR", "Mockup color is required", { status: 422 });
+    const product = await prisma.product.findFirst({ where: { id: productId, storeId }, select: { id: true } });
+    if (!product) throw notFound("Product");
+    // Lossless segments avoid slug collisions (e.g. "Blue/Green" vs "Blue-Green").
+    // UUID makes concurrent renders immutable, even for the same product/color.
+    const segment = (value: string) => Buffer.from(value).toString("hex");
+    id = `mockup-${segment(storeId)}-${segment(productId)}-${segment(color)}-${randomUUID()}`;
+  }
   if (!ALLOWED_ASSET_MIME_TYPES.includes(input.mimeType as (typeof ALLOWED_ASSET_MIME_TYPES)[number])) {
     throw new StoreError(
       "UNSUPPORTED_MEDIA_TYPE",
@@ -51,7 +63,7 @@ export async function uploadStoreAsset(
   }
 
   const asset = await prisma.storeAsset.create({
-    data: { storeId, kind: input.kind, data: new Uint8Array(input.data), mimeType: input.mimeType },
+    data: { ...(id ? { id } : {}), storeId, kind: input.kind, data: new Uint8Array(input.data), mimeType: input.mimeType },
   });
 
   await logActivity(storeId, {

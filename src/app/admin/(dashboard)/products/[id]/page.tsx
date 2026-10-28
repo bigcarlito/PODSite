@@ -45,7 +45,8 @@ export default async function ProductVariantsPage({
         <Link href={`/admin/products/${id}/mockups`} className="underline">
           mockups
         </Link>{" "}
-        can render for a color, or an order can be submitted to fulfillment.
+        from a supplier can render for a color, or an order can be submitted to fulfillment.
+        Scene-based mockups using uploaded blank images do not require supplier IDs.
       </p>
 
       <VariantProviderIdsForm productId={product.id} variants={variants} />

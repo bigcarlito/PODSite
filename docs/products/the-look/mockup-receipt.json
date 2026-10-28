@@ -1,0 +1,87 @@
+{
+  "productId": "cmvnb5ci00007xcukkw33n8pj",
+  "storeId": "cmv4ltgcl0000mv0xwdfdvzg3",
+  "productType": "comfort-colors-1717",
+  "isActive": false,
+  "variantCount": 35,
+  "variantsUnchanged": true,
+  "commerce": {
+    "checkoutEnabled": false,
+    "fulfillmentMode": "manual"
+  },
+  "primaryColor": "Ivory",
+  "masterAsset": "/api/assets/cmvo6opmd0015xcm87tkol15k",
+  "artworkHash": "604b162e884cf38f3d8a92bd333cf989507f0fadfb61417270867a5c1eee12d2",
+  "rendered": [
+    {
+      "color": "Ivory",
+      "mockupUrl": "https://shihtshirts.com/api/assets/cmvo6p21u0019xcm8zs2uxllu"
+    },
+    {
+      "color": "Blossom",
+      "mockupUrl": "https://shihtshirts.com/api/assets/cmvo6p56j001dxcm8l1rfydta"
+    },
+    {
+      "color": "Butter",
+      "mockupUrl": "https://shihtshirts.com/api/assets/cmvo6p915001hxcm8u9hrmpiy"
+    },
+    {
+      "color": "Bay",
+      "mockupUrl": "https://shihtshirts.com/api/assets/cmvo6pbru001lxcm8nbtkmc47"
+    },
+    {
+      "color": "Espresso",
+      "mockupUrl": "https://shihtshirts.com/api/assets/cmvo6pekw001pxcm8c6h7zhq6"
+    }
+  ],
+  "images": [
+    {
+      "id": "cmvo6pfh9001sxcm8c6hdpjgb",
+      "url": "/api/assets/cmvo6p21u0019xcm8zs2uxllu",
+      "position": 0,
+      "optionValues": {
+        "color": "Ivory"
+      }
+    },
+    {
+      "id": "cmvo6pfh9001txcm8xs74f05u",
+      "url": "/api/assets/cmvo6p56j001dxcm8l1rfydta",
+      "position": 1,
+      "optionValues": {
+        "color": "Blossom"
+      }
+    },
+    {
+      "id": "cmvo6pfh9001uxcm89gr7hrzr",
+      "url": "/api/assets/cmvo6p915001hxcm8u9hrmpiy",
+      "position": 2,
+      "optionValues": {
+        "color": "Butter"
+      }
+    },
+    {
+      "id": "cmvo6pfh9001vxcm8p1xnt636",
+      "url": "/api/assets/cmvo6pbru001lxcm8nbtkmc47",
+      "position": 3,
+      "optionValues": {
+        "color": "Bay"
+      }
+    },
+    {
+      "id": "cmvo6pfh9001wxcm8gk9t7fet",
+      "url": "/api/assets/cmvo6pekw001pxcm8c6h7zhq6",
+      "position": 4,
+      "optionValues": {
+        "color": "Espresso"
+      }
+    },
+    {
+      "id": "cmvnb5ci00008xcukx2539ag0",
+      "url": "/api/assets/cmvnb59xc0003xcuk5ckp6wk9",
+      "position": 5,
+      "optionValues": null
+    }
+  ],
+  "source": "S&S Activewear catalog blanks; composited locally by PODSite",
+  "printifyGenerationUsed": false
+}

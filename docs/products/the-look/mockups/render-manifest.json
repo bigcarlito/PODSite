@@ -1,0 +1,55 @@
+{
+  "artworkHash": "604b162e884cf38f3d8a92bd333cf989507f0fadfb61417270867a5c1eee12d2",
+  "designArea": {
+    "x": 0.325,
+    "y": 0.205,
+    "width": 0.35,
+    "height": 0.264
+  },
+  "compositor": "src/lib/design/compositor.ts",
+  "opacity": 0.85,
+  "baseRecoloring": false,
+  "clothWarping": false,
+  "results": [
+    {
+      "color": "Ivory",
+      "file": "mockups/ivory.jpg",
+      "sha256": "8b105886953cbb882df6f3f7f4efd9a6b65ed082e47c4b7ad6d89e42f14fa8ed",
+      "sourceBaseSha256": "bf7ea76df9087056602f1120e6aa4166502f8a279a6584345f2fede591cb3bdf",
+      "width": 1000,
+      "height": 1250
+    },
+    {
+      "color": "Blossom",
+      "file": "mockups/blossom.jpg",
+      "sha256": "f8ee0351ef35062e91ea8cadcd50f585e571862cb65c0eabfc3df3d69ebe0333",
+      "sourceBaseSha256": "a11ffb6e65be1297912dbc0278dd87dbc358459565475f5e4f44c9d0ee0a6b4c",
+      "width": 1000,
+      "height": 1250
+    },
+    {
+      "color": "Butter",
+      "file": "mockups/butter.jpg",
+      "sha256": "4bebb3cb1f7a7d0853293ae3e77eeb7798b303c3dd768ecbf4127a06e4350436",
+      "sourceBaseSha256": "0c5403986ded577fd7b38b6f13b8a6f776527de8d7b84e74b8cd7ecff99c231b",
+      "width": 1000,
+      "height": 1250
+    },
+    {
+      "color": "Bay",
+      "file": "mockups/bay.jpg",
+      "sha256": "4e33c1a1840b169354c2ebda698d61c9ba8a52467c005886705f50f2a4f70100",
+      "sourceBaseSha256": "bbfdc8d82a4fad28d6d97cf536fded05c7d1e849cc4a0dd992fbe918d4198983",
+      "width": 1000,
+      "height": 1250
+    },
+    {
+      "color": "Espresso",
+      "file": "mockups/espresso.jpg",
+      "sha256": "2f06391f0246fbfb6d16d87c6603f073616909e6290aa633e3c1979d93008bfa",
+      "sourceBaseSha256": "d0d215a02837b07094da1848bf7931bc4f0a47b101c4e85f076ff8d194d913e0",
+      "width": 1000,
+      "height": 1250
+    }
+  ]
+}

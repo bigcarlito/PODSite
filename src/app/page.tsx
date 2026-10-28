@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentStore } from "@/lib/store-context";
 import { getStoreBranding } from "@/lib/store-branding";
 import { ProductCard } from "@/components/ProductCard";
+import { BoutiqueHome } from "@/components/BoutiqueHome";
+import { boutiqueSchema, featuredProductsQuery, isBoutiqueTenant } from "@/lib/storefront-theme";
 
 export const dynamic = "force-dynamic";
 
@@ -12,18 +14,19 @@ export default async function HomePage() {
   const store = await getCurrentStore();
   if (!store) notFound();
   const branding = getStoreBranding(store);
+  const boutique = isBoutiqueTenant(store.slug) ? boutiqueSchema.parse(branding.storefront.boutique ?? {}) : null;
 
   const featured = await prisma.product.findMany({
-    where: { storeId: store.id, isActive: true, isFeatured: true },
+    ...featuredProductsQuery(store.id, boutique?.featuredCount ?? 8),
     include: {
       images: { orderBy: { position: "asc" }, take: 1 },
       variants: { orderBy: { priceCents: "asc" }, take: 1 },
     },
-    take: 8,
   });
 
   const art = branding.storefront;
   const hero = art.hero ?? (branding.theme.heroImageUrl ? { src: branding.theme.heroImageUrl, alt: "" } : undefined);
+  if (boutique) return <BoutiqueHome config={boutique} artwork={{ ...art, hero }} products={featured.map(p => ({ slug: p.slug, title: p.title, imageUrl: p.images[0]?.url, priceCents: p.variants[0]?.priceCents ?? 0, currency: p.variants[0]?.currency }))} />;
   return (
     <div>
       <section className="relative overflow-hidden bg-accent/5">

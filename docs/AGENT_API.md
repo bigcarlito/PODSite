@@ -671,6 +671,15 @@ Response shape matches the mockups-only endpoint plus the generated copy:
 
 ### `POST /api/agent/products/:id/mockups/ai`
 
+Uploaded blank photographs are supported through the same scene path; the bases
+do not have to be AI-generated. Optional `existingBasesOnly:true` refuses missing
+or malformed cached bases before rendering (`422 MISSING_MOCKUP_BASE`) and never
+calls a recolor provider. Optional `primaryColor:"Ivory"` puts that generated
+image first and retains all unrelated images and color associations. The primary
+must be a selected product color (`422 INVALID_PRIMARY_COLOR`); if its render
+fails, no gallery replacement occurs (`502 PRIMARY_MOCKUP_FAILED`). Both options
+are also exposed in the human admin mockup form. Omit them to retain existing behavior.
+
 An alternative to the Printful mockup generator above, for a non-generic,
 non-white-background result: composites the design onto this product
 type's pre-generated, per-color base mockup (see mockup scenes above),
@@ -1385,3 +1394,19 @@ paid twice. Manual fulfillment never contacts a supplier, including /fulfill.
 See docs/SHIHTTSHIRTS_REVIEW.md for draft setup and owner launch requirements.
 
 The summary includes `commerce` policy and `attention.manualPaidOrders` (oldest first). The admin order queue explains manual mode, hides supplier submission and exposes shipping addresses on expansion.
+
+Generated scene mockup results persist in PostgreSQL StoreAsset bytes before ProductImage attachment; returned URLs are immutable public asset URLs. New IDs include tenant/product/exact-color scope and a UUID. No storage API change or bucket configuration is required. See docs/products/the-look/MOCKUP_PIPELINE.md for retention and rollout.
+
+### Fixed ShihTshirts homepage settings
+On the exact `shihtshirt` tenant, existing `PATCH /api/agent/store` accepts
+`theme.storefront.boutique`. Theme updates replace the theme: preserve existing
+keys and closed/manual commerce settings. Copy fields: `heroTitle`, `heroText`,
+`personalityTitle`, `personalityText`, `mascotsTitle`, `samiText`, `bogeyText`,
+`valueTitle`, `finalTitle`, `finalText`, `finalLabel`, `emptyText`. `values` is up
+to three `{title,text}` entries. `featuredCount` is an integer 1–12 (default 4).
+`sections` has booleans `hero`, `featured`, `personality`, `mascots`, `values`,
+`final` (default true). `sami` and `bogey` use `{src,mobileSrc?,alt}` approved
+image slots; absent/failed photos show labeled placeholders. Existing storefront
+`hero`, `eyebrow`, `shopLabel`, `featuredTitle` apply. Layout and shop destinations
+are fixed. Featured results require this store's active, featured products; no
+inactive product is exposed. Other tenants keep the existing homepage.

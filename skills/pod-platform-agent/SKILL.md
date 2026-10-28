@@ -225,8 +225,16 @@ you don't repeat a failed experiment.
   (`NO_MOCKUP_VARIANTS` otherwise). Other errors: `DESIGN_UNREADABLE`,
   `EMPTY_DESIGN`, `PROVIDER_ERROR`.
 
-- `POST /api/agent/products/:id/mockups/ai` — alternative to the above for
-  a non-generic, non-white-background result: composites the design onto
+- `POST /api/agent/products/:id/mockups/ai` — local scene-based compositing.
+
+  Uploaded, color-specific blank photos work without AI recoloring. Set
+  `existingBasesOnly:true` to reject a missing/invalid base before rendering
+  (`MISSING_MOCKUP_BASE`, 422), and `primaryColor` to promote a selected rendered
+  color while retaining other images. Invalid primary: `INVALID_PRIMARY_COLOR`
+  (422); primary render failure: `PRIMARY_MOCKUP_FAILED` (502), gallery unchanged.
+  Omit these options for the existing behavior. Both have matching admin controls.
+
+  It composites the design onto
   this product type's pre-generated, per-color **base mockup** (a blank
   garment in a real scene, already AI-recolored), scaled to fit the
   scene's `designArea` and blended on at 85% opacity. This is a
@@ -510,3 +518,19 @@ paid twice. Manual fulfillment never contacts a supplier, including /fulfill.
 See docs/SHIHTTSHIRTS_REVIEW.md for draft setup and owner launch requirements.
 
 The summary includes `commerce` policy and `attention.manualPaidOrders` (oldest first). The admin order queue explains manual mode, hides supplier submission and exposes shipping addresses on expansion.
+
+Generated scene mockups persist in PostgreSQL StoreAsset bytes before ProductImage attachment. Treat returned asset URLs as immutable public references; new IDs encode tenant/product/exact-color scope plus UUID. No new storage credentials. See docs/products/the-look/MOCKUP_PIPELINE.md for retention/rollout; never run regeneration or destructive cleanup as an asset migration.
+
+### Fixed ShihTshirts homepage settings
+On the exact `shihtshirt` tenant, existing `PATCH /api/agent/store` accepts
+`theme.storefront.boutique`. Theme updates replace the theme: preserve existing
+keys and closed/manual commerce settings. Copy fields: `heroTitle`, `heroText`,
+`personalityTitle`, `personalityText`, `mascotsTitle`, `samiText`, `bogeyText`,
+`valueTitle`, `finalTitle`, `finalText`, `finalLabel`, `emptyText`. `values` is up
+to three `{title,text}` entries. `featuredCount` is an integer 1–12 (default 4).
+`sections` has booleans `hero`, `featured`, `personality`, `mascots`, `values`,
+`final` (default true). `sami` and `bogey` use `{src,mobileSrc?,alt}` approved
+image slots; absent/failed photos show labeled placeholders. Existing storefront
+`hero`, `eyebrow`, `shopLabel`, `featuredTitle` apply. Layout and shop destinations
+are fixed. Featured results require this store's active, featured products; no
+inactive product is exposed. Other tenants keep the existing homepage.
