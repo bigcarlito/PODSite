@@ -611,9 +611,24 @@ The summary includes `commerce` policy and `attention.manualPaidOrders` (oldest 
 
 Generated scene mockups persist in PostgreSQL StoreAsset bytes with tenant/product/color/UUID IDs and immutable public URLs. Review exports are disposable; see docs/products/the-look/MOCKUP_PIPELINE.md for lifecycle and rollout. Keep approved art/templates tracked; never replace durable references with filesystem paths.
 
-The exact `shihtshirt` tenant now has a fixed six-section boutique homepage.
+The exact `shihtshirt` tenant now has a fixed boutique homepage.
 `theme.storefront.boutique` configures copy, mascot images, section visibility and
 featured count via the existing store settings API. Existing hero/shopLabel/
-featuredTitle slots are reused. Only active featured products from that tenant are
+featuredTitle slots are reused. Only active products from that tenant are
 queried; inactive designs are never promotional purchasable cards. See
 `docs/SHIHTTSHIRTS_REVIEW.md` for fields and manual QA. Other tenant homepages are unchanged.
+
+
+### Retail homepage preview
+Only `shihtshirt` uses the product-led retail layout. Its collection includes
+active products whether featured or not, capped by boutique.featuredCount.
+A separate store-scoped lookup of inactive
+`the-look-shih-tzu-comfort-colors-1717` supplies a Coming Soon preview with no
+price or purchase link. No product status or commerce policy changes. Existing
+boutique copy settings are retained; mascots are a small lower-page text mention.
+The collection anchor is always present (legacy featured visibility is ignored).
+Direct cart additions also require an active, same-tenant product. Checkout rejects
+stale carts containing inactive or foreign products before creating an order or
+payment session. This defense closes the existing direct-action bypass without
+changing any activation, fulfillment or tenant commerce configuration.
+
