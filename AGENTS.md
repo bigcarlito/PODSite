@@ -645,3 +645,23 @@ The existing store name and theme.logoUrl remain authoritative. Missing or
 failed images use text, never invented pet portraits. Palette circles are
 brand decoration, not purchasable garment options. No database write is
 needed to use the defaults; no homepage/catalog/checkout behavior changes.
+
+### ShihTshirts responsive homepage
+Stores with slug `shihtshirts` or `shihttshirts` use the illustrated storefront
+layout. Tenant presentation defaults live in `src/lib/shih-storefront.ts`;
+other stores retain the standard storefront. All imagery remains editable via
+existing `PATCH /api/agent/store` theme slots: `hero` is the large left desktop
+panel and mobile hero, `promos[0]` is the middle desktop panel, `story` is the
+right desktop panel and lower mobile story, and `decorations[0]` is the header
+mascot artwork. `theme.logoUrl` supplies the wordmark. Absent artwork renders
+an explicit placeholder; the homepage never crops artwork out of mockup images.
+The homepage shows up to six featured active products; mobile cards use actual
+variant prices and color names. Empty catalogs display coming-soon placeholders
+without fabricated products or prices. Existing checkout launch controls remain
+in force. `eyebrow`, `featuredTitle`, `shopLabel`, description, nav and trust badges
+continue to come from store branding, with tenant presentation fallbacks.
+
+The responsive mockup layout supersedes the boutique/masthead presentation for
+`shihtshirt` (also supported: `shihtshirts`, `shihttshirts`). Existing settings
+remain stored. The six-card selection includes active products whether featured
+or not; inactive product previews are not purchasable catalog cards.

@@ -1,3 +1,4 @@
+import { ShihHeader } from "./ShihHeader";
 import Link from "next/link";
 import { getCart, cartItemCount } from "@/lib/cart";
 import { getCurrentStore } from "@/lib/store-context";
@@ -24,8 +25,10 @@ export async function Header() {
   const branding = getStoreBranding(store);
   const cart = await getCart(store.id);
   const count = cart ? cartItemCount(cart.items) : 0;
+  if (branding.isShih) return <ShihHeader branding={branding} count={count} />;
   const masthead = getMasthead(store.slug, branding.storefront.masthead);
   if (masthead) return <BrandedMasthead config={{ ...masthead, sami: masthead.sami ?? branding.storefront.boutique?.sami, bogey: masthead.bogey ?? branding.storefront.boutique?.bogey }} name={branding.name} logoUrl={branding.theme.logoUrl} count={count} />;
+
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-backdrop-blur:bg-background/80">

@@ -1,3 +1,4 @@
+import { ShihHome } from "@/components/ShihHome";
 import { StoreArtwork } from "@/components/StoreArtwork";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -16,7 +17,7 @@ export default async function HomePage() {
   const branding = getStoreBranding(store);
   const boutique = isBoutiqueTenant(store.slug) ? boutiqueSchema.parse(branding.storefront.boutique ?? {}) : null;
 
-  if (boutique) {
+  if (boutique && !branding.isShih) {
     const products = await prisma.product.findMany({
       where: { storeId: store.id, isActive: true },
       orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }, { id: "asc" }],
@@ -32,11 +33,16 @@ export default async function HomePage() {
 
   const featured = await prisma.product.findMany({
     ...featuredProductsQuery(store.id, 8),
+    ...(branding.isShih ? { where: { storeId: store.id, isActive: true } } : {}),
     include: {
       images: { orderBy: { position: "asc" }, take: 1 },
-      variants: { orderBy: { priceCents: "asc" }, take: 1 },
+      variants: { orderBy: { priceCents: "asc" } },
     },
+
+    take: branding.isShih ? 6 : 8,
   });
+
+  if (branding.isShih) return <ShihHome branding={branding} products={featured} />;
 
   const art = branding.storefront;
   const hero = art.hero ?? (branding.theme.heroImageUrl ? { src: branding.theme.heroImageUrl, alt: "" } : undefined);

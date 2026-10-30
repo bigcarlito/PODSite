@@ -1,3 +1,4 @@
+import { isShihStore, shihStorefront } from "./shih-storefront";
 import { storefrontSchema } from "./storefront-theme";
 import type { Store } from "@prisma/client";
 
@@ -17,12 +18,15 @@ export function getStoreBranding(store: Store) {
     (store.theme as
       | { accent?: string; accentDark?: string; heroImageUrl?: string; logoUrl?: string }
       | null) ?? {};
+  const shih = isShihStore(store.slug);
+  const storefront = storefrontSchema.catch({}).parse((store.theme as { storefront?: unknown } | null)?.storefront ?? {});
   return {
-    storefront: storefrontSchema.catch({}).parse((store.theme as { storefront?: unknown } | null)?.storefront ?? {}),
+    isShih: shih,
+    storefront: shih ? { ...shihStorefront, ...storefront } : storefront,
     name: store.name,
     tagline: store.tagline,
-    description: store.description,
-    trustBadges: (store.trustBadges as string[] | null) ?? [],
+    description: store.description || (shih ? shihStorefront.description : ""),
+    trustBadges: (store.trustBadges as string[] | null)?.length ? store.trustBadges as string[] : shih ? shihStorefront.trustBadges : [],
     nav: (store.nav as NavLink[] | null) ?? [],
     footerLinks: (store.footerLinks as FooterLinkGroup | null) ?? {},
     social: (store.socialLinks as NavLink[] | null) ?? [],

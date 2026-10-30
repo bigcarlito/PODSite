@@ -1422,3 +1422,17 @@ Peach, Honey, Sage, Cream and the four Shih Tzu benefits. Images are optional
 approved artwork slots with text fallbacks; existing Store.name/theme.logoUrl
 supply the identity. Theme replacement semantics apply: fetch current settings
 and retain all existing theme keys. These are brand swatches, never inventory.
+
+## ShihTshirts homepage artwork mapping
+The responsive ShihTshirts homepage uses the existing store theme slots without
+requiring new endpoints. `hero` supplies the main desktop/mobile panel;
+`promos[0]` supplies the middle desktop panel; `story` supplies the right desktop
+panel and lower mobile panel; `decorations[0]` supplies header mascot artwork.
+`theme.logoUrl` supplies the wordmark. Missing imagery remains visibly marked
+as a placeholder. Populate up to six active featured products to replace the
+empty-catalog cards; prices and color swatches come from their variants.
+
+The responsive mockup layout supersedes the boutique/masthead presentation for
+`shihtshirt` (also supported: `shihtshirts`, `shihttshirts`). Existing settings
+remain stored. The six-card selection includes active products whether featured
+or not; inactive product previews are not purchasable catalog cards.

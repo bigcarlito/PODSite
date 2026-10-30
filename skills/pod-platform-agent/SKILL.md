@@ -544,3 +544,14 @@ Only exact slug `shihtshirt` uses the branded default; other tenants are
 unchanged. Set style standard to opt out. Retain the full current theme when
 patching. Reuse approved artwork only; absent/failed images show text. The
 store name/logo remain authoritative; palette is branding, not garment stock.
+
+For the ShihTshirts homepage: existing theme slots map to `hero` (main panel),
+`promos[0]` (middle desktop panel), `story` (right desktop/lower mobile panel),
+and `decorations[0]` (header mascots); `theme.logoUrl` is the wordmark. Missing
+artwork stays a labeled placeholder. Up to six active featured products supply
+the live catalog cards, variant prices and color swatches.
+
+The responsive mockup layout supersedes the boutique/masthead presentation for
+`shihtshirt` (also supported: `shihtshirts`, `shihttshirts`). Existing settings
+remain stored. The six-card selection includes active products whether featured
+or not; inactive product previews are not purchasable catalog cards.
