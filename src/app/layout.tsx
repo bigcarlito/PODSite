@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Caveat } from "next/font/google";
+import { Geist, Geist_Mono, Caveat, Chewy } from "next/font/google";
 import "./globals.css";
 import { Banner } from "@/components/Banner";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { getCurrentStore } from "@/lib/store-context";
 import { getStoreBranding } from "@/lib/store-branding";
+
+const storefrontDisplay = Chewy({ variable: "--font-storefront-display", subsets: ["latin"], weight: "400" });
 
 const storefrontHand = Caveat({ variable: "--font-storefront-hand", subsets: ["latin"], weight: "700" });
 
@@ -45,7 +47,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${storefrontHand.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${storefrontHand.variable} ${storefrontDisplay.variable} h-full antialiased`}
     >
       <body
         className="flex min-h-full flex-col"

@@ -1436,3 +1436,14 @@ The responsive mockup layout supersedes the boutique/masthead presentation for
 `shihtshirt` (also supported: `shihtshirts`, `shihttshirts`). Existing settings
 remain stored. The six-card selection includes active products whether featured
 or not; inactive product previews are not purchasable catalog cards.
+
+### Homepage presentation copy
+`theme.storefront.wordmark` (1–80 characters) overrides the ShihTshirts text
+wordmark when `theme.logoUrl` is absent. `theme.storefront.featuredSubtitle`
+(up to 300 characters) sets the line below the collection heading independently
+of Store.description. Defaults match the approved mockup copy. Existing nav
+entries remain authoritative; empty nav uses Shop, Our Story and Help links.
+Empty catalogs show six garment-shaped illustration placeholders in preview
+colors, with no invented prices or inventory swatches. On mobile their Explore
+Shirts links lead to the catalog. These placeholders are replaced by live
+active products when available; they never change product status or checkout.

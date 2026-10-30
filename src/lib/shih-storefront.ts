@@ -1,6 +1,11 @@
 /** Tenant presentation defaults; Store theme/copy remains editable through the agent API. */
 export const shihStorefront = {
+  wordmark: "ShihTshirts",
+  featuredSubtitle: "Cute, funny, and full of attitude — just like your Shih Tzu.",
+  nav: [{ label: "Shop", href: "/products" }, { label: "Our Story", href: "/about" }, { label: "Help", href: "/contact" }],
   tagline: "Small dogs. BIG ATTITUDE.",
+  taglineLead: "Small dogs.",
+  taglineEmphasis: "BIG ATTITUDE.",
   eyebrow: "For the humans who know who’s really in charge.",
   featuredTitle: "Shih Tzu Shirts for Every Personality",
   description: "Cute, funny, and full of attitude — just like your Shih Tzu.",

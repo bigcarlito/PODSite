@@ -27,7 +27,7 @@ export function getStoreBranding(store: Store) {
     tagline: store.tagline,
     description: store.description || (shih ? shihStorefront.description : ""),
     trustBadges: (store.trustBadges as string[] | null)?.length ? store.trustBadges as string[] : shih ? shihStorefront.trustBadges : [],
-    nav: (store.nav as NavLink[] | null) ?? [],
+    nav: (store.nav as NavLink[] | null)?.length ? store.nav as NavLink[] : shih ? shihStorefront.nav : [],
     footerLinks: (store.footerLinks as FooterLinkGroup | null) ?? {},
     social: (store.socialLinks as NavLink[] | null) ?? [],
     theme: {

@@ -26,87 +26,125 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
-/* ShihTshirts tenant presentation; artwork comes from Store.theme.storefront. */
-.shih-header,.shih-home { color:#2d160e; background:#fffcf8; }
-.shih-header { display:flex; align-items:center; gap:28px; padding:18px 3%; min-height:132px; }
-.shih-logo { flex-shrink:0; text-align:center; width:23%; }
-.shih-logo strong { display:block; font-family:var(--font-storefront-hand),'Segoe Print',cursive; font-size:clamp(28px,4.2vw,66px); font-weight:900; letter-spacing:-4px; line-height:1.1; transform:rotate(-3deg); }
-.shih-logo span { font-family:var(--font-storefront-hand),'Segoe Print',cursive; font-size:clamp(12px,1.4vw,22px); }
-.shih-logo img { width:100%; max-height:110px; object-fit:contain; }
-.shih-header-note { max-width:170px; font-family:var(--font-storefront-hand),'Segoe Print',cursive; font-size:19px; font-weight:600; line-height:1.25; transform:rotate(-4deg); }
-.shih-nav { display:flex; justify-content:center; flex:1; gap:clamp(16px,3vw,48px); font-size:15px; }
-.shih-header-dogs { align-self:stretch; width:15%; display:flex; align-items:center; justify-content:center; color:#f8764d; text-align:center; font-size:30px; }
-.shih-header-dogs small { display:block; font-size:12px; }
-.shih-header-dogs img { max-height:110px; object-fit:contain; }
-.shih-header-actions { display:flex; align-items:center; gap:26px; }
-.shih-header-actions>a { display:block; width:30px; height:32px; }
-.shih-header-actions svg { width:100%; height:100%; }
+/* ShihTshirts: explicit grid areas keep the two mobile header rows independent. */
+.shih-header,.shih-home { color:#29140c; background:#fffdf9; }
+.shih-header { display:grid; grid-template-columns:minmax(240px,1.15fr) minmax(135px,.55fr) minmax(260px,1.25fr) minmax(150px,.7fr) auto; grid-template-areas:'logo note nav dogs actions'; align-items:center; gap:24px; padding:14px 3%; min-height:132px; }
+.shih-logo { grid-area:logo; min-width:0; text-align:center; }
+.shih-logo strong { display:block; font-family:var(--font-storefront-display),cursive; font-size:clamp(42px,4.6vw,76px); font-weight:400; letter-spacing:-2px; line-height:1; white-space:nowrap; transform:rotate(-3deg); }
+.shih-logo sup { font-family:Arial,sans-serif; font-size:9px; position:relative; top:-2em; letter-spacing:0; }
+.shih-logo>span { display:block; font-family:var(--font-storefront-hand),cursive; font-size:clamp(16px,1.55vw,25px); line-height:1.1; margin-top:6px; white-space:nowrap; }
+.shih-logo b { background:#ffb291; padding:0 6px 2px; border-radius:40% 15% 30% 10%; font-family:var(--font-storefront-display),cursive; font-weight:400; }
+.shih-logo img { display:block; width:100%; height:100px; object-fit:contain; }
+.shih-header-note { grid-area:note; font-family:var(--font-storefront-hand),cursive; font-size:clamp(19px,1.6vw,26px); line-height:1.05; font-weight:700; transform:rotate(-4deg); margin:0; max-width:175px; }
+.shih-header-note::after { content:'♡'; color:#fa794f; font-size:30px; margin-left:6px; }
+.shih-nav { grid-area:nav; display:flex; align-items:center; justify-content:space-evenly; gap:20px; font-size:15px; white-space:nowrap; }
+.shih-nav a:hover { text-decoration:underline; text-underline-offset:5px; }
+.shih-header-dogs { grid-area:dogs; align-self:end; min-width:0; }
+.shih-header-dogs img { display:block; width:100%; height:106px; object-fit:contain; object-position:bottom; }
+.shih-mascot-placeholders { display:flex; align-items:end; justify-content:center; gap:4px; }
+.shih-mascot-placeholders>span { display:flex; flex-direction:column; justify-content:center; align-items:center; border-radius:55% 55% 0 0; width:88px; height:88px; background:#f1e2d0; transform:rotate(-7deg); }
+.shih-mascot-placeholders>span+span { background:#e8ddd2; transform:rotate(7deg); }
+.shih-mascot-placeholders i { font-style:normal; color:#f87950; font-size:27px; line-height:1; }
+.shih-mascot-placeholders b { font-family:var(--font-storefront-hand),cursive; font-size:23px; }
+.shih-mascot-placeholders small { font-size:8px; text-align:center; }
+.shih-header-actions { grid-area:actions; display:flex; align-items:center; gap:28px; }
+.shih-header-actions>a { display:flex; align-items:center; justify-content:center; width:32px; height:44px; flex-shrink:0; }
+.shih-header-actions svg { width:29px; height:29px; }
 .shih-cart { position:relative; }
-.shih-cart>span { position:absolute; top:-12px; right:-10px; border-radius:100%; background:#f77c51; color:white; font-size:13px; min-width:24px; text-align:center; padding:2px; }
-.shih-image-strip { display:grid; grid-template-columns:1.9fr 1fr 1.1fr; gap:7px; height:clamp(260px,22vw,440px); }
-.shih-image-strip>div { overflow:hidden; }
+.shih-cart>span { position:absolute; top:-2px; right:-10px; border-radius:50%; background:#f77c51; color:white; font-size:13px; min-width:24px; text-align:center; padding:2px; }
+.shih-image-strip { display:grid; grid-template-columns:1.9fr 1fr 1.1fr; gap:7px; height:clamp(280px,22.2vw,440px); }
+.shih-image-strip>div { min-width:0; overflow:hidden; }
 .shih-cover { display:block; width:100%; height:100%; object-fit:cover; }
 .shih-image-strip picture,.shih-product-image picture { display:contents; }
-.shih-art-placeholder { width:100%; height:100%; min-height:150px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:20px; text-align:center; background:linear-gradient(135deg,#f6e7d4,#f6cbb9); }
-.shih-art-placeholder svg { width:44px; height:44px; opacity:.25; }
-.shih-art-placeholder span { font-family:var(--font-storefront-hand),'Segoe Print',cursive; font-size:clamp(18px,2vw,32px); max-width:300px; }
-.shih-art-placeholder small { opacity:.6; font-size:11px; letter-spacing:.08em; text-transform:uppercase; }
-.shih-benefits { display:grid; grid-template-columns:repeat(4,1fr); padding:20px 6%; border-bottom:1px solid #eee5dd; }
-.shih-benefits>div { display:flex; align-items:center; justify-content:center; gap:20px; padding:0 20px; border-right:1px solid #e5dcd4; }
+.shih-art-placeholder { width:100%; height:100%; min-height:150px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:24px; text-align:center; background:radial-gradient(ellipse at 25% 15%,#f8f0e4,transparent 70%),#eadfcc; }
+.shih-art-placeholder svg { width:44px; height:44px; opacity:.2; }
+.shih-art-placeholder span { font-family:var(--font-storefront-hand),cursive; font-size:clamp(24px,2.5vw,40px); line-height:1.1; max-width:340px; }
+.shih-art-placeholder small { opacity:.55; font-size:10px; letter-spacing:.12em; text-transform:uppercase; }
+.shih-benefits { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); padding:19px 7%; border-bottom:1px solid #eee5dd; }
+.shih-benefits>div { display:flex; align-items:center; justify-content:center; gap:24px; padding:0 18px; border-right:1px solid #e5dcd4; }
 .shih-benefits>div:last-child { border:0; }
-.shih-benefits svg { width:48px; height:48px; flex-shrink:0; }
-.shih-benefits span { max-width:150px; text-align:center; font-size:15px; }
-.shih-collection { padding:12px 1% 24px; text-align:center; }
-.shih-section-heading h1 { font-family:var(--font-storefront-hand),'Segoe Print',cursive; font-size:clamp(30px,3.5vw,56px); font-weight:900; line-height:1.2; letter-spacing:-1.5px; }
-.shih-section-heading h1::before,.shih-section-heading h1::after { content:'〃'; color:#f67c54; display:inline-block; margin:0 14px; }
-.shih-section-heading p { font-size:clamp(16px,1.4vw,22px); margin:4px auto 14px; max-width:800px; }
-.shih-product-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; }
-.shih-product-image { display:block; aspect-ratio:4/5; overflow:hidden; border-radius:10px; background:#f5eee5; }
+.shih-benefits svg { width:46px; height:46px; flex-shrink:0; }
+.shih-benefits span { max-width:145px; text-align:center; font-size:15px; line-height:1.3; }
+.shih-collection { padding:8px 1% 18px; text-align:center; }
+.shih-section-heading { position:relative; width:fit-content; max-width:100%; margin:0 auto; }
+.shih-section-heading h1 { font-family:var(--font-storefront-display),cursive; font-size:clamp(36px,3.8vw,64px); font-weight:400; line-height:1.08; letter-spacing:-.8px; margin:0; }
+.shih-section-heading h1::before,.shih-section-heading h1::after { content:''; position:absolute; top:12px; width:30px; height:42px; background:linear-gradient(30deg,transparent 44%,#f77951 45% 54%,transparent 55%) top/100% 12px no-repeat,linear-gradient(#f77951,#f77951) center/90% 4px no-repeat,linear-gradient(-30deg,transparent 44%,#f77951 45% 54%,transparent 55%) bottom/100% 12px no-repeat; }
+.shih-section-heading h1::before { right:calc(100% + 16px); }
+.shih-section-heading h1::after { left:calc(100% + 16px); transform:rotate(180deg); }
+.shih-section-heading p { font-size:clamp(16px,1.4vw,22px); margin:4px auto 4px; max-width:800px; }
+.shih-product-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:4px; }
+.shih-product-image { display:block; aspect-ratio:4/4.65; overflow:hidden; border-radius:10px; background:#f7f1e9; }
 .shih-product-image img { object-fit:contain; transition:transform .2s; }
 .shih-product-image:hover img { transform:scale(1.025); }
-.shih-product-detail { text-align:left; padding:10px; }
-.shih-product-detail h2 { font-size:15px; font-weight:500; line-height:1.3; }
+.shih-tee-preview { background:transparent; border-radius:0; }
+.shih-tee-preview>svg { display:block; height:100%; width:100%; filter:drop-shadow(0 6px 5px #503a2422); }
+.shih-product-detail,.shih-placeholder-detail { text-align:left; padding:10px; }
+.shih-product-detail h2,.shih-placeholder-detail h2 { font-size:15px; font-weight:500; line-height:1.3; }
 .shih-price { font-size:20px; margin:4px 0; }
 .shih-swatches { display:flex; justify-content:center; gap:8px; min-height:34px; margin:6px 0; }
 .shih-swatches span { width:27px; height:27px; border-radius:50%; border:1px solid #0002; }
 .shih-button { display:flex; align-items:center; justify-content:center; gap:12px; border-radius:99px; padding:12px 20px; background:#36190e; color:#fff; font-weight:500; font-size:15px; }
 .shih-button:hover { background:#5c3020; }
-.shih-desktop-shop { width:240px; margin:12px auto 0; }
-.shih-mobile-story { display:none; }
-.shih-coming-soon { font-size:12px; padding:10px; color:#725e51; }
-@media(min-width:1000px) { .shih-product-detail { display:none; } }
-@media(max-width:999px) {
- .shih-header { flex-wrap:wrap; gap:12px; padding:22px 5% 0; }
- .shih-logo { width:55%; text-align:left; }
- .shih-logo strong { font-size:clamp(28px,6.5vw,48px); letter-spacing:-2px; }
- .shih-logo span { display:block; font-size:13px; text-align:center; }
- .shih-header-actions { margin-left:auto; gap:18px; }
- .shih-header-actions>a { width:25px; height:28px; }
- .shih-header-note { order:3; flex:1; max-width:56%; font-size:18px; margin:14px 0 22px; }
- .shih-header-dogs { order:4; width:38%; min-height:90px; align-self:flex-end; }
+.shih-desktop-shop { width:220px; margin:8px auto 0; padding:10px 20px; }
+.shih-mobile-story,.shih-closing-benefits { display:none; }
+.shih-placeholder-detail>p { color:#806d60; font-size:13px; margin:5px 0 12px; }
+@media(min-width:1000px) { .shih-product-detail,.shih-placeholder-detail { display:none; } }
+@media(max-width:1100px) and (min-width:1000px) { .shih-header { gap:14px; grid-template-columns:minmax(210px,1fr) 130px 1fr 130px auto; padding-inline:20px; } .shih-nav { gap:12px; } .shih-header-actions { gap:16px; } }
+@media(width < 1000px) {
+ .shih-header { grid-template-columns:minmax(0,1fr) auto; grid-template-areas:'logo actions' 'note dogs'; gap:12px 12px; padding:20px 18px 0; min-height:0; }
+ .shih-logo { text-align:left; }
+ .shih-logo strong { font-size:clamp(34px,9.4vw,64px); letter-spacing:-1.3px; }
+ .shih-logo>span { font-size:clamp(12px,3.4vw,20px); margin-top:3px; text-align:center; }
+ .shih-logo img { height:72px; }
+ .shih-header-actions { gap:15px; }
+ .shih-header-actions>a { width:27px; height:44px; }
+ .shih-header-actions svg { width:26px; height:26px; }
+ .shih-header-actions>div { display:block; }
+ .shih-header-note { font-size:clamp(21px,5vw,30px); max-width:none; margin:4px 0 18px; line-height:1.02; }
+ .shih-header-dogs { width:140px; justify-self:end; }
+ .shih-header-dogs img { height:90px; }
+ .shih-mascot-placeholders>span { width:65px; height:78px; }
+ .shih-mascot-placeholders b { font-size:20px; }
+ .shih-mascot-placeholders small { font-size:7px; }
  .shih-nav { display:none; }
  .shih-image-strip { display:block; height:auto; }
- .shih-main-art { aspect-ratio:1.2; }
+ /* Match the wide lead panel in the full desktop hero strip. */
+ .shih-main-art { position:relative; aspect-ratio:2.14 / 1; min-height:0; }
+ .shih-main-art>picture,.shih-main-art>.shih-art-placeholder { display:block; position:absolute; inset:0; min-height:0; }
+ .shih-main-art>.shih-art-placeholder { display:flex; }
  .shih-side-art { display:none; }
- .shih-benefits { padding:22px 12px; }
- .shih-benefits>div { flex-direction:column; gap:10px; padding:0 8px; }
- .shih-benefits svg { width:36px; height:36px; }
- .shih-benefits span { font-size:13px; line-height:1.35; }
- .shih-collection { padding:24px 8px 20px; }
- .shih-section-heading { padding:0 12px; }
- .shih-section-heading h1 { font-size:clamp(30px,7vw,48px); max-width:540px; margin:auto; }
- .shih-section-heading h1::before,.shih-section-heading h1::after { display:none; }
- .shih-section-heading p { font-size:18px; line-height:1.3; margin:10px auto 20px; max-width:360px; }
- .shih-product-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 8px; }
- .shih-product-detail { padding:10px 7px 0; }
- .shih-product-detail .shih-button { padding:11px 8px; font-size:14px; }
+ .shih-benefits { padding:20px 8px; }
+ .shih-benefits>div { flex-direction:column; gap:10px; padding:0 9px; }
+ .shih-benefits svg { width:35px; height:35px; }
+ .shih-benefits span { font-size:13px; line-height:1.3; max-width:90px; }
+ .shih-collection { padding:20px 7px 18px; }
+ .shih-section-heading { width:100%; padding:0 26px; }
+ .shih-section-heading h1 { font-size:clamp(34px,9.5vw,56px); line-height:1.02; max-width:420px; margin:0 auto; letter-spacing:-.5px; }
+ .shih-section-heading h1::before { right:auto; left:6px; top:24px; width:20px; }
+ .shih-section-heading h1::after { left:auto; right:6px; top:24px; width:20px; }
+ .shih-section-heading p { font-size:18px; line-height:1.2; margin:10px auto 18px; max-width:340px; }
+ .shih-product-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 6px; }
+ .shih-product-image { aspect-ratio:4/4.8; }
+ .shih-tee-preview { background:#f8f1e9; border-radius:9px; }
+ .shih-product-detail,.shih-placeholder-detail { padding:10px 8px 0; }
+ .shih-product-detail .shih-button,.shih-placeholder-detail .shih-button { padding:11px 7px; font-size:14px; }
  .shih-desktop-shop { display:none; }
  .shih-mobile-story { display:block; }
  .shih-mobile-story>picture { display:block; aspect-ratio:1.65; overflow:hidden; }
  .shih-mobile-story>.shih-art-placeholder { min-height:260px; }
- .shih-mobile-story .shih-button { background:#f58a67; color:#2d160e; margin:16px 7% 24px; font-family:var(--font-storefront-hand),'Segoe Print',cursive; font-size:22px; }
+ .shih-mobile-story .shih-button { background:#f58a67; color:#29140c; margin:14px 7% 20px; font-family:var(--font-storefront-display),cursive; font-size:24px; font-weight:400; padding:13px; }
+ .shih-closing-benefits { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); padding:20px 12px 30px; background:#fff0e4; gap:16px; text-align:center; }
+ .shih-closing-benefits svg { width:36px; height:36px; margin:0 auto 10px; }
+ .shih-closing-benefits span { font-size:14px; line-height:1.4; }
 }
-@media(min-width:768px) and (max-width:999px) { .shih-header-actions>div { display:block; } }
+@media(max-width:359px) { .shih-header { padding-inline:12px; column-gap:8px; } .shih-header-actions { gap:8px; } .shih-logo strong { font-size:32px; } .shih-header-dogs { width:110px; } .shih-mascot-placeholders>span { width:52px; } .shih-benefits span { font-size:11px; } }
 @media(prefers-reduced-motion:reduce) { .shih-product-image img { transition:none; } }
-.shih-closing-benefits { display:none; }
-@media(max-width:999px) { .shih-closing-benefits { display:grid; grid-template-columns:repeat(3,1fr); padding:20px 12px 30px; background:#fff0e4; gap:16px; text-align:center; } .shih-closing-benefits svg { width:36px; height:36px; margin:0 auto 10px; } .shih-closing-benefits span { font-size:14px; line-height:1.4; } }
+@media(width < 1000px) {
+ .shih-header { grid-template-columns:58% minmax(0,1fr); }
+ .shih-logo strong { font-size:clamp(34px,11.5vw,68px); }
+ .shih-header-actions { gap:10px; justify-self:end; }
+ .shih-header-note { width:calc(100% + 16px); font-size:clamp(21px,5.6vw,30px); }
+ .shih-header-note::after { position:absolute; right:-8px; bottom:0; }
+ .shih-header-dogs { width:100%; max-width:140px; }
+}
+@media(max-width:359px) { .shih-header-actions { gap:5px; } .shih-logo strong { font-size:36px; } }

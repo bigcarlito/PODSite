@@ -665,3 +665,11 @@ The responsive mockup layout supersedes the boutique/masthead presentation for
 `shihtshirt` (also supported: `shihtshirts`, `shihttshirts`). Existing settings
 remain stored. The six-card selection includes active products whether featured
 or not; inactive product previews are not purchasable catalog cards.
+
+ShihTshirts homepage refinement: header uses explicit desktop/mobile grid areas,
+not flex wrapping; rounded display font is separate from handwritten notes.
+`theme.storefront.wordmark` (max 80) and `featuredSubtitle` (max 300) are validated
+through the existing store PATCH schema and let agents edit this copy without
+changing Store.description. Uploaded logos take priority. Empty nav falls back
+to working Shop/Our Story/Help destinations; six empty-catalog garment previews
+are labeled and contain no fake price, availability or purchasable product.

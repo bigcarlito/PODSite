@@ -555,3 +555,9 @@ The responsive mockup layout supersedes the boutique/masthead presentation for
 `shihtshirt` (also supported: `shihtshirts`, `shihttshirts`). Existing settings
 remain stored. The six-card selection includes active products whether featured
 or not; inactive product previews are not purchasable catalog cards.
+
+ShihTshirts copy: `theme.storefront.wordmark` (1–80 chars) sets the fallback text
+logo; `featuredSubtitle` (max 300 chars) sets the collection subtitle separately
+from Store.description. An uploaded theme.logoUrl takes precedence. Empty nav
+falls back to Shop/Our Story/Help. Empty catalogs show labeled garment previews,
+with no prices or inventory claims; active products replace them automatically.
