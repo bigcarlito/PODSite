@@ -1476,3 +1476,8 @@ A unique tenant/version activity reservation precedes one ImageProvider call;
 duplicate attempts return 409 ATTEMPT_EXISTS. Disabled: 403 GENERATION_DISABLED;
 invalid child: 422 INVALID_VERSION; failure: 502 GENERATION_FAILED, with no retry.
 Images return to browser/export only. No database migration, products or publication.
+
+ReviewVersion optionally includes placements[productType] = {version:1,scale,x,y}
+(normalized print-area center, contain-fit scale). Refine/generate retain existing
+authentication and approval requirements. This local review metadata is not a
+provider submission or print readiness grant; see docs/design-factory/README.md.

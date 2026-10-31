@@ -581,3 +581,8 @@ approvePaidGeneration:true}, returns {image,provenance:{provider,model,sha256,
 seed?,rawParams}}. Requires matching store bearer auth, ungenerated child,
 FACTORY_IMAGE_GENERATION_ENABLED=true and explicit separate human image-credit
 approval. One reserved attempt per tenant/version, no retries, no publication.
+
+Factory review versions may carry placements[productType] = {version:1,scale,x,y};
+center coordinates and contain-fit scale are normalized to the garment print area.
+Preserve these when handing off a review. Missing provider dimensions means
+production not ready; placement does not authorize generation or publishing.

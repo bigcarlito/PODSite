@@ -706,3 +706,13 @@ store/factory-review.ts and POST /api/agent/design-factory/generate. Disabled un
 FACTORY_IMAGE_GENERATION_ENABLED=true. An explicitly named activity row reserves
 one tenant/version attempt before any paid call; duplicate attempts cannot retry.
 Preview bytes remain in the exported review, not public StoreAsset storage.
+
+Factory review placements are versioned normalized print-area center/scale values,
+stored per review version and product type in exported files only. Colors share
+placement; explicit placements are never overwritten by copy. Edits invalidate
+Keep until reviewed again. src/lib/design/placement.ts supplies deterministic
+mapping/serialization and the compositor's optional placement input. Unconfigured
+provider dimensions explicitly block production readiness; no Printify coordinates
+are guessed. No endpoint, migration, paid generation or production write is added.
+See docs/design-factory/README.md for the mandatory future upscale/full-area
+transparent PNG/validation handoff and current the-look-03 QA.

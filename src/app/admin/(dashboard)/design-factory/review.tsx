@@ -2,7 +2,8 @@
 /* eslint-disable @next/next/no-img-element */
 import { useState } from "react";
 import { factoryManifestSchema, type FactoryManifest } from "@/lib/design/factory";
-import { cycle, reviewFileSchema, type ReviewVersion } from "@/lib/design/factory-review";
+import { cycle, updateReviewPlacement, reviewFileSchema, type ReviewVersion } from "@/lib/design/factory-review";
+import { DEFAULT_PLACEMENT, placementStyle, type Placement } from "@/lib/design/placement";
 import type { DesignArea } from "@/lib/design/design-area";
 import { generate, refine } from "./actions";
 
@@ -29,6 +30,11 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
   const colors = Object.keys(scene?.bases ?? {});
   const color = colors[colorIndex % (colors.length || 1)];
   const version = versions[selected];
+  const placement = version?.placements?.[scene?.productType] ?? DEFAULT_PLACEMENT;
+  function place(next: Placement, copy = false) {
+    if (!scene || !version) return;
+    setVersions(items => updateReviewPlacement(items, version.id, scene.productType, next, copy));
+  }
   function decide(decision: "keep" | "refine" | "reject") { setVersions(v => v.map((item, i) => i === selected ? { ...item, decision, decisions: [...(item.decisions ?? []), { decision, at: new Date().toISOString() }] } : item)); }
   async function importFiles(files: FileList | null) {
     if (!files) return;
@@ -65,7 +71,7 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
     setBusy(true); setError("");
     try {
       const result = await refine({ manifest, candidateId: version.candidateId, currentPrompt: version.prompt, feedback, preserve });
-      const child: ReviewVersion = { ...result, id: crypto.randomUUID(), candidateId: version.candidateId, parentId: version.id, feedback, decision: "pending", createdAt: new Date().toISOString() };
+      const child: ReviewVersion = { ...result, id: crypto.randomUUID(), candidateId: version.candidateId, parentId: version.id, feedback, placements: version.placements ? structuredClone(version.placements) : undefined, decision: "pending", createdAt: new Date().toISOString() };
       setVersions(v => [...v.map(item => item.id === version.id ? { ...item, decision: "refine" as const, decisions: [...(item.decisions ?? []), { decision: "refine" as const, at: new Date().toISOString() }] } : item), child]); select(versions.length);
     } catch { setError("Revision failed. Check server configuration; no artwork generation was attempted."); }
     finally { setBusy(false); }
@@ -87,7 +93,7 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
     <p role="alert">{error}</p>
     {manifest && <>
       <h2 className="text-lg font-semibold">{manifest.candidates.find(c => c.id === version?.candidateId)?.style.name} · {version?.id}</h2>
-      <button onClick={() => download({ format: "factory-review-1", manifest, versions }, "factory-review.json")}>Export review and history</button>
+      <button onClick={() => download({ format: "factory-review-1", manifest, versions, production: { ready: false, reason: "Provider print-area dimensions are not configured" } }, "factory-review.json")}>Export review and history</button>
       <div className="flex flex-wrap gap-3">
         <label>Garment <select value={sceneIndex} onChange={e => { setScene(Number(e.target.value)); setColor(0); }}>{scenes.map((s, i) => <option key={s.productType} value={i}>{s.productType}</option>)}</select></label>
         <button onClick={() => setColor(i => cycle(i, -1, colors.length))} disabled={!colors.length} aria-label="Previous shirt color">← Color</button>
@@ -97,8 +103,21 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
       </div>
       <div tabIndex={0} aria-label="Artwork review; left and right arrows change shirt color" onKeyDown={e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); setColor(i => cycle(i, e.key === "ArrowLeft" ? -1 : 1, colors.length)); } }} onTouchStart={e => setTouch(e.changedTouches[0].clientX)} onTouchEnd={e => { if (touch !== undefined && Math.abs(e.changedTouches[0].clientX - touch) > 40) setColor(i => cycle(i, e.changedTouches[0].clientX < touch ? 1 : -1, colors.length)); }} className="relative mx-auto max-w-lg border">
         {!raw && color && <img src={scene.bases[color]} alt={`${scene.productType} blank shirt in ${color}`} className="block w-full" onError={() => setError("Garment photograph could not load. Choose another color or raw artwork.")} />}
-        {version?.image ? <img src={version.image} alt="Candidate artwork" style={raw || !color ? { width: "100%", background: "repeating-conic-gradient(#ddd 0% 25%, white 0% 50%) 0 / 20px 20px" } : { position: "absolute", left: `${scene.area.x * 100}%`, top: `${scene.area.y * 100}%`, width: `${scene.area.width * 100}%`, height: `${scene.area.height * 100}%`, objectFit: "contain", opacity: 0.85 }} /> : <p>Planned revision — export for explicit image generation.</p>}
+        {version?.image && !raw && color ? <div className="outline outline-1 outline-dashed outline-black/30" style={{ position: "absolute", left: `${scene.area.x * 100}%`, top: `${scene.area.y * 100}%`, width: `${scene.area.width * 100}%`, height: `${scene.area.height * 100}%`, overflow: "hidden" }}>
+          <img src={version.image} alt="Candidate artwork" style={placementStyle(placement)} />
+        </div> : version?.image ? <img src={version.image} alt="Candidate artwork" style={{ width: "100%", background: "repeating-conic-gradient(#ddd 0% 25%, white 0% 50%) 0 / 20px 20px" }} /> : <p>Planned revision — export for explicit image generation.</p>}
       </div>
+      {scene && version && <fieldset className="space-y-3 border p-3">
+        <legend>Artwork placement / {scene.productType} / shared across colors</legend>
+        <p>Artwork outside the print area is clipped. Raw artwork remains unchanged.</p>
+        {(["scale", "x", "y"] as const).map(key => <label key={key} className="block">
+          {key === "scale" ? "Size" : key === "x" ? "Horizontal center" : "Vertical center"}: {Math.round(placement[key] * 100)}%
+          <input className="block min-h-11 w-full" type="range" min={key === "scale" ? 0.1 : 0} max={key === "scale" ? 2 : 1} step="0.01" value={placement[key]} onChange={e => place({ ...placement, [key]: Number(e.target.value) })} />
+        </label>)}
+        <button className="min-h-11 border p-2" onClick={() => place({ ...DEFAULT_PLACEMENT })}>Reset placement</button>
+        <button className="min-h-11 border p-2" onClick={() => place(placement, true)}>Copy to versions without a placement</button>
+        <p>Production export not ready: provider print-area dimensions are not configured. Keep records placement in the review export; it does not approve print readiness.</p>
+      </fieldset>}
       <p>Review contrast, small lettering and edges on each real shirt color. Alpha is preserved; opaque source backgrounds remain visible. This visual check grants no print readiness.</p>
       <div className="flex gap-4"><button onClick={() => select(i => cycle(i, -1, versions.length))}>← Candidate/version</button><span aria-live="polite">{selected + 1} / {versions.length} · {version?.decision}</span><button onClick={() => select(i => cycle(i, 1, versions.length))}>Candidate/version →</button></div>
       <div className="flex gap-4"><button onClick={() => decide("keep")}>Keep</button><button onClick={() => decide("reject")}>Reject</button></div>
