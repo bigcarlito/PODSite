@@ -716,3 +716,13 @@ provider dimensions explicitly block production readiness; no Printify coordinat
 are guessed. No endpoint, migration, paid generation or production write is added.
 See docs/design-factory/README.md for the mandatory future upscale/full-area
 transparent PNG/validation handoff and current the-look-03 QA.
+
+Factory review printAreas profiles now separate pixel canvas, measured mockup
+geometry and artwork bounds. Profiles are scoped by tenant/product/provider/front
+in exported review JSON only; shared zod schemas support scripted editing. The
+ShihTshirts Comfort Colors preset is explicitly applied as 4494x5097, with provider
+identity supplied by the operator. Calibration is reversible/editable and provisional;
+no inches, DPI, provider verification or readiness is inferred. printBoundary and
+printCanvasLayout preserve proportions; productionCanvasPlan rejects clipping and
+specifies transparent padding for future compositing. See manual browser QA in
+docs/design-factory/README.md. No new endpoint or production mutation is introduced.

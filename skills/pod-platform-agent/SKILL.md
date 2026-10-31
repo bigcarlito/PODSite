@@ -586,3 +586,9 @@ Factory review versions may carry placements[productType] = {version:1,scale,x,y
 center coordinates and contain-fit scale are normalized to the garment print area.
 Preserve these when handing off a review. Missing provider dimensions means
 production not ready; placement does not authorize generation or publishing.
+
+Factory review files may include `printAreas` scoped by storeSlug/productType/
+provider/printAreaId. Validate with printAreaProfileSchema; they are local review
+configuration, not production PrintTemplates. ShihTshirts front 4494x5097 pixels
+require explicit provider identity and manual mockup calibration; physical size
+and provider verification remain required. See docs/design-factory/README.md.

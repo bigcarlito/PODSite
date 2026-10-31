@@ -1481,3 +1481,9 @@ ReviewVersion optionally includes placements[productType] = {version:1,scale,x,y
 (normalized print-area center, contain-fit scale). Refine/generate retain existing
 authentication and approval requirements. This local review metadata is not a
 provider submission or print readiness grant; see docs/design-factory/README.md.
+
+Factory review exports optionally carry scoped `printAreas` canvas/calibration
+profiles (storeSlug, productType, provider, printAreaId); this is local-file state,
+not a new REST endpoint or PrintTemplate mutation. See docs/design-factory/README.md
+for scripted schema validation, the explicit 4494x5097 front preset and manual QA.
+Production readiness still requires provider verification and physical dimensions.

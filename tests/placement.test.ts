@@ -50,3 +50,44 @@ test("review roundtrip retains per-version per-garment placements and immutable 
   assert.equal(serializePlacement(placement), serializePlacement(JSON.parse(serializePlacement(placement))));
   assert.equal(reviewFileSchema.parse({ format: "factory-review-1", manifest, versions: [] }).versions.length, 0);
 });
+
+import { printBoundary, mapPrintPoint, printAreaProfileSchema, printArtworkStyle, printCanvasLayout, productionCanvasPlan } from "../src/lib/design/placement";
+const profile = printAreaProfileSchema.parse({ storeSlug: "shihtshirts", productType: "comfort-colors-front", provider: "operator-specified", printAreaId: "front", mockup: { width: 1000, height: 1000 }, canvas: { width: 4494, height: 5097 }, mapping: { x: 0.29, y: 0.24, width: 0.42, height: 0.50 } });
+test("4494x5097 canvas contains tall artwork without clipping or stretching", () => {
+  assert.ok(Math.abs(profile.canvas.width / profile.canvas.height - 0.8817) < 0.0001);
+  for (const source of [{ width: 1000, height: 1400 }, { width: 1800, height: 700 }]) {
+    const box = printCanvasLayout(DEFAULT_PLACEMENT, source, profile);
+    assert.equal(box.clipped, false);
+    assert.ok(Math.abs(box.width / box.height - source.width / source.height) < 1e-10);
+    assert.ok(box.top + box.height <= 5097);
+    assert.equal(productionCanvasPlan(DEFAULT_PLACEMENT, source, profile).background.alpha, 0);
+  }
+  const upper = printCanvasLayout({ ...DEFAULT_PLACEMENT, scale: 0.5, y: 0.25 }, { width: 1000, height: 1000 }, profile);
+  assert.equal(upper.clipped, false); assert.ok(upper.top + upper.height < 5097 * 0.5);
+  assert.throws(() => productionCanvasPlan({ ...DEFAULT_PLACEMENT, scale: 2 }, { width: 1000, height: 1400 }, profile), /exceeds/);
+});
+test("mapping is reversible, color independent and roundtrips with review export", () => {
+  for (const point of [{ x: 0, y: 0 }, { x: 4494, y: 5097 }, { x: 1234, y: 3500 }]) {
+    const back = mapPrintPoint(mapPrintPoint(point, profile), profile, true);
+    assert.ok(Math.abs(back.x - point.x) < 1e-9); assert.ok(Math.abs(back.y - point.y) < 1e-9);
+  }
+  const source = { width: 1000, height: 1500 };
+  const styles = ["black", "white", "pepper"].map(() => printArtworkStyle(DEFAULT_PLACEMENT, source, profile));
+  assert.deepEqual(styles[0], styles[1]); assert.deepEqual(styles[1], styles[2]);
+  const seed = JSON.parse(readFileSync("docs/design-factory/the-look.json", "utf8"));
+  const saved = reviewFileSchema.parse(JSON.parse(JSON.stringify({ format: "factory-review-1", manifest: prepareFactoryBatch(seed.brief, seed.styles), versions: [], printAreas: [profile] })));
+  assert.deepEqual(saved.printAreas, [profile]);
+  assert.throws(() => printAreaProfileSchema.parse({ ...profile, mapping: { ...profile.mapping, y: 0.9 } }));
+});
+
+test("calibrated boundary preserves pixel aspect and preview matches padded canvas plan", () => {
+  const boundary = printBoundary(profile);
+  assert.ok(Math.abs(boundary.width * profile.mockup.width / (boundary.height * profile.mockup.height) - 4494 / 5097) < 1e-12);
+  assert.equal(boundary.y, profile.mapping.y);
+  const source = { width: 1200, height: 1700 }, p = { ...DEFAULT_PLACEMENT, scale: 0.6, y: 0.35 };
+  const plan = productionCanvasPlan(p, source, profile);
+  const css = printArtworkStyle(p, source, profile);
+  assert.ok(Math.abs(parseFloat(css.left) / 100 * 4494 - plan.layout.left) < 1e-9);
+  assert.ok(Math.abs(parseFloat(css.height) / 100 * 5097 - plan.layout.height) < 1e-9);
+  assert.equal(plan.ready, false);
+});
