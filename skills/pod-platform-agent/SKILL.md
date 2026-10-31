@@ -568,3 +568,16 @@ ShihTshirts defaults to combined mascot art at
 
 Set `theme.storefront.homepageTitle` (1–200 chars) via store PATCH to customize
 the default browser title independently of the store name and subpage template.
+
+Design Factory: POST /api/agent/design-factory/refine accepts
+{manifest, candidateId, feedback, preserve, currentPrompt?}, returns
+{prompt, rationale, preserved: string[]}. Store bearer auth; manifest storeSlug
+must match resolved store. Uses text credits and logs actor. Human-directed only;
+never choose Keep/Reject or generate images without separate human permission.
+Admin review/import/export: /admin/design-factory. See docs/design-factory/README.md.
+
+POST /api/agent/design-factory/generate accepts {manifest,version,
+approvePaidGeneration:true}, returns {image,provenance:{provider,model,sha256,
+seed?,rawParams}}. Requires matching store bearer auth, ungenerated child,
+FACTORY_IMAGE_GENERATION_ENABLED=true and explicit separate human image-credit
+approval. One reserved attempt per tenant/version, no retries, no publication.

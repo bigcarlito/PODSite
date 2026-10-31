@@ -1,9 +1,10 @@
 # Design Factory bounded proof of concept
 
-Local, typed manifest workflow for ShihTshirts. No database migration, API endpoint,
-UI, product creation, publication, or storefront change. The seed is a concept
-exploration, not a controlled sales experiment. Store slug is provenance only;
-this runner never resolves an account or touches a tenant database.
+Local, typed manifest runner plus a human-directed admin review workspace for
+ShihTshirts. No database migration, product creation, publication, or storefront
+change. The seed is a concept exploration, not a controlled sales experiment.
+The original runner never resolves an account or touches a tenant database;
+the review UI and revision API authenticate against the manifest's store slug.
 
 Inspection: existing `designs.ts` performs generation/QC/upscale and can publish;
 `design-batches.ts` produces up to five Designs. The existing ImageProvider registry
@@ -66,3 +67,65 @@ Tests use a fake provider; no paid generation or production credentials are need
 For the bridge's draft PR: title "Bounded ShihTshirts Design Factory POC";
 include actual validation results and the manual steps above. The implementation
 agent does not create PRs or access GitHub credentials in this checkout.
+
+## Human-directed Factory review
+Open `/admin/design-factory?store=shihtshirts` locally (use the manifest's actual
+store slug); production uses the store's own host. Sign in as that store's admin.
+Choose the local `the-look-03/manifest.json` and all referenced PNGs together.
+Railway cannot read your workstation: the file picker imports bytes into this
+browser session, verifies preview SHA-256 hashes, and rejects foreign-store briefs.
+No local paths are fetched by the server. Maximum import size is 40 MB.
+
+Select the existing Comfort Colors product-type scene in Garment. Configure its
+actual blank color photographs and design rectangle through Mockup scenes first.
+Only existing tenant assets appear; missing photographs are never synthesized.
+Arrow keys or horizontal swipe on the preview cycle colors; buttons also support
+keyboard and touch. Color selection remains while candidates/versions change.
+Raw artwork uses a checkerboard. Browser alpha-over composition uses the same
+placement fractions and 85% opacity as the server compositor. Review lettering,
+contrast, opaque backgrounds and edges manually on every supported color.
+
+Keep/Reject are human decisions stored in an exportable review document, never
+product or publication actions. Export before leaving: there is no database
+migration or durable server review store, browser autosave, or multi-user locking.
+The export contains original prompts/provenance, PNGs, decisions, feedback,
+rationale, preserved aspects and parent-child history (maximum 50 versions).
+Treat uploaded artwork as private local review data; existing scene assets retain
+the platform's existing public asset URL behavior.
+
+Refine uses the configured OPENROUTER_TEXT_MODEL (text credits) server-side to
+translate feedback and locked aspects into a complete precise prompt. It does
+not generate an image. Inspect the rationale and export the review. After obtaining
+separate permission to spend image credits, run from the checkout:
+
+```
+node --conditions=react-server --import tsx scripts/factory-review-generate.ts REVIEW_JSON VERSION_ID .local/design-factory/NEW_RUN MODEL --approve-paid-generation
+```
+
+Configure provider credentials on the server/CLI, never in browser code. This
+command makes one ImageProvider generation attempt, with no retries, upscale,
+product creation or publishing. It checkpoints the attempt and uses an exclusive
+new output directory so rerunning the same command fails before another spend.
+Reimport NEW_RUN/review.json to compare the child image with its parents. A new
+directory is a new explicitly approved spend; no automatic budget estimate is
+available. Revisions are standalone rerenders; visual preservation is a prompt
+constraint, not a guaranteed image-to-image lock. Source files are never replaced.
+Provider failures may still incur credits; preserve attempt.json and source-review.json.
+
+### Optional in-browser generation
+After reviewing a child prompt, the human may check the separate image-credit
+approval and click Generate this version. The server operator must first set
+`FACTORY_IMAGE_GENERATION_ENABLED=true`; it is disabled by default. Uses the
+configured OPENROUTER_DESIGN_MODEL through ImageProvider. A tenant/version-unique
+activity reservation is written before the paid call: repeated or concurrent calls
+for that version cannot spend twice. Interrupted/failed versions remain reserved;
+check logs before deliberately requesting a new refinement. A successful preview
+is returned to browser memory and included in the next export; export immediately.
+The CLI handoff remains available for local-only operation. No paid calls were
+made during implementation or validation.
+
+POST /api/agent/design-factory/generate offers the same single action for a human-
+directed agent, with input {manifest, version, approvePaidGeneration:true} and output
+{image: inline PNG, provenance:{provider,model,sha256,seed?,rawParams}}. It requires
+store bearer authentication, matching manifest store, an ungenerated child version,
+server enablement, and separate human approval. It never publishes or creates products.
