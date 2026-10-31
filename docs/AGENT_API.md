@@ -1455,3 +1455,24 @@ Setting `theme.storefront.decorations[0]` replaces this default.
 `theme.storefront.homepageTitle` (1–200 characters) overrides the default browser
 page title via the existing store PATCH API. Subpages with their own titles keep
 the Store.name template. Without it, other stores default to Store.name.
+
+### Design Factory review
+`/admin/design-factory` is a tenant-authenticated local-file review workspace.
+Human decisions remain in exported review files; they never publish products.
+`POST /api/agent/design-factory/refine` calls shared store-scoped prompt revision
+logic with bearer authentication. Input: `{manifest, candidateId, feedback,
+preserve, currentPrompt?}`. Output: `{prompt, rationale, preserved: string[]}`.
+All fields are schema validated. The manifest must name the resolved store.
+Uses configured text-model credits, logs the real actor, and generates no image.
+Agents may prepare revisions only at human direction; Keep/Reject stay human.
+See docs/design-factory/README.md for import and separately approved CLI generation.
+
+`POST /api/agent/design-factory/generate`: input `{manifest, version,
+approvePaidGeneration:true}` (version is an exported ReviewVersion), output
+`{image: inline PNG, provenance:{provider,model,sha256,seed?,rawParams}}`.
+Requires store bearer auth, matching manifest tenant, ungenerated child version,
+FACTORY_IMAGE_GENERATION_ENABLED=true and separate human approval for image spend.
+A unique tenant/version activity reservation precedes one ImageProvider call;
+duplicate attempts return 409 ATTEMPT_EXISTS. Disabled: 403 GENERATION_DISABLED;
+invalid child: 422 INVALID_VERSION; failure: 502 GENERATION_FAILED, with no retry.
+Images return to browser/export only. No database migration, products or publication.

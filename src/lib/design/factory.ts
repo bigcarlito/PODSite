@@ -13,7 +13,7 @@ export type StyleProfile = z.infer<typeof styleProfileSchema>;
 export const factoryManifestSchema = z.object({
   version: z.literal(1), brief: designBriefSchema,
   candidates: z.array(z.object({
-    id: text, style: styleProfileSchema, prompt: text,
+    id: text, style: styleProfileSchema, prompt: z.string().trim().min(1).max(8000),
     review: z.object({ status: z.enum(["pending", "selected", "rejected"]), reviewer: text.optional(), notes: text.optional() }).refine(
       review => review.status === "pending" || Boolean(review.reviewer && review.notes),
       "A human review decision requires reviewer and notes",

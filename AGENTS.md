@@ -249,7 +249,8 @@ style candidates and optionally uses the existing ImageProvider adapter. It neve
 touches the database, publishes, selects artwork, or grants print readiness.
 Prompts, original-art hash, preview hashes, provider provenance and human review
 live in a local manifest. See `docs/design-factory/README.md` for CLI/manual use
-and archival requirements. No agent REST surface is added or changed.
+and archival requirements. The runner itself adds no REST surface; the human-directed
+review extension below adds authenticated refine/generate endpoints.
 
 A design is defined by **structured aspects** (a controlled vocabulary —
 `hook`, `layout`, `artStyle`, `colorScheme`, `complexity`, plus free-text
@@ -690,3 +691,18 @@ The whole image is contained in the header slot on desktop and mobile.
 `theme.storefront.homepageTitle` (1–200 chars) controls the default browser title;
 ShihTshirts defaults to "Shih Tshirts - For Parents of Small Dogs with Big Attitude".
 Other tenants fall back to Store.name; titled subpages keep their title template.
+
+### Human-directed Factory workspace
+/admin/design-factory imports a bounded local manifest plus hash-verified PNGs.
+Reviews/version history live in exported files, with no schema migration or product
+publication. Garment preview uses current tenant MockupScene base photographs,
+placement and native alpha-over rendering. Shared store/factory-review.ts prepares
+LLM prompt revisions via POST /api/agent/design-factory/refine or authenticated
+admin action, preserving human control. Separately approved single-attempt image
+generation uses scripts/factory-review-generate.ts; see docs/design-factory/README.md.
+
+Factory review also supports separately approved browser image generation through
+store/factory-review.ts and POST /api/agent/design-factory/generate. Disabled unless
+FACTORY_IMAGE_GENERATION_ENABLED=true. An explicitly named activity row reserves
+one tenant/version attempt before any paid call; duplicate attempts cannot retry.
+Preview bytes remain in the exported review, not public StoreAsset storage.
