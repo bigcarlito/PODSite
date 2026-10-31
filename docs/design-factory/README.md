@@ -129,3 +129,63 @@ directed agent, with input {manifest, version, approvePaidGeneration:true} and o
 {image: inline PNG, provenance:{provider,model,sha256,seed?,rawParams}}. It requires
 store bearer authentication, matching manifest store, an ungenerated child version,
 server enablement, and separate human approval. It never publishes or creates products.
+
+### Placement review and production handoff
+Placement is stored at versions[].placements[productType], schema version 1:
+{version:1, scale:1, x:0.5, y:0.5}. x/y are the artwork center in normalized
+garment print-area coordinates; scale multiplies aspect-preserving contain fit.
+They are not photograph fractions or Printify API coordinates. Scene.area maps
+the print area onto each photograph; native image alpha and 85% opacity remain.
+Outside artwork is clipped to that area. No rotation, perspective correction or
+transparent-border trimming is applied. Matching scene calibration across colors
+is required. Until a provider area aspect ratio is configured and calibrated,
+mockup appearance cannot certify physical production size.
+
+Each version/garment retains an independent placement; colors share it. New
+refinements inherit a copy. Copy fills only versions without an explicit placement;
+reset affects only the current version/garment. Editing a Keep returns it to pending
+(the prior decision remains in history); click Keep again to approve the new layout.
+Old review files load with centered contain defaults. Reviews and placements remain
+memory-only until downloaded. No localStorage, server persistence or source writes.
+
+The pure placementLayout / placementStyle helpers in src/lib/design/placement.ts
+define server geometry and equivalent browser containment. compositeDesignOnScene
+accepts optional placement; omission preserves its existing rendering path.
+productionPlacement requires explicit provider, printAreaId and pixel dimensions,
+returning ready:false when absent. Review exports explicitly report production
+not ready. This is coordinate metadata, never Printify submission parameters or
+print-readiness approval. No dimensions are inferred from scene pixels.
+
+Future separate mandatory pipeline: verify the approved review/version/source
+hash and provider template identity, upscale artwork under separate approval,
+render the same placement on a transparent full print-area PNG at the configured
+provider dimensions (100% source opacity, no garment photo), then validate pixel
+size, alpha, clipping, resolution/DPI, exact lettering, color and supplier rules.
+Check that the upscaled aspect ratio matches the reviewed source. Block production
+on absent configuration, changed source/template or failed validation. This task
+does not implement or spend on that pipeline.
+
+Manual test for current the-look-03 batch:
+1. Start npm run dev, sign into the manifest's store and open
+   /admin/design-factory?store=<manifest.brief.storeSlug>. Import the-look-03/manifest.json
+   and every referenced PNG together. Hash checks must pass.
+2. Select the configured Comfort Colors garment. Set Size to 75%, Horizontal
+   center to 40%, Vertical center to 60% using touch and then keyboard arrows.
+   Check all garment colors: artwork retains proportions and the same placement.
+   At 200% and a center at an edge, verify clipping at the print-area boundary.
+3. Toggle Raw artwork: the original full PNG must remain unchanged. Toggle back.
+   Change candidate and return: the individual placement must remain.
+4. Set another candidate's placement; return and Copy to versions without a
+   placement. Verify that candidate's explicit values were not overwritten.
+   Reset only the current placement; switch garments and verify independence.
+5. Keep, edit a slider, verify pending, then Keep again. Export review, reload
+   the page (session empties), and import only the exported JSON. Confirm images,
+   provenance, history, decisions and placements match; production is not ready.
+   Original manifest and PNG hashes on disk must remain unchanged.
+6. Do not click Refine or Generate for this unpaid placement QA. Test a foreign
+   store manifest: import must fail without replacing the current review.
+
+Automated commands: npm ci; npm run prisma:generate; npm run lint;
+node --import tsx --test tests/*.test.ts; npm run build; npx tsc --noEmit.
+No database connection or migration is needed. Manual browser QA requires an
+authenticated store with configured blank assets; it is separate from math tests.

@@ -55,3 +55,28 @@ gh pr create --draft --base main --head codex-bridge/40687c8b-5870-4818-be35-b9e
 ```
 
 No commit, push, PR, merge or deployment was attempted by the implementation agent.
+
+## Placement enhancement validation (2026-10-31)
+In isolated checkout e79349a6-1c3b-4049-beae-58be50bf0ee5:
+- npm.cmd ci: passed using unchanged lockfile; installed 405 packages and generated
+  Prisma Client. npm reported 24 existing advisories (16 moderate, 7 high, 1 critical).
+- npm.cmd run prisma:generate: passed, Prisma Client 6.19.3.
+- lint: npm.cmd run lint passed.
+- tests: node --import tsx --test tests/*.test.ts passed, 26/26 top-level tests,
+  zero skips/failures; includes stubbed fixture runs of 4 Factory and 9 compositor/
+  tenant tests. Covers geometry, clipping pixels, provider coordinate mapping,
+  invalid inputs, serialization, review roundtrip and fill-only copy preservation.
+- build: npm.cmd run build passed using Turbopack, seven static pages. An initial
+  run failed TypeScript on a sharp namespace type; fixed with an explicit type
+  import and reran the same build successfully. Final build passed again after
+  UI cleanup. Existing outer-lockfile and middleware deprecation warnings remain.
+- typecheck: npx.cmd tsc --noEmit passed after final build and client generation.
+- git diff --check: passed after removing a trailing blank line.
+- Source/migration preservation inspection: git diff --name-only -- prisma
+  package-lock.json public docs/products returned no changes. No database migration,
+  supplier calls, paid generation, credentials, publishing or production access.
+
+Live authenticated the-look-03 browser/touch QA was not performed in this checkout.
+Exact manual steps and limitations are in README.md. Preview calibration and
+provider dimensions must be supplied before any future production handoff.
+The bridge owns draft PR publishing; no commit, push or PR creation was attempted.

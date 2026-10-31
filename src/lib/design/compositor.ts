@@ -1,6 +1,8 @@
 import "server-only";
-import sharp from "sharp";
+import sharp, { type OverlayOptions } from "sharp";
 import { DEFAULT_DESIGN_AREA, type DesignArea } from "./design-area";
+
+import { placementLayout, type Placement } from "./placement";
 
 export type { DesignArea };
 
@@ -23,6 +25,7 @@ export async function compositeDesignOnScene(input: {
   designUrl: string;
   area?: DesignArea | null;
   opacity?: number;
+  placement?: Placement;
 }): Promise<{ data: Buffer; mimeType: string }> {
   const area = input.area ?? DEFAULT_DESIGN_AREA;
   const opacity = input.opacity ?? DESIGN_OVERLAY_OPACITY;
@@ -53,6 +56,25 @@ export async function compositeDesignOnScene(input: {
   const areaTop = Math.round(area.y * baseHeight);
   const areaWidth = Math.max(1, Math.round(area.width * baseWidth));
   const areaHeight = Math.max(1, Math.round(area.height * baseHeight));
+
+  if (input.placement) {
+    const meta = await sharp(designBuffer).metadata();
+    const layout = placementLayout(input.placement, { width: meta.width!, height: meta.height! }, { width: areaWidth, height: areaHeight });
+    const width = Math.max(1, Math.round(layout.width)), height = Math.max(1, Math.round(layout.height));
+    const left = Math.round(layout.left), top = Math.round(layout.top);
+    const cropLeft = Math.max(0, -left), cropTop = Math.max(0, -top);
+    const visibleWidth = Math.min(width - cropLeft, areaWidth - Math.max(0, left));
+    const visibleHeight = Math.min(height - cropTop, areaHeight - Math.max(0, top));
+    const layers: OverlayOptions[] = [];
+    if (visibleWidth > 0 && visibleHeight > 0) {
+      const { data, info } = await sharp(designBuffer).resize(width, height).ensureAlpha()
+        .extract({ left: cropLeft, top: cropTop, width: visibleWidth, height: visibleHeight }).raw().toBuffer({ resolveWithObject: true });
+      for (let i = 3; i < data.length; i += 4) data[i] = Math.round(data[i] * opacity);
+      const overlay = await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } }).png().toBuffer();
+      layers.push({ input: overlay, left: areaLeft + Math.max(0, left), top: areaTop + Math.max(0, top) });
+    }
+    return { data: await baseImage.composite(layers).jpeg({ quality: 90 }).toBuffer(), mimeType: "image/jpeg" };
+  }
 
   // "fit: inside" contains the design within the area without stretching
   // it — a design whose own aspect ratio doesn't exactly match the area
