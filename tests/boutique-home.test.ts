@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { boutiqueSchema, featuredProductsQuery, getCommercePolicy, isBoutiqueTenant, storefrontSchema } from "../src/lib/storefront-theme";
+import { isShihStore } from "../src/lib/shih-storefront";
 
 test("boutique homepage is isolated to the real shihtshirt tenant", () => {
   assert.equal(isBoutiqueTenant("shihtshirt"), true);
@@ -9,7 +10,11 @@ test("boutique homepage is isolated to the real shihtshirt tenant", () => {
   for (const slug of ["bird-nerd", "birdnerd", "other", "shihtshirts"]) assert.equal(isBoutiqueTenant(slug), false);
   const page = readFileSync("src/app/page.tsx", "utf8");
   assert.match(page, /isBoutiqueTenant\(store.slug\)/);
-  assert.match(page, /if \(boutique\) \{/);
+  // The responsive ShihHome supersedes the legacy boutique for these tenants.
+  for (const slug of ["shihtshirt", "shihtshirts", "shihttshirts"]) assert.equal(isShihStore(slug), true);
+  for (const slug of ["bird-nerd", "birdnerd", "other"]) assert.equal(isShihStore(slug), false);
+  assert.match(page, /if \(boutique && !branding.isShih\) \{/);
+  assert.match(page, /if \(branding.isShih\) return <ShihHome branding=\{branding\} products=\{featured\}/);
 });
 
 test("featured database query excludes inactive products and other tenants", () => {
