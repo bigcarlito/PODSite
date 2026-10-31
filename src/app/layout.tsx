@@ -28,7 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const branding = getStoreBranding(store);
   return {
     title: {
-      default: branding.name,
+      default: branding.storefront.homepageTitle ?? branding.name,
       template: `%s | ${branding.name}`,
     },
     description: branding.description,

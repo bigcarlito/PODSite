@@ -673,3 +673,12 @@ through the existing store PATCH schema and let agents edit this copy without
 changing Store.description. Uploaded logos take priority. Empty nav falls back
 to working Shop/Our Story/Help destinations; six empty-catalog garment previews
 are labeled and contain no fake price, availability or purchasable product.
+
+The default ShihTshirts header mascot uses the combined local asset
+`public/images/shihtshirts/sami-bogey-header.png`. Store-configured
+`theme.storefront.decorations[0]` overrides it through the existing API.
+The whole image is contained in the header slot on desktop and mobile.
+
+`theme.storefront.homepageTitle` (1–200 chars) controls the default browser title;
+ShihTshirts defaults to "Shih Tshirts - For Parents of Small Dogs with Big Attitude".
+Other tenants fall back to Store.name; titled subpages keep their title template.

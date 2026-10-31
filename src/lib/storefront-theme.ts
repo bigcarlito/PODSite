@@ -54,6 +54,7 @@ export const storefrontSchema = z.object({
   masthead: mastheadSchema.optional(),
   boutique: boutiqueSchema.optional(),
   wordmark: z.string().min(1).max(80).optional(),
+  homepageTitle: z.string().min(1).max(200).optional(),
   featuredSubtitle: z.string().max(300).optional(),
   eyebrow: z.string().max(100).optional(),
   shopLabel: z.string().max(80).optional(),

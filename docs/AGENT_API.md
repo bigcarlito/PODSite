@@ -1447,3 +1447,11 @@ Empty catalogs show six garment-shaped illustration placeholders in preview
 colors, with no invented prices or inventory swatches. On mobile their Explore
 Shirts links lead to the catalog. These placeholders are replaced by live
 active products when available; they never change product status or checkout.
+
+The bundled ShihTshirts mascot fallback is
+`/images/shihtshirts/sami-bogey-header.png` (combined Sami/Bogey header art).
+Setting `theme.storefront.decorations[0]` replaces this default.
+
+`theme.storefront.homepageTitle` (1–200 characters) overrides the default browser
+page title via the existing store PATCH API. Subpages with their own titles keep
+the Store.name template. Without it, other stores default to Store.name.

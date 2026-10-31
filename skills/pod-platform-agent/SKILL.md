@@ -561,3 +561,10 @@ logo; `featuredSubtitle` (max 300 chars) sets the collection subtitle separately
 from Store.description. An uploaded theme.logoUrl takes precedence. Empty nav
 falls back to Shop/Our Story/Help. Empty catalogs show labeled garment previews,
 with no prices or inventory claims; active products replace them automatically.
+
+ShihTshirts defaults to combined mascot art at
+`/images/shihtshirts/sami-bogey-header.png`; override via the existing
+`theme.storefront.decorations[0]` slot.
+
+Set `theme.storefront.homepageTitle` (1–200 chars) via store PATCH to customize
+the default browser title independently of the store name and subpage template.
