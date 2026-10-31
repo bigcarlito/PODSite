@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { adminLogin, type LoginState } from "./actions";
 
 const initialState: LoginState = {};
@@ -10,6 +10,12 @@ export function LoginForm() {
     adminLogin,
     initialState
   );
+
+  useEffect(() => {
+    if (state.success) {
+      window.location.assign(new URL("/admin", window.location.origin).href);
+    }
+  }, [state.success]);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -28,12 +34,17 @@ export function LoginForm() {
           {state.error}
         </p>
       )}
+      {state.success && (
+        <p role="status" className="text-sm text-muted">
+          Signed in. <a href="/admin" className="underline">Continue to admin</a>.
+        </p>
+      )}
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || state.success}
         className="w-full rounded-full bg-accent py-3 text-sm font-semibold text-white hover:bg-accent-dark disabled:opacity-50"
       >
-        {pending ? "Signing in..." : "Sign In"}
+        {pending || state.success ? "Signing in..." : "Sign In"}
       </button>
     </form>
   );
