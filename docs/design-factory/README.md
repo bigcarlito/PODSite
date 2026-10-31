@@ -189,3 +189,50 @@ Automated commands: npm ci; npm run prisma:generate; npm run lint;
 node --import tsx --test tests/*.test.ts; npm run build; npx tsc --noEmit.
 No database connection or migration is needed. Manual browser QA requires an
 authenticated store with configured blank assets; it is separate from math tests.
+
+## Scoped front canvas and calibration
+Review exports optionally contain `printAreas`: profiles keyed by storeSlug,
+productType, provider and printAreaId. These are local review data, not database
+settings. Import rejects foreign tenant profiles. Agents/scripts can validate and
+edit the same JSON with `printAreaProfileSchema`; no new API is introduced.
+
+For ShihTshirts, select the actual Comfort Colors scene, enter the operator-known
+print-provider identity, then prepare and apply the front preset: 4494 x 5097 px.
+This user-supplied canvas does not establish provider identity, inches, DPI,
+provider verification or production readiness. It is never a universal default.
+
+`mockup` records the photograph's measured pixel dimensions. `mapping` is an
+editable normalized calibration rectangle, initially x=.29, y=.24, width=.42,
+height=.50: a provisional upper-chest-to-lower-torso calibration, not coordinates
+copied from the schematic. `printBoundary` contains the canvas in that rectangle,
+top aligned and horizontally centered, preserving its aspect in photograph pixels.
+Edit the JSON to calibrate against the actual garment. Restore legacy boundary
+removes the current profile; load/export JSON first to preserve earlier mappings.
+Applying or removing geometry invalidates Keep. All colors share the profile.
+
+Artwork is separately contained/scaled/translated inside canvas coordinates.
+`printCanvasLayout` and `productionCanvasPlan` define the exact future PNG geometry;
+production must use that layout on a transparent full-size canvas, never crop the
+source to the print region or stretch it to fill the canvas. The plan rejects any
+out-of-bounds artwork. Preview intentionally shows overflow and a warning rather
+than hiding bottom lettering. No production PNG, upscale or supplier call is made
+by these controls. Provider verification, physical dimensions, native resolution
+validation and the existing production handoff remain required.
+
+### Manual browser visual QA (required before approving calibration)
+1. Open `/admin/design-factory` for ShihTshirts, import a review with verified PNGs,
+   select the actual Comfort Colors garment and explicitly enter its print provider.
+2. Prepare/apply the 4494x5097 front preset. Check the tall boundary begins at upper
+   chest and extends toward lower torso on the actual blank. Adjust mapping JSON;
+   the reference schematic is a proportion guide, not photographic coordinates.
+3. Check tall artwork including bottom text; reduce scale/move up to leave lower
+   transparent space. Confirm no text disappears and proportions stay unchanged.
+4. Move beyond each edge and enlarge: overflow must remain visible with a warning.
+   Return to a contained placement before Keep. Check raw artwork is unchanged.
+5. Cycle every color with arrows/swipes, including mobile. Confirm identical
+   placement and boundary; base photographs must share framing/aspect ratio.
+6. Export/import and compare canvas, mapping, placement, lineage and decisions.
+   Restore legacy boundary and verify prior unconfigured behavior. Check a different
+   tenant/product/provider does not receive this profile. Production remains blocked.
+
+This checkout's automated geometry tests do not substitute for this browser QA.

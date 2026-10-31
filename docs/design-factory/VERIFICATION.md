@@ -80,3 +80,34 @@ Live authenticated the-look-03 browser/touch QA was not performed in this checko
 Exact manual steps and limitations are in README.md. Preview calibration and
 provider dimensions must be supplied before any future production handoff.
 The bridge owns draft PR publishing; no commit, push or PR creation was attempted.
+
+## 4494x5097 front canvas follow-up (2026-10-31)
+Implementation in isolated checkout e0bb937d-81b4-40e0-bea1-80ef1b90007b:
+scoped local-review canvas profiles, reversible mockup calibration, aspect-preserving
+print boundary, visible overflow warnings and a clipping-rejecting future transparent
+canvas plan. No schema, supplier, production, image upscale or publishing actions.
+
+Validation:
+- npm.cmd ci: passed (405 packages); postinstall generated Prisma Client 6.19.3.
+  Initial `npm ci` could not launch unsigned npm.ps1 under PowerShell policy;
+  using npm.cmd executed the same locked installation successfully. Existing
+  dependency advisories: 16 moderate, 7 high, 1 critical; no lockfile changes.
+- node --import tsx --test tests/*.test.ts: passed, 29/29, zero skips. First run
+  found one stale source assertion expecting scene.area.x after boundary selection
+  moved to printBoundary; updated it to cover configured and legacy selection,
+  retained all other assertions and reran the full suite successfully.
+- npm.cmd run lint: passed.
+- npm.cmd run build: passed, default Turbopack, seven static pages. Nonfatal outer
+  lockfile and deprecated middleware warnings remain.
+- npx.cmd tsc --noEmit: passed.
+- git diff --check: passed.
+
+Manual browser QA is documented in README.md and was not performed. The calibration
+preset is provisional until reviewed against the real garment photo; print-provider
+identity must be supplied explicitly. Canvas pixels do not establish physical size.
+
+Bridge handoff: create a NEW draft PR titled "Configure scoped front print canvas
+and reversible Factory mockup calibration", targeting
+`codex-bridge/e79349a6-1c3b-4049-beae-58be50bf0ee5` (the authenticated head of draft
+PR #59, b4127da3b728457da0c6e3e63ffd0272ba297a36). Do not update PR #59 or merge.
+This implementation agent did not commit, push, create a PR, merge or deploy.

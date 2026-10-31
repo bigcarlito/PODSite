@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { factoryManifestSchema, type FactoryManifest } from "@/lib/design/factory";
 import { cycle, updateReviewPlacement, reviewFileSchema, type ReviewVersion } from "@/lib/design/factory-review";
-import { DEFAULT_PLACEMENT, placementStyle, type Placement } from "@/lib/design/placement";
+import { DEFAULT_PLACEMENT, placementStyle, printAreaProfileSchema, printBoundary, printCanvasLayout, printArtworkStyle, type PrintAreaProfile, type Dimensions, type Placement } from "@/lib/design/placement";
 import type { DesignArea } from "@/lib/design/design-area";
 import { generate, refine } from "./actions";
 
@@ -13,6 +13,10 @@ function download(value: unknown, name: string) {
   const a = document.createElement("a"); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
 }
 export default function Review({ storeSlug, scenes }: { storeSlug: string; scenes: Scene[] }) {
+  const [printAreas, setPrintAreas] = useState<PrintAreaProfile[]>([]);
+  const [provider, setProvider] = useState("");
+  const [configText, setConfigText] = useState("");
+  const [sizes, setSizes] = useState<Record<string, Dimensions>>({});
   const [manifest, setManifest] = useState<FactoryManifest>();
   const [versions, setVersions] = useState<ReviewVersion[]>([]);
   const [selected, setSelected] = useState(0);
@@ -31,6 +35,19 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
   const color = colors[colorIndex % (colors.length || 1)];
   const version = versions[selected];
   const placement = version?.placements?.[scene?.productType] ?? DEFAULT_PLACEMENT;
+  const profile = printAreas.find(p => p.storeSlug === storeSlug && p.productType === scene?.productType && p.provider === provider && p.printAreaId === "front");
+  const area = profile ? printBoundary(profile) : scene?.area;
+  const source = version?.image ? sizes[version.image] : undefined;
+  const layout = profile && source ? printCanvasLayout(placement, source, profile) : undefined;
+  function applyProfile() {
+    try {
+      const next = printAreaProfileSchema.parse(JSON.parse(configText));
+      if (next.storeSlug !== storeSlug || next.productType !== scene?.productType) throw new Error("Profile must match tenant and garment");
+      setPrintAreas(items => [...items.filter(p => !(p.productType === next.productType && p.provider === next.provider && p.printAreaId === next.printAreaId)), next]);
+      setProvider(next.provider); setError("");
+      setVersions(items => items.map(item => item.decision === "keep" ? { ...item, decision: "pending" } : item));
+    } catch (e) { setError(e instanceof Error ? e.message : "Invalid profile"); }
+  }
   function place(next: Placement, copy = false) {
     if (!scene || !version) return;
     setVersions(items => updateReviewPlacement(items, version.id, scene.productType, next, copy));
@@ -63,6 +80,8 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
         }
         next.push({ id: c.id, candidateId: c.id, parentId: null, prompt: c.prompt, rationale: "Imported original", preserved: [], feedback: "", image, decision: c.review.status === "selected" ? "keep" : c.review.status === "rejected" ? "reject" : "pending", createdAt: new Date().toISOString(), provenance: c.provenance });
       }
+      if (saved?.printAreas?.some(p => p.storeSlug !== storeSlug)) throw new Error("Profile belongs to another store");
+      setPrintAreas(saved?.printAreas ?? []); setProvider(saved?.printAreas?.[0]?.provider ?? "");
       setManifest(m); setVersions(saved?.versions ?? next); select(0);
     } catch (e) { setError(e instanceof Error ? e.message : "Import failed"); }
   }
@@ -93,7 +112,7 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
     <p role="alert">{error}</p>
     {manifest && <>
       <h2 className="text-lg font-semibold">{manifest.candidates.find(c => c.id === version?.candidateId)?.style.name} · {version?.id}</h2>
-      <button onClick={() => download({ format: "factory-review-1", manifest, versions, production: { ready: false, reason: "Provider print-area dimensions are not configured" } }, "factory-review.json")}>Export review and history</button>
+      <button onClick={() => download({ format: "factory-review-1", manifest, versions, printAreas, production: { ready: false, reason: "Provider verification and physical dimensions remain required" } }, "factory-review.json")}>Export review and history</button>
       <div className="flex flex-wrap gap-3">
         <label>Garment <select value={sceneIndex} onChange={e => { setScene(Number(e.target.value)); setColor(0); }}>{scenes.map((s, i) => <option key={s.productType} value={i}>{s.productType}</option>)}</select></label>
         <button onClick={() => setColor(i => cycle(i, -1, colors.length))} disabled={!colors.length} aria-label="Previous shirt color">← Color</button>
@@ -102,21 +121,29 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
         <label><input type="checkbox" checked={raw} onChange={e => setRaw(e.target.checked)} /> Raw artwork</label>
       </div>
       <div tabIndex={0} aria-label="Artwork review; left and right arrows change shirt color" onKeyDown={e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); setColor(i => cycle(i, e.key === "ArrowLeft" ? -1 : 1, colors.length)); } }} onTouchStart={e => setTouch(e.changedTouches[0].clientX)} onTouchEnd={e => { if (touch !== undefined && Math.abs(e.changedTouches[0].clientX - touch) > 40) setColor(i => cycle(i, e.changedTouches[0].clientX < touch ? 1 : -1, colors.length)); }} className="relative mx-auto max-w-lg border">
-        {!raw && color && <img src={scene.bases[color]} alt={`${scene.productType} blank shirt in ${color}`} className="block w-full" onError={() => setError("Garment photograph could not load. Choose another color or raw artwork.")} />}
-        {version?.image && !raw && color ? <div className="outline outline-1 outline-dashed outline-black/30" style={{ position: "absolute", left: `${scene.area.x * 100}%`, top: `${scene.area.y * 100}%`, width: `${scene.area.width * 100}%`, height: `${scene.area.height * 100}%`, overflow: "hidden" }}>
-          <img src={version.image} alt="Candidate artwork" style={placementStyle(placement)} />
+        {!raw && color && <img src={scene.bases[color]} alt={`${scene.productType} blank shirt in ${color}`} className="block w-full" onLoad={e => { const img = e.currentTarget; setSizes(items => ({ ...items, [scene.bases[color]]: { width: img.naturalWidth, height: img.naturalHeight } })); }} onError={() => setError("Garment photograph could not load. Choose another color or raw artwork.")} />}
+        {version?.image && !raw && color ? <div className="outline outline-1 outline-dashed outline-black/30" style={{ position: "absolute", left: `${area.x * 100}%`, top: `${area.y * 100}%`, width: `${area.width * 100}%`, height: `${area.height * 100}%`, overflow: "visible" }}>
+          <img src={version.image} alt="Candidate artwork" onLoad={e => { const img = e.currentTarget; setSizes(items => ({ ...items, [version.image!]: { width: img.naturalWidth, height: img.naturalHeight } })); }} style={profile && source ? printArtworkStyle(placement, source, profile) : placementStyle(placement)} />
         </div> : version?.image ? <img src={version.image} alt="Candidate artwork" style={{ width: "100%", background: "repeating-conic-gradient(#ddd 0% 25%, white 0% 50%) 0 / 20px 20px" }} /> : <p>Planned revision — export for explicit image generation.</p>}
       </div>
       {scene && version && <fieldset className="space-y-3 border p-3">
         <legend>Artwork placement / {scene.productType} / shared across colors</legend>
-        <p>Artwork outside the print area is clipped. Raw artwork remains unchanged.</p>
+        <p>Dashed boundary is the printable canvas. Artwork retains its aspect ratio and may occupy only the upper portion. Overflow remains visible.</p>
+        {layout?.clipped && <p role="alert">Artwork exceeds printable canvas. Reduce size or move it. Production compositing is blocked to prevent clipping.</p>}
+        <label className="block">Print provider (explicit identity)<input value={provider} onChange={e => { setProvider(e.target.value); setVersions(items => items.map(item => item.decision === "keep" ? { ...item, decision: "pending" } : item)); }} /></label>
+        <p>{profile ? `${profile.canvas.width} ? ${profile.canvas.height} px / front` : "No scoped canvas configured; legacy geometry"}</p>
+        {["shihtshirt", "shihtshirts", "shihttshirts"].includes(storeSlug) && <button disabled={!provider.trim() || !sizes[scene.bases[color]]} onClick={() => setConfigText(JSON.stringify({ storeSlug, productType: scene.productType, provider, printAreaId: "front", mockup: sizes[scene.bases[color]], canvas: { width: 4494, height: 5097 }, mapping: { x: 0.29, y: 0.24, width: 0.42, height: 0.50 } }, null, 2))}>Prepare Comfort Colors front preset; verify garment and mapping before applying</button>}
+        <label className="block">Canvas and mockup mapping JSON<textarea className="block w-full border" value={configText} onChange={e => setConfigText(e.target.value)} /></label>
+        <button onClick={() => setConfigText(JSON.stringify(profile ?? { storeSlug, productType: scene.productType, provider, printAreaId: "front", mockup: sizes[scene.bases[color]], canvas: { width: 1, height: 1 }, mapping: scene.area }, null, 2))}>Load current mapping</button>
+        <button onClick={applyProfile}>Apply canvas / mapping</button>
+        <button onClick={() => { setPrintAreas(items => items.filter(p => p !== profile)); setVersions(items => items.map(item => item.decision === "keep" ? { ...item, decision: "pending" } : item)); }}>Restore legacy boundary</button>
         {(["scale", "x", "y"] as const).map(key => <label key={key} className="block">
           {key === "scale" ? "Size" : key === "x" ? "Horizontal center" : "Vertical center"}: {Math.round(placement[key] * 100)}%
           <input className="block min-h-11 w-full" type="range" min={key === "scale" ? 0.1 : 0} max={key === "scale" ? 2 : 1} step="0.01" value={placement[key]} onChange={e => place({ ...placement, [key]: Number(e.target.value) })} />
         </label>)}
         <button className="min-h-11 border p-2" onClick={() => place({ ...DEFAULT_PLACEMENT })}>Reset placement</button>
         <button className="min-h-11 border p-2" onClick={() => place(placement, true)}>Copy to versions without a placement</button>
-        <p>Production export not ready: provider print-area dimensions are not configured. Keep records placement in the review export; it does not approve print readiness.</p>
+        <p>Production export not ready: provider verification and physical dimensions remain required. Keep records placement in the review export; it does not approve print readiness.</p>
       </fieldset>}
       <p>Review contrast, small lettering and edges on each real shirt color. Alpha is preserved; opaque source backgrounds remain visible. This visual check grants no print readiness.</p>
       <div className="flex gap-4"><button onClick={() => select(i => cycle(i, -1, versions.length))}>← Candidate/version</button><span aria-live="polite">{selected + 1} / {versions.length} · {version?.decision}</span><button onClick={() => select(i => cycle(i, 1, versions.length))}>Candidate/version →</button></div>
