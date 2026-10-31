@@ -243,6 +243,14 @@ the MCP tool descriptions are generated/kept in sync from.
 
 ## Structured designs
 
+Bounded local Design Factory POC: `src/lib/design/factory.ts` defines reusable
+brief/style/manifest schemas; `scripts/design-factory.ts` prepares The Look's five
+style candidates and optionally uses the existing ImageProvider adapter. It never
+touches the database, publishes, selects artwork, or grants print readiness.
+Prompts, original-art hash, preview hashes, provider provenance and human review
+live in a local manifest. See `docs/design-factory/README.md` for CLI/manual use
+and archival requirements. No agent REST surface is added or changed.
+
 A design is defined by **structured aspects** (a controlled vocabulary —
 `hook`, `layout`, `artStyle`, `colorScheme`, `complexity`, plus free-text
 `phrase`/`subject` and placement context), not by an opaque `designUrl`.

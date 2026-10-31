@@ -1,0 +1,22 @@
+{
+  "brief": {
+    "id": "the-look",
+    "storeSlug": "shihtshirts",
+    "concept": "The Look",
+    "audience": "Shih Tzu parents who recognize their dog's expressive judgment",
+    "subject": "An expressive Shih Tzu giving a knowing sideways look",
+    "lettering": "THE LOOK / IF YOU KNOW, YOU KNOW",
+    "originalArt": {
+      "path": "public/designs/shihtshirts/the-look.png",
+      "sha256": "1f08f81bb44e736acd6b493f1c41c6443631a053100a4981455e940b21c82e5e",
+      "provenance": "Existing repository artwork; preserved unchanged. See docs/products/the-look/artwork-quality.json. Owner must confirm rights before production."
+    }
+  },
+  "styles": [
+    { "id": "minimalist-ink", "name": "Minimalist ink", "direction": "Single soft-black ink contour, generous negative space, restrained lettering" },
+    { "id": "vintage-distressed", "name": "Vintage distressed", "direction": "Weathered two-ink screen print, fine transparent distress, antique lettering" },
+    { "id": "1970s-retro", "name": "1970s retro", "direction": "Warm ochre and rust palette, rounded groovy lettering, flowing seventies curves" },
+    { "id": "contemporary-bold", "name": "Contemporary bold", "direction": "Confident flat shapes, strong typographic hierarchy, limited high-contrast palette" },
+    { "id": "hand-drawn-boutique", "name": "Hand-drawn boutique", "direction": "Charming irregular pen lines, handwritten lettering, delicate boutique illustration" }
+  ]
+}
