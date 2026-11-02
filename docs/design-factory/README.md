@@ -172,7 +172,7 @@ Manual test for current the-look-03 batch:
 2. Select the configured Comfort Colors garment. Set Size to 75%, Horizontal
    center to 40%, Vertical center to 60% using touch and then keyboard arrows.
    Check all garment colors: artwork retains proportions and the same placement.
-   At 200% and a center at an edge, verify clipping at the print-area boundary.
+   At maximum size and each center limit, verify all visible ink stays inside the fixed boundary.
 3. Toggle Raw artwork: the original full PNG must remain unchanged. Toggle back.
    Change candidate and return: the individual placement must remain.
 4. Set another candidate's placement; return and Copy to versions without a
@@ -213,9 +213,11 @@ Applying or removing geometry invalidates Keep. All colors share the profile.
 Artwork is separately contained/scaled/translated inside canvas coordinates.
 `printCanvasLayout` and `productionCanvasPlan` define the exact future PNG geometry;
 production must use that layout on a transparent full-size canvas, never crop the
-source to the print region or stretch it to fill the canvas. The plan rejects any
-out-of-bounds artwork. Preview intentionally shows overflow and a warning rather
-than hiding bottom lettering. No production PNG, upscale or supplier call is made
+source to the print region or stretch it to fill the canvas. The plan clamps size and center using the same geometry as preview, including
+nonzero-alpha bounds measured from the decoded PNG. Transparent padding may extend
+outside the boundary; visible ink must not. Bounds are recomputed on import, never
+trusted from JSON. Without measured alpha bounds the full image is conservatively
+contained. Fully transparent images are rejected with guidance. No production PNG, upscale or supplier call is made
 by these controls. Provider verification, physical dimensions, native resolution
 validation and the existing production handoff remain required.
 
@@ -227,8 +229,8 @@ validation and the existing production handoff remain required.
    the reference schematic is a proportion guide, not photographic coordinates.
 3. Check tall artwork including bottom text; reduce scale/move up to leave lower
    transparent space. Confirm no text disappears and proportions stay unchanged.
-4. Move beyond each edge and enlarge: overflow must remain visible with a warning.
-   Return to a contained placement before Keep. Check raw artwork is unchanged.
+4. Try each edge and enlarge: values must clamp without clipping visible ink.
+   Reduce size to regain movement. Check raw artwork is unchanged.
 5. Cycle every color with arrows/swipes, including mobile. Confirm identical
    placement and boundary; base photographs must share framing/aspect ratio.
 6. Export/import and compare canvas, mapping, placement, lineage and decisions.
@@ -236,3 +238,18 @@ validation and the existing production handoff remain required.
    tenant/product/provider does not receive this profile. Production remains blocked.
 
 This checkout's automated geometry tests do not substitute for this browser QA.
+
+### Placement regression check with the-look-03 (local, unpaid)
+Import the local The Look manifest and PNGs, select `the-look-03`, and apply your
+existing tenant/garment/provider front profile. Keep the calibrated mapping and
+4494x5097 canvas unchanged. At small, medium and maximum sizes, move horizontal
+and vertical sliders to both ends using mouse, keyboard arrows/Home/End and touch.
+Check the dog and both text lines stay inside the fixed dashed rectangle. Repeat
+with an asymmetrically padded PNG; the image element is not the ink boundary.
+Reduce size: sliders should gain travel without moving the artwork unexpectedly.
+Cycle all colors and versions; explicit placements must remain independent. Export,
+reload, import the review JSON and compare placements, mapping and lineage. Old
+out-of-range placements become pending with clamped values; raw PNGs stay intact.
+Do not click Refine/Generate or approve calibration/production during this check.
+This procedure is documented for an authenticated local reviewer; it was not run
+against a store or production database as part of the automated regression checks.

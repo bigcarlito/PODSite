@@ -38,10 +38,12 @@ test("admin action and page enforce tenant session; agent endpoint uses bearer w
 test("review UI keeps garment state independent, uses real bases and native alpha placement", () => {
   const text = readFileSync("src/app/admin/(dashboard)/design-factory/review.tsx", "utf8");
   assert.match(text, /scene.bases\[color\]/);
-  assert.match(text, /placementStyle\(placement\)/);
+  assert.match(text, /constrainedPlacement\(requested, source, canvas\)/);
   assert.match(text, /profile \? printBoundary\(profile\) : scene\?\.area/);
   assert.match(text, /area.x \* 100/);
-  assert.match(text, /printArtworkStyle\(placement, source, profile\)/);
+  assert.match(text, /alphaBounds\(ctx.getImageData/);
+  assert.match(text, /layout\?\.limits\[key\]\.min/);
+  assert.match(text, /layout\?\.limits\[key\]\.max/);
   assert.match(text, /onTouchEnd/); assert.match(text, /onKeyDown/);
   assert.match(text, /crypto.subtle.digest\("SHA-256"/);
   assert.match(text, /parentId: version.id/);

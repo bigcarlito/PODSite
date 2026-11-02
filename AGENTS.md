@@ -726,3 +726,13 @@ no inches, DPI, provider verification or readiness is inferred. printBoundary an
 printCanvasLayout preserve proportions; productionCanvasPlan rejects clipping and
 specifies transparent padding for future compositing. See manual browser QA in
 docs/design-factory/README.md. No new endpoint or production mutation is introduced.
+
+
+Design Factory placement review uses `constrainedPlacement()` in
+`src/lib/design/placement.ts` for fixed-canvas containment of nonzero-alpha ink.
+Client review measures native PNG alpha bounds; `productionCanvasPlan()` accepts
+those same source bounds (or conservatively contains the entire source). Future
+production consumers must measure source pixels independently, use the returned
+normalized placement/layout, and preserve transparent padding rather than crop ink.
+Review imports clamp legacy overflowing placements and invalidate Keep when changed.
+This is local review behavior, adds no endpoint, and grants no production readiness.

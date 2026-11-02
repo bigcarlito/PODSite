@@ -23,14 +23,56 @@ export function placementLayout(value: Placement, source: Dimensions, area: Dime
   return { left, top, width, height, clip, clipped: left < 0 || top < 0 || left + width > area.width || top + height > area.height };
 }
 
+/** Pixel bounds include every nonzero-alpha pixel, including faint edge pixels. */
+export type ArtworkSource = Dimensions & { bounds?: { left: number; top: number; width: number; height: number } };
+export function alphaBounds(rgba: ArrayLike<number>, width: number, height: number) {
+  dimensionsSchema.parse({ width, height });
+  if (!Number.isInteger(width) || !Number.isInteger(height) || rgba.length !== width * height * 4) throw new Error("Invalid RGBA pixels");
+  let left = width, top = height, right = 0, bottom = 0;
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    if (rgba[(y * width + x) * 4 + 3] > 0) {
+      left = Math.min(left, x); top = Math.min(top, y); right = Math.max(right, x + 1); bottom = Math.max(bottom, y + 1);
+    }
+  }
+  if (right <= left || bottom <= top) throw new Error("Artwork is fully transparent; choose a visible PNG");
+  return { left, top, width: right - left, height: bottom - top };
+}
+
+/** Preserve v1 scale/center semantics; clamp the visible bounds, never clip pixels.
+ * Missing alpha metadata conservatively treats the entire source as visible.
+ * Use this same source metadata and layout for future production mapping.
+ */
+export function constrainedPlacement(value: Placement, source: ArtworkSource, area: Dimensions) {
+  const p = placementSchema.parse(value);
+  dimensionsSchema.parse(source); dimensionsSchema.parse(area);
+  const b = source.bounds ?? { left: 0, top: 0, ...source };
+  if (![b.left, b.top, b.width, b.height].every(Number.isFinite) || b.left < 0 || b.top < 0 || b.width <= 0 || b.height <= 0 || b.left + b.width > source.width || b.top + b.height > source.height) throw new Error("Invalid artwork alpha bounds");
+  const base = Math.min(area.width / source.width, area.height / source.height);
+  const maxScale = Math.min(2, area.width / (b.width * base), area.height / (b.height * base));
+  const scale = Math.min(p.scale, maxScale), ratio = base * scale;
+  const limits = {
+    scale: { min: 0.1, max: maxScale },
+    x: { min: (source.width / 2 - b.left) * ratio / area.width, max: 1 - (b.left + b.width - source.width / 2) * ratio / area.width },
+    y: { min: (source.height / 2 - b.top) * ratio / area.height, max: 1 - (b.top + b.height - source.height / 2) * ratio / area.height },
+  };
+  for (const key of ["x", "y"] as const) { limits[key].min = Math.max(0, limits[key].min); limits[key].max = Math.min(1, limits[key].max); }
+  const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
+  const normalized: Placement = { ...p, scale, x: clamp(p.x, limits.x.min, limits.x.max), y: clamp(p.y, limits.y.min, limits.y.max) };
+  const width = source.width * ratio, height = source.height * ratio;
+  const left = normalized.x * area.width - width / 2, top = normalized.y * area.height - height / 2;
+  return { normalized, limits, left, top, width, height,
+    clip: { left: left + b.left * ratio, top: top + b.top * ratio, right: left + (b.left + b.width) * ratio, bottom: top + (b.top + b.height) * ratio }, clipped: false };
+}
+
 /** Metadata only. Ready coordinates do not certify artwork as print-ready. */
-export function productionPlacement(placement: Placement, source: Dimensions, configured?: Dimensions & { provider: string; printAreaId: string }) {
+export function productionPlacement(placement: Placement, source: ArtworkSource, configured?: Dimensions & { provider: string; printAreaId: string }) {
   const normalized = placementSchema.parse(placement);
   dimensionsSchema.parse(source);
   if (!configured) return { normalized, ready: false as const, reason: "Provider print-area dimensions are not configured" };
   dimensionsSchema.parse(configured);
   if (!configured.provider.trim() || !configured.printAreaId.trim()) throw new Error("Provider and print area identity required");
-  return { normalized, ready: true as const, provider: configured.provider, printAreaId: configured.printAreaId, canvas: { width: configured.width, height: configured.height }, layout: placementLayout(normalized, source, configured) };
+  const layout = constrainedPlacement(normalized, source, configured);
+  return { normalized: layout.normalized, ready: true as const, provider: configured.provider, printAreaId: configured.printAreaId, canvas: { width: configured.width, height: configured.height }, layout };
 }
 export function serializePlacement(value: Placement) { return JSON.stringify(placementSchema.parse(value)); }
 
@@ -68,16 +110,16 @@ export function mapPrintPoint(point: { x: number; y: number }, profile: PrintAre
 }
 
 /** One geometry for preview and future transparent PNG padding. Refuse clipping. */
-export function printCanvasLayout(value: Placement, source: Dimensions, profile: PrintAreaProfile) {
+export function printCanvasLayout(value: Placement, source: ArtworkSource, profile: PrintAreaProfile) {
   const { canvas } = printAreaProfileSchema.parse(profile);
-  return placementLayout(value, source, canvas);
+  return constrainedPlacement(value, source, canvas);
 }
-export function printArtworkStyle(value: Placement, source: Dimensions, profile: PrintAreaProfile) {
+export function printArtworkStyle(value: Placement, source: ArtworkSource, profile: PrintAreaProfile) {
   const box = printCanvasLayout(value, source, profile);
   return { position: "absolute" as const, left: `${box.left / profile.canvas.width * 100}%`, top: `${box.top / profile.canvas.height * 100}%`,
-    width: `${box.width / profile.canvas.width * 100}%`, height: `${box.height / profile.canvas.height * 100}%`, maxWidth: "none", opacity: 0.85 };
+    width: `${box.width / profile.canvas.width * 100}%`, height: `${box.height / profile.canvas.height * 100}%`, maxWidth: "none", maxHeight: "none", opacity: 0.85 };
 }
-export function productionCanvasPlan(value: Placement, source: Dimensions, profile: PrintAreaProfile) {
+export function productionCanvasPlan(value: Placement, source: ArtworkSource, profile: PrintAreaProfile) {
   const layout = printCanvasLayout(value, source, profile);
   if (layout.clipped) throw new Error("Artwork exceeds printable canvas; reduce size or move it before compositing");
   return { canvas: profile.canvas, layout, background: { r: 0, g: 0, b: 0, alpha: 0 }, ready: false as const,

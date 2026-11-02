@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { printAreaProfileSchema, placementSchema, type Placement } from "./placement";
+import { printAreaProfileSchema, placementSchema, constrainedPlacement, type ArtworkSource, type Dimensions, type Placement } from "./placement";
 import { factoryManifestSchema } from "./factory";
 
 export const revisionSchema = z.object({ prompt: z.string().min(20).max(8000), rationale: z.string().min(1).max(2000), preserved: z.array(z.string().min(1).max(500)).min(1).max(20) }).strict();
@@ -21,4 +21,23 @@ export function updateReviewPlacement(versions: ReviewVersion[], id: string, pro
   const placement = placementSchema.parse(value);
   return versions.map(item => (copy ? item.id !== id && !item.placements?.[productType] : item.id === id)
     ? { ...item, decision: item.decision === "keep" ? "pending" : item.decision, placements: { ...item.placements, [productType]: { ...placement } } } : item);
+}
+
+/** Recompute from decoded source pixels, never trust alpha metadata from an import. */
+export function constrainReviewPlacements(versions: ReviewVersion[], geometry: (item: ReviewVersion, productType: string) => { source: ArtworkSource; canvas: Dimensions } | undefined): ReviewVersion[] {
+  let changed = false;
+  const result = versions.map(item => {
+    let next = item;
+    for (const [productType, value] of Object.entries(item.placements ?? {})) {
+      const inputs = geometry(item, productType);
+      if (!inputs) continue;
+      const normalized = constrainedPlacement(value, inputs.source, inputs.canvas).normalized;
+      if (normalized.scale !== value.scale || normalized.x !== value.x || normalized.y !== value.y) {
+        next = { ...next, decision: next.decision === "keep" ? "pending" : next.decision, placements: { ...next.placements, [productType]: normalized } };
+        changed = true;
+      }
+    }
+    return next;
+  });
+  return changed ? result : versions;
 }
