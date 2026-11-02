@@ -1,9 +1,9 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
-import { useState } from "react";
+import { useEffect, useState, type SetStateAction } from "react";
 import { factoryManifestSchema, type FactoryManifest } from "@/lib/design/factory";
-import { cycle, updateReviewPlacement, reviewFileSchema, type ReviewVersion } from "@/lib/design/factory-review";
-import { DEFAULT_PLACEMENT, placementStyle, printAreaProfileSchema, printBoundary, printCanvasLayout, printArtworkStyle, type PrintAreaProfile, type Dimensions, type Placement } from "@/lib/design/placement";
+import { cycle, constrainReviewPlacements, updateReviewPlacement, reviewFileSchema, type ReviewVersion } from "@/lib/design/factory-review";
+import { DEFAULT_PLACEMENT, alphaBounds, constrainedPlacement, printAreaProfileSchema, printBoundary, type PrintAreaProfile, type ArtworkSource, type Placement } from "@/lib/design/placement";
 import type { DesignArea } from "@/lib/design/design-area";
 import { generate, refine } from "./actions";
 
@@ -16,9 +16,9 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
   const [printAreas, setPrintAreas] = useState<PrintAreaProfile[]>([]);
   const [provider, setProvider] = useState("");
   const [configText, setConfigText] = useState("");
-  const [sizes, setSizes] = useState<Record<string, Dimensions>>({});
+  const [sizes, setSizes] = useState<Record<string, ArtworkSource>>({});
   const [manifest, setManifest] = useState<FactoryManifest>();
-  const [versions, setVersions] = useState<ReviewVersion[]>([]);
+  const [storedVersions, setStoredVersions] = useState<ReviewVersion[]>([]);
   const [selected, setSelected] = useState(0);
   const [sceneIndex, setScene] = useState(0);
   const [colorIndex, setColor] = useState(0);
@@ -33,12 +33,45 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
   const scene = scenes[sceneIndex];
   const colors = Object.keys(scene?.bases ?? {});
   const color = colors[colorIndex % (colors.length || 1)];
+  const geometry = (item: ReviewVersion, productType: string) => {
+    const src = item.image ? sizes[item.image] : undefined;
+    const garment = scenes.find(s => s.productType === productType);
+    const configured = printAreas.find(p => p.productType === productType && p.storeSlug === storeSlug && p.provider === provider && p.printAreaId === "front");
+    const base = garment && Object.values(garment.bases).map(url => sizes[url]).find(Boolean);
+    const target = configured?.canvas ?? (base && garment ? { width: base.width * garment.area.width, height: base.height * garment.area.height } : undefined);
+    return src && target ? { source: src, canvas: target } : undefined;
+  };
+  const versions = constrainReviewPlacements(storedVersions, geometry);
+  function setVersions(action: SetStateAction<ReviewVersion[]>) {
+    setStoredVersions(items => typeof action === "function" ? action(constrainReviewPlacements(items, geometry)) : action);
+  }
   const version = versions[selected];
-  const placement = version?.placements?.[scene?.productType] ?? DEFAULT_PLACEMENT;
+  const requested = version?.placements?.[scene?.productType] ?? DEFAULT_PLACEMENT;
   const profile = printAreas.find(p => p.storeSlug === storeSlug && p.productType === scene?.productType && p.provider === provider && p.printAreaId === "front");
   const area = profile ? printBoundary(profile) : scene?.area;
   const source = version?.image ? sizes[version.image] : undefined;
-  const layout = profile && source ? printCanvasLayout(placement, source, profile) : undefined;
+  const photo = sizes[scene?.bases[color]];
+  const canvas = profile?.canvas ?? (photo && area ? { width: photo.width * area.width, height: photo.height * area.height } : undefined);
+  const layout = source && canvas ? constrainedPlacement(requested, source, canvas) : undefined;
+  const placement = layout?.normalized ?? requested;
+  useEffect(() => {
+    let cancelled = false;
+    for (const item of versions) if (item.image && !sizes[item.image]) {
+      const url = item.image, img = new Image();
+      img.onload = () => {
+        try {
+          const c = document.createElement("canvas"); c.width = img.naturalWidth; c.height = img.naturalHeight;
+          const ctx = c.getContext("2d"); if (!ctx) throw new Error("Cannot measure artwork alpha");
+          ctx.drawImage(img, 0, 0);
+          const bounds = alphaBounds(ctx.getImageData(0, 0, c.width, c.height).data, c.width, c.height);
+          if (!cancelled) setSizes(items => ({ ...items, [url]: { width: c.width, height: c.height, bounds } }));
+        } catch (e) { if (!cancelled) setError(e instanceof Error ? e.message : "Cannot measure artwork"); }
+      };
+      img.onerror = () => { if (!cancelled) setError("Artwork could not load"); };
+      img.src = url;
+    }
+    return () => { cancelled = true; };
+  }, [versions, sizes]);
   function applyProfile() {
     try {
       const next = printAreaProfileSchema.parse(JSON.parse(configText));
@@ -50,7 +83,8 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
   }
   function place(next: Placement, copy = false) {
     if (!scene || !version) return;
-    setVersions(items => updateReviewPlacement(items, version.id, scene.productType, next, copy));
+    if (!source || !canvas) return;
+    setVersions(items => updateReviewPlacement(items, version.id, scene.productType, constrainedPlacement(next, source, canvas).normalized, copy));
   }
   function decide(decision: "keep" | "refine" | "reject") { setVersions(v => v.map((item, i) => i === selected ? { ...item, decision, decisions: [...(item.decisions ?? []), { decision, at: new Date().toISOString() }] } : item)); }
   async function importFiles(files: FileList | null) {
@@ -123,12 +157,12 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
       <div tabIndex={0} aria-label="Artwork review; left and right arrows change shirt color" onKeyDown={e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); setColor(i => cycle(i, e.key === "ArrowLeft" ? -1 : 1, colors.length)); } }} onTouchStart={e => setTouch(e.changedTouches[0].clientX)} onTouchEnd={e => { if (touch !== undefined && Math.abs(e.changedTouches[0].clientX - touch) > 40) setColor(i => cycle(i, e.changedTouches[0].clientX < touch ? 1 : -1, colors.length)); }} className="relative mx-auto max-w-lg border">
         {!raw && color && <img src={scene.bases[color]} alt={`${scene.productType} blank shirt in ${color}`} className="block w-full" onLoad={e => { const img = e.currentTarget; setSizes(items => ({ ...items, [scene.bases[color]]: { width: img.naturalWidth, height: img.naturalHeight } })); }} onError={() => setError("Garment photograph could not load. Choose another color or raw artwork.")} />}
         {version?.image && !raw && color ? <div className="outline outline-1 outline-dashed outline-black/30" style={{ position: "absolute", left: `${area.x * 100}%`, top: `${area.y * 100}%`, width: `${area.width * 100}%`, height: `${area.height * 100}%`, overflow: "visible" }}>
-          <img src={version.image} alt="Candidate artwork" onLoad={e => { const img = e.currentTarget; setSizes(items => ({ ...items, [version.image!]: { width: img.naturalWidth, height: img.naturalHeight } })); }} style={profile && source ? printArtworkStyle(placement, source, profile) : placementStyle(placement)} />
+          <img src={version.image} alt="Candidate artwork" style={layout && canvas ? { position: "absolute", left: `${layout.left / canvas.width * 100}%`, top: `${layout.top / canvas.height * 100}%`, width: `${layout.width / canvas.width * 100}%`, height: `${layout.height / canvas.height * 100}%`, maxWidth: "none", maxHeight: "none", opacity: 0.85 } : { visibility: "hidden" }} />
         </div> : version?.image ? <img src={version.image} alt="Candidate artwork" style={{ width: "100%", background: "repeating-conic-gradient(#ddd 0% 25%, white 0% 50%) 0 / 20px 20px" }} /> : <p>Planned revision — export for explicit image generation.</p>}
       </div>
       {scene && version && <fieldset className="space-y-3 border p-3">
         <legend>Artwork placement / {scene.productType} / shared across colors</legend>
-        <p>Dashed boundary is the printable canvas. Artwork retains its aspect ratio and may occupy only the upper portion. Overflow remains visible.</p>
+        <p>Dashed boundary is the printable canvas. Visible artwork stays inside it, including faint alpha edges. Size and center values stop at the available limits; transparent PNG padding may extend outside. Imported out-of-range values are clamped. Reduce size to allow more movement.</p>
         {layout?.clipped && <p role="alert">Artwork exceeds printable canvas. Reduce size or move it. Production compositing is blocked to prevent clipping.</p>}
         <label className="block">Print provider (explicit identity)<input value={provider} onChange={e => { setProvider(e.target.value); setVersions(items => items.map(item => item.decision === "keep" ? { ...item, decision: "pending" } : item)); }} /></label>
         <p>{profile ? `${profile.canvas.width} ? ${profile.canvas.height} px / front` : "No scoped canvas configured; legacy geometry"}</p>
@@ -139,7 +173,7 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
         <button onClick={() => { setPrintAreas(items => items.filter(p => p !== profile)); setVersions(items => items.map(item => item.decision === "keep" ? { ...item, decision: "pending" } : item)); }}>Restore legacy boundary</button>
         {(["scale", "x", "y"] as const).map(key => <label key={key} className="block">
           {key === "scale" ? "Size" : key === "x" ? "Horizontal center" : "Vertical center"}: {Math.round(placement[key] * 100)}%
-          <input className="block min-h-11 w-full" type="range" min={key === "scale" ? 0.1 : 0} max={key === "scale" ? 2 : 1} step="0.01" value={placement[key]} onChange={e => place({ ...placement, [key]: Number(e.target.value) })} />
+          <input className="block min-h-11 w-full" type="range" disabled={!layout} min={layout?.limits[key].min ?? 0} max={layout?.limits[key].max ?? 1} step="0.001" value={placement[key]} onChange={e => place({ ...placement, [key]: Number(e.target.value) })} />
         </label>)}
         <button className="min-h-11 border p-2" onClick={() => place({ ...DEFAULT_PLACEMENT })}>Reset placement</button>
         <button className="min-h-11 border p-2" onClick={() => place(placement, true)}>Copy to versions without a placement</button>
