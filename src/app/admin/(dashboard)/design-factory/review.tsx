@@ -3,9 +3,10 @@
 import { useEffect, useState, type CSSProperties, type SetStateAction } from "react";
 import { factoryManifestSchema, type FactoryManifest } from "@/lib/design/factory";
 import { cycle, constrainReviewPlacements, updateReviewPlacement, reviewFileSchema, type ReviewVersion } from "@/lib/design/factory-review";
-import { DEFAULT_PLACEMENT, alphaBounds, constrainedPlacement, printAreaProfileSchema, printBoundary, type PrintAreaProfile, type ArtworkSource, type Placement } from "@/lib/design/placement";
+import { DEFAULT_PLACEMENT, alphaBounds, constrainedPlacement, printAreaProfileSchema, printBoundary, mergeCalibration, type PrintAreaProfile, type ArtworkSource, type Placement } from "@/lib/design/placement";
 import type { DesignArea } from "@/lib/design/design-area";
-import { generate, refine } from "./actions";
+import Calibration from "./calibration";
+import { generate, refine, saveCalibration } from "./actions";
 import styles from "./review.module.css";
 
 type Scene = { productType: string; area: DesignArea; bases: Record<string, string> };
@@ -13,9 +14,11 @@ function download(value: unknown, name: string) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }));
   const a = document.createElement("a"); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
 }
-export default function Review({ storeSlug, scenes }: { storeSlug: string; scenes: Scene[] }) {
-  const [printAreas, setPrintAreas] = useState<PrintAreaProfile[]>([]);
-  const [provider, setProvider] = useState("");
+export default function Review({ storeSlug, scenes, initialPrintAreas }: { storeSlug: string; scenes: Scene[]; initialPrintAreas: PrintAreaProfile[] }) {
+  const [printAreas, setPrintAreas] = useState<PrintAreaProfile[]>(initialPrintAreas);
+  const [provider, setProvider] = useState(initialPrintAreas[0]?.provider ?? "");
+  const [draft, setDraft] = useState<PrintAreaProfile>();
+  const [saving, setSaving] = useState(false);
   const [configText, setConfigText] = useState("");
   const [sizes, setSizes] = useState<Record<string, ArtworkSource>>({});
   const [manifest, setManifest] = useState<FactoryManifest>();
@@ -37,7 +40,7 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
   const geometry = (item: ReviewVersion, productType: string) => {
     const src = item.image ? sizes[item.image] : undefined;
     const garment = scenes.find(s => s.productType === productType);
-    const configured = printAreas.find(p => p.productType === productType && p.storeSlug === storeSlug && p.provider === provider && p.printAreaId === "front");
+    const configured = printAreas.find(p => p.productType === productType && p.storeSlug === storeSlug && p.provider === provider && p.printAreaId === "front" && (!p.baseImageUrl || p.baseImageUrl === scene?.bases[color]));
     const base = garment && Object.values(garment.bases).map(url => sizes[url]).find(Boolean);
     const target = configured?.canvas ?? (base && garment ? { width: base.width * garment.area.width, height: base.height * garment.area.height } : undefined);
     return src && target ? { source: src, canvas: target } : undefined;
@@ -48,7 +51,7 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
   }
   const version = versions[selected];
   const requested = version?.placements?.[scene?.productType] ?? DEFAULT_PLACEMENT;
-  const profile = printAreas.find(p => p.storeSlug === storeSlug && p.productType === scene?.productType && p.provider === provider && p.printAreaId === "front");
+  const profile = [...printAreas].sort((a, b) => Number(!!b.baseImageUrl) - Number(!!a.baseImageUrl)).find(p => p.storeSlug === storeSlug && p.productType === scene?.productType && p.provider === provider && p.printAreaId === "front" && (!p.baseImageUrl || p.baseImageUrl === scene?.bases[color]));
   const area = profile ? printBoundary(profile) : scene?.area;
   const source = version?.image ? sizes[version.image] : undefined;
   const photo = sizes[scene?.bases[color]];
@@ -116,7 +119,7 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
         next.push({ id: c.id, candidateId: c.id, parentId: null, prompt: c.prompt, rationale: "Imported original", preserved: [], feedback: "", image, decision: c.review.status === "selected" ? "keep" : c.review.status === "rejected" ? "reject" : "pending", createdAt: new Date().toISOString(), provenance: c.provenance });
       }
       if (saved?.printAreas?.some(p => p.storeSlug !== storeSlug)) throw new Error("Profile belongs to another store");
-      setPrintAreas(saved?.printAreas ?? []); setProvider(saved?.printAreas?.[0]?.provider ?? "");
+      if (saved?.printAreas?.length) { setPrintAreas(saved.printAreas); setProvider(saved.printAreas[0].provider); }
       setManifest(m); setVersions(saved?.versions ?? next); select(0);
     } catch (e) { setError(e instanceof Error ? e.message : "Import failed"); }
   }
@@ -142,7 +145,7 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
   return <main className="space-y-4">
     <div hidden aria-hidden="true">{colors.map(name => <img key={`${scene.productType}-${name}`} src={scene.bases[name]} alt="" loading="eager" />)}</div>
     <h1 className="text-2xl font-bold">Design Factory review</h1>
-    <p>Human decisions only. Preview artwork is not print-ready. Export your review before leaving; this session is held in memory.</p>
+    <p>Human decisions only. Preview artwork is not print-ready. Export review artwork and decisions before leaving. Saved photo calibrations persist in tenant configuration.</p>
     <label className="block">Import manifest + preview PNGs, or an exported review <input type="file" disabled={busy} multiple accept=".json,.png" onChange={e => void importFiles(e.target.files)} /></label>
     <p role="alert">{error}</p>
     {manifest && <>
@@ -151,31 +154,43 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
       <div className={styles.workspace}>
       <section className={styles.preview} aria-label="Live garment preview">
       <div className="flex flex-wrap items-center gap-3 text-sm">
-        <label>Garment <select value={sceneIndex} onChange={e => { setScene(Number(e.target.value)); setColor(0); }}>{scenes.map((s, i) => <option key={s.productType} value={i}>{s.productType}</option>)}</select></label>
-        <button onClick={() => setColor(i => cycle(i, -1, colors.length))} disabled={!colors.length} aria-label="Previous shirt color">← Color</button>
+        <label>Garment <select disabled={!!draft} value={sceneIndex} onChange={e => { setScene(Number(e.target.value)); setColor(0); }}>{scenes.map((s, i) => <option key={s.productType} value={i}>{s.productType}</option>)}</select></label>
+        <button onClick={() => setColor(i => cycle(i, -1, colors.length))} disabled={!colors.length || !!draft} aria-label="Previous shirt color">← Color</button>
         <span aria-live="polite">{color ?? "No existing blank garment assets configured"}</span>
-        <button onClick={() => setColor(i => cycle(i, 1, colors.length))} disabled={!colors.length} aria-label="Next shirt color">Color →</button>
-        <label><input type="checkbox" checked={raw} onChange={e => setRaw(e.target.checked)} /> Raw artwork</label>
+        <button onClick={() => setColor(i => cycle(i, 1, colors.length))} disabled={!colors.length || !!draft} aria-label="Next shirt color">Color →</button>
+        <label><input type="checkbox" disabled={!!draft} checked={raw} onChange={e => setRaw(e.target.checked)} /> Raw artwork</label>
       </div>
-      <div tabIndex={0} aria-label="Artwork review; left and right arrows change shirt color" onKeyDown={e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); setColor(i => cycle(i, e.key === "ArrowLeft" ? -1 : 1, colors.length)); } }} onTouchStart={e => setTouch(e.changedTouches[0].clientX)} onTouchEnd={e => { if (touch !== undefined && Math.abs(e.changedTouches[0].clientX - touch) > 40) setColor(i => cycle(i, e.changedTouches[0].clientX < touch ? 1 : -1, colors.length)); }} className={styles.frame} style={{ "--preview-width": photo ? `calc((100dvh - 12rem) * ${photo.width / photo.height})` : "28rem" } as CSSProperties}>
+      <div tabIndex={0} aria-label="Artwork review; left and right arrows change shirt color" onKeyDown={e => { if (!draft && (e.key === "ArrowLeft" || e.key === "ArrowRight")) { e.preventDefault(); setColor(i => cycle(i, e.key === "ArrowLeft" ? -1 : 1, colors.length)); } }} onTouchStart={e => !draft && setTouch(e.changedTouches[0].clientX)} onTouchEnd={e => { if (!draft && touch !== undefined && Math.abs(e.changedTouches[0].clientX - touch) > 40) setColor(i => cycle(i, e.changedTouches[0].clientX < touch ? 1 : -1, colors.length)); }} className={styles.frame} style={{ "--preview-width": photo ? `calc((100dvh - 12rem) * ${photo.width / photo.height})` : "28rem" } as CSSProperties}>
         {!raw && color && <img src={scene.bases[color]} alt={`${scene.productType} blank shirt in ${color}`} className="block w-full" onLoad={e => { const img = e.currentTarget; setSizes(items => ({ ...items, [scene.bases[color]]: { width: img.naturalWidth, height: img.naturalHeight } })); }} onError={() => setError("Garment photograph could not load. Choose another color or raw artwork.")} />}
-        {version?.image && !raw && color ? <div className="outline outline-1 outline-dashed outline-sky-600" style={{ position: "absolute", left: `${area.x * 100}%`, top: `${area.y * 100}%`, width: `${area.width * 100}%`, height: `${area.height * 100}%`, overflow: "visible" }}>
+        {version?.image && !raw && color ? <div className={draft ? "" : "outline outline-1 outline-dashed outline-sky-600"} style={{ position: "absolute", left: `${area.x * 100}%`, top: `${area.y * 100}%`, width: `${area.width * 100}%`, height: `${area.height * 100}%`, overflow: "visible" }}>
           <img src={version.image} alt="Candidate artwork" style={layout && canvas ? { position: "absolute", left: `${layout.left / canvas.width * 100}%`, top: `${layout.top / canvas.height * 100}%`, width: `${layout.width / canvas.width * 100}%`, height: `${layout.height / canvas.height * 100}%`, maxWidth: "none", maxHeight: "none", opacity: 0.85 } : { visibility: "hidden" }} />
         </div> : version?.image ? <img src={version.image} alt="Candidate artwork" style={{ width: "100%", background: "repeating-conic-gradient(#ddd 0% 25%, white 0% 50%) 0 / 20px 20px" }} /> : <p>Planned revision — export for explicit image generation.</p>}
+        {draft && !raw && <Calibration profile={draft} onChange={setDraft} />}
       </div>
       <p className="mt-2 text-xs text-muted">Dashed blue outline: print area. Use arrow keys or swipe the preview to compare colors.</p>
       </section>
       {scene && version && <fieldset className={styles.controls}>
         <legend className="font-semibold">Artwork placement</legend>
+        <button disabled={!photo || !provider.trim() || raw || saving} onClick={() => setDraft({ ...(profile ?? { storeSlug, productType: scene.productType, provider, printAreaId: "front", mockup: photo!, canvas: { width: 4494, height: 5097 }, mapping: scene.area }), baseImageUrl: scene.bases[color] })}>Calibrate front print boundary</button>
+        {draft && <fieldset disabled={saving} className="space-y-2 border p-2">
+          <legend>Photo boundary</legend>
+          <p>Drag handles or use arrow keys (Shift: larger step). Artwork stays fixed while editing. Print canvas: {draft.canvas.width} x {draft.canvas.height} px. Photo aspect is independent.</p>
+          {(["x", "y", "width", "height"] as const).map(key => <label className="block" key={key}>{key}<input type="number" min="0" max="1" step="0.001" value={draft.mapping[key]} onChange={e => { const next = printAreaProfileSchema.safeParse({ ...draft, mapping: { ...draft.mapping, [key]: Number(e.target.value) } }); if (next.success) setDraft(next.data); }} /></label>)}
+          <button onClick={() => setDraft({ ...draft, mapping: profile?.mapping ?? scene.area })}>Reset boundary</button>
+          <button onClick={() => setDraft(undefined)}>Cancel calibration</button>
+          <p>Save explicitly remaps artwork into this boundary, retaining print-space placement and alpha containment. Photo size/position may change. Keep decisions are invalidated for review. No ink is cropped.</p>
+          <button onClick={async () => { setSaving(true); setError(""); try { const saved = await saveCalibration(draft); setPrintAreas(items => mergeCalibration(storeSlug, items, saved)); setStoredVersions(items => items.map(item => item.decision === "keep" ? { ...item, decision: "pending" } : item)); setDraft(undefined); } catch { setError("Calibration save failed; draft retained. Retry before leaving."); } finally { setSaving(false); } }}>Save and apply remapping</button>
+        </fieldset>}
+
         <p className="text-sm">{scene.productType} ? Shared across colors</p>
         <p id="placement-help" className="text-sm text-muted">Changes preview live. Visible ink stays inside the print area. Reduce scale for more movement.</p>
         {layout?.clipped && <p role="alert">Artwork exceeds printable canvas. Reduce size or move it. Production compositing is blocked to prevent clipping.</p>}
         {(["scale", "x", "y"] as const).map(key => <label key={key} className="block">
           <span className="flex justify-between gap-2"><span>{key === "scale" ? "Scale" : key === "x" ? "Horizontal center" : "Vertical center"}</span><output htmlFor={`placement-${key}`} className="tabular-nums">{(placement[key] * 100).toFixed(1)}%</output></span>
-          <input className="block min-h-11 w-full" id={`placement-${key}`} aria-describedby="placement-help" aria-valuetext={`${(placement[key] * 100).toFixed(1)} percent`} type="range" disabled={!layout} min={layout?.limits[key].min ?? 0} max={layout?.limits[key].max ?? 1} step="0.001" value={placement[key]} onChange={e => place({ ...placement, [key]: Number(e.target.value) })} />
+          <input className="block min-h-11 w-full" id={`placement-${key}`} aria-describedby="placement-help" aria-valuetext={`${(placement[key] * 100).toFixed(1)} percent`} type="range" disabled={!layout || !!draft} min={layout?.limits[key].min ?? 0} max={layout?.limits[key].max ?? 1} step="0.001" value={placement[key]} onChange={e => place({ ...placement, [key]: Number(e.target.value) })} />
         </label>)}
-        <button className="min-h-11 border p-2" disabled={!layout} onClick={() => place({ ...DEFAULT_PLACEMENT })}>Reset placement</button>
-        <button className="min-h-11 border p-2" disabled={!layout} onClick={() => place(placement, true)}>Copy to versions without a placement</button>
+        <button className="min-h-11 border p-2" disabled={!layout || !!draft} onClick={() => place({ ...DEFAULT_PLACEMENT })}>Reset placement</button>
+        <button className="min-h-11 border p-2" disabled={!layout || !!draft} onClick={() => place(placement, true)}>Copy to versions without a placement</button>
         <p className="text-xs text-muted">Production export not ready: provider verification and physical dimensions remain required. Keep records placement in the review export; it does not approve print readiness.</p>
       </fieldset>}
       </div>
@@ -189,7 +204,7 @@ export default function Review({ storeSlug, scenes }: { storeSlug: string; scene
       </div></details>}
       <p>Review contrast, small lettering and edges on each real shirt color. Alpha is preserved; opaque source backgrounds remain visible. This visual check grants no print readiness.</p>
       <div className="flex flex-wrap items-center gap-4"><button onClick={() => select(i => cycle(i, -1, versions.length))}>← Candidate/version</button><span aria-live="polite">{selected + 1} / {versions.length} · {version?.decision}</span><button onClick={() => select(i => cycle(i, 1, versions.length))}>Candidate/version →</button></div>
-      <div className="flex flex-wrap items-center gap-4"><button onClick={() => decide("keep")}>Keep</button><button onClick={() => decide("reject")}>Reject</button></div>
+      <div className="flex flex-wrap items-center gap-4"><button disabled={!!draft || saving} onClick={() => decide("keep")}>Keep</button><button onClick={() => decide("reject")}>Reject</button></div>
       <label className="block">Creative feedback<textarea className="block w-full border" value={feedback} maxLength={1500} onChange={e => setFeedback(e.target.value)} /></label>
       <label className="block">Preserve these aspects<textarea className="block w-full border" value={preserve} maxLength={2000} onChange={e => setPreserve(e.target.value)} /></label>
       <button disabled={busy || !feedback.trim() || !preserve.trim() || versions.length >= 50} onClick={() => void revise()}>{busy ? "Revising…" : "Refine — prepare prompt (uses text-model credits)"}</button>

@@ -12,7 +12,7 @@ test("factory provider orchestration, tenant gates and spend reservation (stubbe
   for (const key of Object.keys(env)) if (/DATABASE_URL|OPENROUTER|PRINTFUL|FACTORY_IMAGE/.test(key)) delete env[key];
   const child = spawnSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--test", "tests/fixtures/factory-review.mjs"], { env, encoding: "utf8", timeout: 30000 });
   assert.equal(child.status, 0, child.stdout + child.stderr);
-  assert.match(child.stdout, /tests 4/);
+  assert.match(child.stdout, /tests 6/);
 });
 test("carousel wraps without coupling candidate and garment state", () => {
   assert.equal(cycle(0, -1, 3), 2); assert.equal(cycle(2, 1, 3), 0); assert.equal(cycle(0, 1, 0), 0);

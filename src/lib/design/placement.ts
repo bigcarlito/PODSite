@@ -86,6 +86,7 @@ export function placementStyle(value: Placement) {
 export const printAreaProfileSchema = z.object({
   storeSlug: z.string().min(1), productType: z.string().min(1),
   provider: z.string().trim().min(1), printAreaId: z.string().trim().min(1),
+  baseImageUrl: z.string().min(1).optional(),
   mockup: dimensionsSchema,
   canvas: z.object({ width: z.number().int().positive().max(30000), height: z.number().int().positive().max(30000) }).strict(),
   mapping: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), width: z.number().positive().max(1), height: z.number().positive().max(1) }).strict()
@@ -93,12 +94,26 @@ export const printAreaProfileSchema = z.object({
 }).strict();
 export type PrintAreaProfile = z.infer<typeof printAreaProfileSchema>;
 
-/** Fit canvas inside the editable calibration rectangle without distorting artwork. */
+/** Photograph mapping is independent of the provider pixel aspect. */
 export function printBoundary(profile: PrintAreaProfile) {
-  const { canvas, mapping: m, mockup } = printAreaProfileSchema.parse(profile);
-  const fit = Math.min(m.width * mockup.width / canvas.width, m.height * mockup.height / canvas.height);
-  const width = canvas.width * fit / mockup.width, height = canvas.height * fit / mockup.height;
-  return { x: m.x + (m.width - width) / 2, y: m.y, width, height };
+  return printAreaProfileSchema.parse(profile).mapping;
+}
+
+export type CalibrationHandle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+export function resizeBoundary(m: PrintAreaProfile["mapping"], handle: CalibrationHandle, dx: number, dy: number) {
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  let left = m.x, top = m.y, right = m.x + m.width, bottom = m.y + m.height;
+  if (handle.includes("w")) left = clamp(left + dx, 0, right - .02);
+  if (handle.includes("e")) right = clamp(right + dx, left + .02, 1);
+  if (handle.includes("n")) top = clamp(top + dy, 0, bottom - .02);
+  if (handle.includes("s")) bottom = clamp(bottom + dy, top + .02, 1);
+  return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
+export function mergeCalibration(storeSlug: string, profiles: PrintAreaProfile[], raw: unknown) {
+  const next = printAreaProfileSchema.parse(raw);
+  if (next.storeSlug !== storeSlug || profiles.some(p => p.storeSlug !== storeSlug)) throw new Error("Calibration belongs to another tenant");
+  return [...profiles.filter(p => !(p.productType === next.productType && p.provider === next.provider && p.printAreaId === next.printAreaId && p.baseImageUrl === next.baseImageUrl)), next];
 }
 
 /** Reversible affine mapping. Canvas and photograph have independent aspect ratios. */
