@@ -19,10 +19,10 @@ export default async function AdminDashboardLayout({
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-      <div className="mb-8 flex items-center justify-between border-b border-border pb-4">
-        <div className="flex items-center gap-6">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-6">
           <p className="text-sm font-semibold">{store.name}</p>
-          <nav className="flex gap-6 text-sm font-medium">
+          <nav className="flex flex-wrap gap-x-6 gap-y-3 text-sm font-medium">
             <Link href="/admin">Orders</Link>
             <Link href="/admin/products">Products</Link>
             <Link href="/admin/designs">Designs</Link>

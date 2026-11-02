@@ -49,3 +49,19 @@ test("review UI keeps garment state independent, uses real bases and native alph
   assert.match(text, /parentId: version.id/);
   assert.doesNotMatch(text, /select\([^;]+setColor/);
 });
+
+test("placement workspace keeps live controls beside preview with accessible feedback", () => {
+  const ui = readFileSync("src/app/admin/(dashboard)/design-factory/review.tsx", "utf8");
+  const css = readFileSync("src/app/admin/(dashboard)/design-factory/review.module.css", "utf8");
+  assert.ok(ui.indexOf("styles.preview") < ui.indexOf("styles.controls"));
+  assert.ok(ui.indexOf("Reset placement") < ui.indexOf("Canvas calibration and provider configuration"));
+  assert.match(ui, /<output htmlFor=\{`placement-\$\{key\}`\}/);
+  assert.match(ui, /aria-describedby="placement-help"/);
+  assert.match(ui, /onChange=\{e => place\(\{ \.\.\.placement, \[key\]: Number\(e.target.value\) \}\)\}/);
+  assert.match(ui, /outline-sky-600/);
+  assert.match(css, /@media \(min-width: 768px\)/);
+  assert.match(css, /grid-template-columns: minmax\(0, 1fr\) minmax\(18rem, .75fr\)/);
+  assert.match(css, /position: sticky; top: 1rem/);
+  assert.match(css, /@media \(max-height: 600px\)/);
+  assert.doesNotMatch(css, /overflow:\s*(hidden|clip)/);
+});

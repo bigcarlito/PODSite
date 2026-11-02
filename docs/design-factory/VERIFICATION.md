@@ -111,3 +111,33 @@ and reversible Factory mockup calibration", targeting
 `codex-bridge/e79349a6-1c3b-4049-beae-58be50bf0ee5` (the authenticated head of draft
 PR #59, b4127da3b728457da0c6e3e63ffd0272ba297a36). Do not update PR #59 or merge.
 This implementation agent did not commit, push, create a PR, merge or deploy.
+
+## Review studio layout handoff (2026-11-01)
+This change is stacked on PR #61's bridge-provided head
+`codex-bridge/f161073e-debc-4bf3-bc61-256f6b8af78d`
+(`cfdafed5e41fdb6cf131d0716790b9764166c29f`). The bridge should create a new
+**draft** PR targeting that branch only, titled "Keep Factory placement controls
+beside the live garment preview". Do not merge or deploy. No Git publishing was
+performed by the implementation agent.
+
+Implementation: responsive two-column workspace, viewport-sized sticky garment,
+compact accessible native sliders with numeric output, separate expandable canvas
+configuration, and wrapping admin navigation. All placement/alpha math and
+production code remain unchanged. Added a source-level layout regression test;
+this does not replace browser interaction or visual verification. Manual desktop,
+mobile, touch, keyboard and zoom QA is documented in README.md and not executed.
+
+Validation in this checkout:
+- `npm.cmd ci`: passed with unchanged lockfile; postinstall generated Prisma
+  Client 6.19.3. npm reports 24 dependency advisories (16 moderate, 7 high,
+  1 critical); dependency remediation is outside this UI change.
+- tests: `node --import tsx --test tests/*.test.ts` passed, 33/33 top-level
+  tests, zero failures/skips, including existing stubbed provider/tenant fixtures.
+- lint: `npm.cmd run lint` passed.
+- build: `npm.cmd run build` passed with default Turbopack, TypeScript and
+  seven static pages. Nonfatal outer-lockfile and middleware deprecation warnings.
+- typecheck: `npx.cmd tsc --noEmit` passed after Prisma/Next client/type generation.
+- `git diff --check`: passed.
+
+No browser visual QA, paid generation, database access, credential reads,
+production writes or publishing was performed.

@@ -736,3 +736,9 @@ production consumers must measure source pixels independently, use the returned
 normalized placement/layout, and preserve transparent padding rather than crop ink.
 Review imports clamp legacy overflowing placements and invalidate Keep when changed.
 This is local review behavior, adds no endpoint, and grants no production readiness.
+
+Design Factory review layout keeps the garment preview sticky beside compact live
+placement sliders on desktop and stacks them on mobile. Provider/canvas calibration
+is expandable below the workspace. This changes presentation only; placement math,
+review export state, agent APIs and production readiness rules remain unchanged.
+Manual desktop/mobile QA steps are in docs/design-factory/README.md.

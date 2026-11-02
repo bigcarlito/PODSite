@@ -1,0 +1,31 @@
+.workspace {
+  display: grid;
+  gap: 1.25rem;
+  align-items: start;
+}
+.preview { min-width: 0; }
+.frame {
+  position: relative;
+  width: 100%;
+  margin: .75rem auto 0;
+  border: 1px solid #94a3b8;
+}
+.controls {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: .75rem;
+}
+.controls > * + * { margin-top: .75rem; }
+.workspace button, .workspace select { min-height: 2.75rem; }
+.workspace button { padding: .375rem .625rem; }
+.workspace :focus-visible { outline: 2px solid #0284c7; outline-offset: 3px; }
+@media (min-width: 768px) {
+  .workspace { grid-template-columns: minmax(0, 1fr) minmax(18rem, .75fr); }
+  .preview { position: sticky; top: 1rem; }
+  .frame { width: min(100%, var(--preview-width)); }
+}
+/* Short windows and zoomed layouts scroll naturally rather than clipping controls. */
+@media (max-height: 600px) {
+  .preview { position: static; }
+}
