@@ -313,3 +313,39 @@ ink on each calibrated color. Visual calibration alone verifies neither physical
 print dimensions nor provider/garment identity, DPI or production readiness.
 The schematic image is not present in this checkout; this procedure requires the
 operator's supplied reference and real tenant photographs.
+
+### Review studio control styling and discoverability
+The studio uses a scoped CSS-module baseline for all form controls, buttons,
+links, details and fieldsets. Tailwind v4/PostCSS and the global import are intact;
+Preflight clears native control chrome, and the original studio supplied no
+replacement for most buttons and fields (including everything outside workspace).
+The fix supplies those missing component styles using the PODSite olive/cream
+palette, with primary/destructive/disabled states and visible keyboard focus.
+Provider identity is now beside placement, above **Edit Print Area**, with an
+inline explanation of missing provider/photo or raw-preview prerequisites. The
+advanced JSON panel is still available but is not required to open calibration.
+No API, geometry, canvas, tenant persistence or generation behavior changes.
+
+Local desktop/mobile manual QA (pending; not executed in this checkout):
+1. Start `npm run dev` against an authorized local fixture database, sign into
+   its fixture tenant and open `/admin/design-factory?store=<fixture-slug>`.
+   Import the matching manifest/PNGs. Do not enable generation or call providers.
+2. At 1440x900 verify the preview stays beside placement, primary olive buttons,
+   bordered secondary buttons, red Reject, visible white input/select/textarea
+   surfaces, readable fieldsets and separate import/export/review sections.
+3. Tab through file picker, garment/colors, raw checkbox, provider, Edit Print
+   Area, sliders, review and JSON controls. Verify focus rings, hover states,
+   disabled contrast and explanations. Enter provider to enable calibration;
+   raw view or an unloaded photograph must prevent opening it.
+4. Open Edit Print Area without opening JSON. Verify eight handles with mouse,
+   touch and arrow/Shift-arrow keys, numeric boundary fields, cancel/reset and
+   explicit tenant-scoped save/reload. Draft edits leave artwork fixed; applying
+   invalidates Keep. Verify the 4494x5097 canvas and alpha containment are intact.
+5. Repeat at 390x844 and 320px width and 200% zoom: panels stack, controls wrap,
+   inputs stay legible, no horizontal page overflow, handles remain usable.
+   Cycle garment colors, reset/copy placement, Keep/Reject and export/reimport;
+   confirm decisions, profiles and artwork survive. Do not spend model credits.
+
+Rendered authenticated browser QA requires a local fixture tenant/database and
+admin session, which are not supplied here. No credentials or production database
+were accessed. These manual checks remain a handoff requirement for visual review.

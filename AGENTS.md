@@ -777,3 +777,10 @@ ink on each calibrated color. Visual calibration alone verifies neither physical
 print dimensions nor provider/garment identity, DPI or production readiness.
 The schematic image is not present in this checkout; this procedure requires the
 operator's supplied reference and real tenant photographs.
+
+Factory studio control styling is scoped in review.module.css: Tailwind Preflight
+removes native chrome, so every studio control now has explicit interactive and
+focus/disabled styles. Provider identity and Edit Print Area are beside placement;
+inline prerequisites explain disabled calibration. Advanced JSON remains optional.
+No agent interface or placement/persistence behavior changes. Pending local
+browser desktop/mobile QA is documented in docs/design-factory/README.md.
