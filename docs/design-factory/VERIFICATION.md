@@ -141,3 +141,29 @@ Validation in this checkout:
 
 No browser visual QA, paid generation, database access, credential reads,
 production writes or publishing was performed.
+
+## Review studio styling repair handoff (2026-11-01)
+Root cause: Tailwind Preflight removes browser control decoration; most Factory
+controls had neither component styles nor utility classes restoring it. The v4
+Tailwind import and PostCSS plugin are present, and the production compiler
+successfully processes the scoped module. Added a studio-wide, locally scoped
+control baseline and semantic button treatments; no storefront/global CSS change.
+Provider identity and Edit Print Area now sit above the live placement sliders,
+with inline prerequisite guidance. Geometry and authenticated persistence unchanged.
+
+Validation: `npm.cmd ci` (including Prisma client generation), full
+`node --import tsx --test tests/*.test.ts` (35/35), `npm.cmd run lint`,
+`npx.cmd tsc --noEmit`, `npm.cmd run build`, and `git diff --check`.
+See the task's final report for authoritative final results. Browser visual QA
+was not performed: no authorized local fixture database/admin session was
+provided. Explicit desktop/mobile QA steps are in README.md. No live provider,
+production database, upscaling or publishing calls were made. Installation reports
+24 existing dependency advisories (16 moderate, 7 high, 1 critical); no dependency
+versions or lockfile changed. Next emits outer-lockfile/middleware deprecation
+warnings without blocking compilation.
+
+Bridge handoff: create a draft stacked on PR #63, targeting its head branch
+`codex-bridge/274d83a5-452c-4ae1-8e86-881c2f9a49ef` (trusted host metadata:
+PR #63 head a00753788f099a75db00c6b332f9055844f9623e). Suggested title:
+"Repair Design Factory studio controls and print-area discoverability".
+The implementation agent did not commit, push, create a PR, merge or deploy.
