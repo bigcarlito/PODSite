@@ -80,9 +80,10 @@ test("mapping is reversible, color independent and roundtrips with review export
   assert.throws(() => printAreaProfileSchema.parse({ ...profile, mapping: { ...profile.mapping, y: 0.9 } }));
 });
 
-test("calibrated boundary preserves pixel aspect and preview matches padded canvas plan", () => {
+test("calibrated photo boundary is independent and preview matches padded canvas plan", () => {
   const boundary = printBoundary(profile);
-  assert.ok(Math.abs(boundary.width * profile.mockup.width / (boundary.height * profile.mockup.height) - 4494 / 5097) < 1e-12);
+  assert.deepEqual(boundary, profile.mapping);
+  assert.equal(profile.canvas.width / profile.canvas.height, 4494 / 5097);
   assert.equal(boundary.y, profile.mapping.y);
   const source = { width: 1200, height: 1700 }, p = { ...DEFAULT_PLACEMENT, scale: 0.6, y: 0.35 };
   const plan = productionCanvasPlan(p, source, profile);
@@ -139,4 +140,37 @@ test("clamped per-version placements survive export/import and are independent o
   assert.deepEqual(saved.versions, results[0]);
   assert.equal(constrainReviewPlacements(saved.versions, () => ({ source, canvas: profile.canvas })), saved.versions);
   assert.equal(original[0].placements.tshirt.y, 1);
+});
+
+import { resizeBoundary, mergeCalibration } from "../src/lib/design/placement";
+test("edge and corner drag limits stay on photograph without changing canvas or artwork", () => {
+  const snapshot = JSON.stringify(profile), placement = { ...DEFAULT_PLACEMENT, scale: .4 };
+  const before = printCanvasLayout(placement, { width: 100, height: 200 }, profile);
+  for (const handle of ["n", "s", "e", "w", "ne", "nw", "se", "sw"] as const) {
+    for (const dx of [-10, 0, 10]) for (const dy of [-10, 0, 10]) {
+      const mapping = resizeBoundary(profile.mapping, handle, dx, dy);
+      assert.ok(mapping.x >= 0 && mapping.y >= 0);
+      assert.ok(mapping.width >= .02 - 1e-12 && mapping.height >= .02 - 1e-12);
+      assert.ok(mapping.x + mapping.width <= 1 && mapping.y + mapping.height <= 1);
+      const next = { ...profile, mapping };
+      assert.deepEqual(printCanvasLayout(placement, { width: 100, height: 200 }, next), before);
+      const point = { x: 1200, y: 3000 };
+      const roundtrip = mapPrintPoint(mapPrintPoint(point, next), next, true);
+      assert.ok(Math.abs(roundtrip.x - point.x) < 1e-8 && Math.abs(roundtrip.y - point.y) < 1e-8);
+    }
+  }
+  assert.equal(JSON.stringify(profile), snapshot);
+});
+test("calibrations persist as JSON and isolate tenant, photograph, garment and side", () => {
+  const a = { ...profile, baseImageUrl: "/a.png" };
+  const b = { ...profile, baseImageUrl: "/b.png" };
+  let saved = mergeCalibration(profile.storeSlug, [a], b);
+  saved = mergeCalibration(profile.storeSlug, saved, { ...a, mapping: { ...a.mapping, height: .6 } });
+  assert.equal(saved.length, 2);
+  assert.equal(saved.find(p => p.baseImageUrl === a.baseImageUrl)?.mapping.height, .6);
+  saved = mergeCalibration(profile.storeSlug, saved, { ...a, printAreaId: "back" });
+  saved = mergeCalibration(profile.storeSlug, saved, { ...a, productType: "other" });
+  assert.equal(saved.length, 4);
+  assert.deepEqual(printAreaProfileSchema.array().parse(JSON.parse(JSON.stringify(saved))), saved);
+  assert.throws(() => mergeCalibration("foreign", saved, a), /tenant/);
 });

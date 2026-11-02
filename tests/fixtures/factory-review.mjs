@@ -50,3 +50,27 @@ test('prompt revision uses structured LLM response with original prompt and lock
   const result=await refineFactoryPrompt(store,{manifest,candidateId:version.candidateId,feedback:'Simplify fur',preserve:'Exact lettering'},'admin');
   assert.equal(result.rationale,'Reduced fine fur strokes');
 });
+
+const { saveFactoryCalibration, readCalibrations } = await import('../../src/lib/store/factory-calibration.ts');
+const calibration = {storeSlug:store.slug,productType:'cc1717',provider:'operator',printAreaId:'front',baseImageUrl:'/tenant-a.png',mockup:{width:1000,height:1000},canvas:{width:4494,height:5097},mapping:{x:.3,y:.2,width:.4,height:.6}};
+test('calibration persists by tenant and photograph and preserves unrelated brief keys',async()=>{
+  let row = {...store,brief:{audience:'small dog parents'}};
+  globalThis.prisma.$transaction = async (run, options) => {
+    assert.equal(options.isolationLevel,'Serializable');
+    return run({store:{findUniqueOrThrow:async ({where})=>{assert.equal(where.id,store.id);return structuredClone(row);},update:async ({where,data})=>{assert.equal(where.id,store.id);row={...row,...data};return row;}},mockupScene:{findUnique:async ({where})=>{assert.deepEqual(where.storeId_productType,{storeId:store.id,productType:'cc1717'});return {baseImages:{pepper:'/tenant-a.png'}};}}});
+  };
+  const saved = await saveFactoryCalibration(store,calibration,'admin');
+  assert.deepEqual(saved,calibration);
+  assert.equal(row.brief.audience,'small dog parents');
+  assert.deepEqual(readCalibrations(JSON.parse(JSON.stringify(row))),[calibration]);
+  await saveFactoryCalibration(store,{...calibration,mapping:{...calibration.mapping,y:.1}},'agent');
+  assert.equal(readCalibrations(row).length,1);
+  assert.equal(readCalibrations(row)[0].mapping.y,.1);
+});
+test('foreign tenant or photograph cannot save calibration',async()=>{
+  let writes=0;
+  globalThis.prisma.$transaction = async run => run({store:{findUniqueOrThrow:async()=>({...store,brief:{}}),update:async()=>{writes++;}},mockupScene:{findUnique:async()=>({baseImages:{pepper:'/tenant-a.png'}})}});
+  await assert.rejects(saveFactoryCalibration(store,{...calibration,storeSlug:'foreign'},'agent'),{code:'TENANT_MISMATCH'});
+  await assert.rejects(saveFactoryCalibration(store,{...calibration,baseImageUrl:'/tenant-b.png'},'agent'),{code:'BASE_NOT_FOUND'});
+  assert.equal(writes,0);
+});
