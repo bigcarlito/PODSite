@@ -253,3 +253,28 @@ out-of-range placements become pending with clamped values; raw PNGs stay intact
 Do not click Refine/Generate or approve calibration/production during this check.
 This procedure is documented for an authenticated local reviewer; it was not run
 against a store or production database as part of the automated regression checks.
+
+## Review workspace layout QA (2026-11-01)
+The desktop workspace places a sticky, viewport-sized mockup on the left and
+compact live placement controls on the right at widths >=768px. Canvas/provider
+calibration is collapsed below the workspace. Smaller screens stack preview above
+controls; short windows disable sticky positioning. Admin navigation wraps rather
+than forcing horizontal overflow. Placement geometry and production logic are unchanged.
+
+Manual browser QA checklist (not executed in this isolated checkout):
+- At 1366x768, import a same-tenant review and PNGs. Scroll to the workspace;
+  confirm the complete shirt and Scale/Horizontal/Vertical/Reset remain visible
+  together. Open calibration and scroll: preview must stick without covering controls.
+- Drag every slider continuously: artwork and percentage must move live; test
+  limits with faint-alpha artwork and confirm the blue print boundary remains visible.
+  Reset, copy only to unset versions, switch versions/colors and export/reimport;
+  confirm placement persists and changed Keep decisions become pending.
+- At 390x844 and 320x568, verify preview precedes controls, no horizontal overflow,
+  readable labels and touch targets, native slider dragging and preview color swipes.
+- Tab through controls; use arrow keys on sliders and separately on preview. Check
+  focus rings, percent feedback, 200% zoom, short windows and expanded calibration
+  for overlap/clipping. Verify Keep/Reject, feedback and Refine prompt preparation
+  without approving paid image generation. Reject foreign-tenant imports.
+
+Browser QA requires an operator's authenticated local tenant with garment assets;
+no credentials or production database were accessed for this layout change.
