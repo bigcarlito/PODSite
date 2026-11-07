@@ -1,0 +1,84 @@
+.workspace {
+  display: grid;
+  gap: 1.25rem;
+  align-items: start;
+}
+.preview { min-width: 0; }
+.frame {
+  position: relative;
+  width: 100%;
+  margin: .75rem auto 0;
+  border: 1px solid #94a3b8;
+}
+.controls {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: .75rem;
+}
+.controls > * + * { margin-top: .75rem; }
+.workspace button, .workspace select { min-height: 2.75rem; }
+.workspace button { padding: .375rem .625rem; }
+.workspace :focus-visible { outline: 2px solid #0284c7; outline-offset: 3px; }
+@media (min-width: 768px) {
+  .workspace { grid-template-columns: minmax(0, 1fr) minmax(18rem, .75fr); }
+  .preview { position: sticky; top: 1rem; }
+  .frame { width: min(100%, var(--preview-width)); }
+}
+/* Short windows and zoomed layouts scroll naturally rather than clipping controls. */
+@media (max-height: 600px) {
+  .preview { position: static; }
+}
+
+/* Tailwind preflight intentionally removes native control chrome. The studio
+   owns a complete, scoped control baseline, including controls outside workspace. */
+.studio { color: var(--foreground); line-height: 1.5; }
+.studio h1 { letter-spacing: -.025em; }
+.studio h2, .studio legend { font-weight: 650; }
+.studio label { font-size: .875rem; font-weight: 550; }
+.studio button, .studio input, .studio select, .studio textarea, .studio summary { font: inherit; }
+.studio button {
+  min-height: 2.75rem; padding: .6rem .9rem; border: 1px solid #8b9083;
+  border-radius: .5rem; background: #fff; color: #303927; font-weight: 600;
+  cursor: pointer; line-height: 1.35;
+}
+.studio button:hover:not(:disabled) { background: #efeee6; border-color: #3f4a2f; }
+.studio button.primary { background: #3f4a2f; border-color: #3f4a2f; color: #fff; }
+.studio button.primary:hover:not(:disabled) { background: #2c3420; }
+.studio button.destructive { color: #9f2424; border-color: #b94d4d; background: #fff4f4; }
+.studio button.destructive:hover:not(:disabled) { background: #ffe1e1; }
+.studio button:disabled, .studio input:disabled, .studio select:disabled,
+.studio textarea:disabled, .studio fieldset:disabled { opacity: .65; cursor: not-allowed; }
+.studio button:disabled { background: #e9e8e2; border-color: #b9b9ae; color: #595d53; }
+.studio input:not([type=checkbox]):not([type=range]), .studio select, .studio textarea {
+  display: block; width: 100%; min-width: 0; min-height: 2.75rem; margin-top: .35rem;
+  border: 1px solid #8b9083; border-radius: .45rem; padding: .6rem .75rem;
+  background: #fff; color: #1f2318;
+}
+.studio textarea { min-height: 7rem; resize: vertical; }
+.studio input[type=file]::file-selector-button {
+  padding: .5rem .75rem; margin-right: .75rem; border: 1px solid #8b9083;
+  border-radius: .35rem; background: #eeeee5; color: #303927; cursor: pointer;
+}
+.studio input[type=range] { width: 100%; min-height: 2.75rem; accent-color: #3f4a2f; cursor: ew-resize; }
+.studio input[type=checkbox] { width: 1.15rem; height: 1.15rem; accent-color: #3f4a2f; vertical-align: middle; margin-right: .35rem; }
+.studio :focus-visible { outline: 3px solid #0369a1; outline-offset: 3px; }
+.studio a { color: #075985; text-decoration: underline; text-underline-offset: .2em; }
+.studio a:hover { color: #0c4a6e; }
+.studio fieldset, .studio details, .importPanel {
+  min-width: 0; border: 1px solid #b7bbad; border-radius: .75rem; padding: 1rem; background: #fffefb;
+}
+.studio legend { padding: 0 .4rem; font-size: 1rem; }
+.studio fieldset fieldset { background: #f5f6ef; }
+.studio summary { min-height: 2.75rem; padding: .5rem; cursor: pointer; font-weight: 600; }
+.studio summary:hover { background: #efeee6; border-radius: .35rem; }
+.studio pre { overflow-wrap: anywhere; font-size: .8rem; }
+.studio [role=alert]:not(:empty) { border-left: 4px solid #b91c1c; padding: .75rem; color: #991b1b; background: #fff1f2; }
+.importPanel { display: block; }
+.provider { display: block; }
+.help { font-size: .875rem; color: #555b4c; }
+.sectionTitle { border-top: 1px solid #b7bbad; padding-top: 1.25rem; font-size: 1.25rem; }
+@media (max-width: 767px) {
+  .studio button { max-width: 100%; overflow-wrap: anywhere; }
+  .studio input:not([type=checkbox]):not([type=range]), .studio select, .studio textarea { font-size: 1rem; }
+}

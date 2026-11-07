@@ -113,3 +113,16 @@ test('durable mockups isolate tenant/product/color and never overwrite prior ren
   await assert.rejects(getStoreAsset('missing'),{code:'NOT_FOUND'});
   assert.equal(rows.size,3);
 });
+
+test('normalized placement scales, clips within the print area and preserves source bytes', async()=>{
+  await fixture();
+  const area={x:.2,y:.2,width:.5,height:.5};
+  const result=await compositeDesignOnScene({baseImageUrl:'https://fixture.test/base.jpg',designUrl:'https://fixture.test/design.png',area,opacity:1,placement:{version:1,scale:2,x:0,y:.5}});
+  const {data,info}=await sharp(result.data).raw().toBuffer({resolveWithObject:true});
+  const pixel=(x,y)=>Array.from(data.subarray((y*info.width+x)*info.channels,(y*info.width+x)*info.channels+3));
+  // Visible art is clipped at x=20..70, while the photograph outside stays gray.
+  assert(pixel(30,45)[0]>150 && pixel(30,45)[1]<100);
+  assert(pixel(10,45).every(v=>v>200));
+  assert(pixel(80,45).every(v=>v>200));
+  assert.equal(info.width,100);
+});

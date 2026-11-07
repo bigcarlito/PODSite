@@ -1455,3 +1455,70 @@ Setting `theme.storefront.decorations[0]` replaces this default.
 `theme.storefront.homepageTitle` (1–200 characters) overrides the default browser
 page title via the existing store PATCH API. Subpages with their own titles keep
 the Store.name template. Without it, other stores default to Store.name.
+
+### Design Factory review
+`/admin/design-factory` is a tenant-authenticated local-file review workspace.
+Human decisions remain in exported review files; they never publish products.
+`POST /api/agent/design-factory/refine` calls shared store-scoped prompt revision
+logic with bearer authentication. Input: `{manifest, candidateId, feedback,
+preserve, currentPrompt?}`. Output: `{prompt, rationale, preserved: string[]}`.
+All fields are schema validated. The manifest must name the resolved store.
+Uses configured text-model credits, logs the real actor, and generates no image.
+Agents may prepare revisions only at human direction; Keep/Reject stay human.
+See docs/design-factory/README.md for import and separately approved CLI generation.
+
+`POST /api/agent/design-factory/generate`: input `{manifest, version,
+approvePaidGeneration:true}` (version is an exported ReviewVersion), output
+`{image: inline PNG, provenance:{provider,model,sha256,seed?,rawParams}}`.
+Requires store bearer auth, matching manifest tenant, ungenerated child version,
+FACTORY_IMAGE_GENERATION_ENABLED=true and separate human approval for image spend.
+A unique tenant/version activity reservation precedes one ImageProvider call;
+duplicate attempts return 409 ATTEMPT_EXISTS. Disabled: 403 GENERATION_DISABLED;
+invalid child: 422 INVALID_VERSION; failure: 502 GENERATION_FAILED, with no retry.
+Images return to browser/export only. No database migration, products or publication.
+
+ReviewVersion optionally includes placements[productType] = {version:1,scale,x,y}
+(normalized print-area center, contain-fit scale). Refine/generate retain existing
+authentication and approval requirements. This local review metadata is not a
+provider submission or print readiness grant; see docs/design-factory/README.md.
+
+Factory review exports optionally carry scoped `printAreas` canvas/calibration
+profiles (storeSlug, productType, provider, printAreaId); this is local-file state,
+not a new REST endpoint or PrintTemplate mutation. See docs/design-factory/README.md
+for scripted schema validation, the explicit 4494x5097 front preset and manual QA.
+Production readiness still requires provider verification and physical dimensions.
+
+
+### Factory photo print-area calibration
+`GET /api/agent/design-factory/calibration` returns `{profiles}` for the resolved
+store. `PUT` accepts one strict `printAreaProfileSchema` profile and returns that
+saved profile. Bearer authentication is required. Fields: `storeSlug`,
+`productType`, `provider`, `printAreaId` (side, e.g. `front`), `baseImageUrl`,
+`mockup:{width,height}`, `canvas:{width,height}`, and normalized
+`mapping:{x,y,width,height}`. The base URL must belong to this tenant's current
+MockupScene for that product type. Changing/replacing a base URL requires a new
+calibration. Profiles persist under Store.brief.factoryPrintAreas (no migration),
+with serializable updates preserving other brief keys. Preserve this key when
+replacing a store brief. Writes record the real actor in activity history.
+
+The Factory UI edits a draft via eight pointer/touch handles, arrow keys
+(Shift for larger steps), numeric fields, reset and cancel. Draft boundary edits
+leave artwork fixed. Save and apply explicitly remaps artwork using unchanged
+print-space placement and alpha containment; Keep is invalidated for re-review.
+Photograph mapping may have a different aspect than the 4494x5097 print canvas;
+the provider canvas and native visible-alpha bounds remain separate. Mapping is
+an axis-aligned affine approximation, not a perspective homography. Review
+export/import retains profiles, but importing does not silently write server
+configuration. No generation, upscale, provider call or publishing is involved.
+
+Local manual QA procedure (not a claim of completed browser QA): compare the
+Comfort Colors 1717 front against the supplied Printify schematic: use a tall
+front boundary below the collar and above the hem, adjusting photo coordinates
+rather than inferring them from pixel canvas dimensions. Verify all eight handles
+on desktop/touch, keyboard focus and arrow steps, narrow-screen stacking, color
+cycling, cancel/reset, reload after save, tenant isolation, export/import, and
+unchanged artwork while drafting. Then explicitly apply and re-review visible
+ink on each calibrated color. Visual calibration alone verifies neither physical
+print dimensions nor provider/garment identity, DPI or production readiness.
+The schematic image is not present in this checkout; this procedure requires the
+operator's supplied reference and real tenant photographs.

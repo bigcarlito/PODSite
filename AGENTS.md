@@ -249,7 +249,8 @@ style candidates and optionally uses the existing ImageProvider adapter. It neve
 touches the database, publishes, selects artwork, or grants print readiness.
 Prompts, original-art hash, preview hashes, provider provenance and human review
 live in a local manifest. See `docs/design-factory/README.md` for CLI/manual use
-and archival requirements. No agent REST surface is added or changed.
+and archival requirements. The runner itself adds no REST surface; the human-directed
+review extension below adds authenticated refine/generate endpoints.
 
 A design is defined by **structured aspects** (a controlled vocabulary —
 `hook`, `layout`, `artStyle`, `colorScheme`, `complexity`, plus free-text
@@ -690,3 +691,96 @@ The whole image is contained in the header slot on desktop and mobile.
 `theme.storefront.homepageTitle` (1–200 chars) controls the default browser title;
 ShihTshirts defaults to "Shih Tshirts - For Parents of Small Dogs with Big Attitude".
 Other tenants fall back to Store.name; titled subpages keep their title template.
+
+### Human-directed Factory workspace
+/admin/design-factory imports a bounded local manifest plus hash-verified PNGs.
+Reviews/version history live in exported files, with no schema migration or product
+publication. Garment preview uses current tenant MockupScene base photographs,
+placement and native alpha-over rendering. Shared store/factory-review.ts prepares
+LLM prompt revisions via POST /api/agent/design-factory/refine or authenticated
+admin action, preserving human control. Separately approved single-attempt image
+generation uses scripts/factory-review-generate.ts; see docs/design-factory/README.md.
+
+Factory review also supports separately approved browser image generation through
+store/factory-review.ts and POST /api/agent/design-factory/generate. Disabled unless
+FACTORY_IMAGE_GENERATION_ENABLED=true. An explicitly named activity row reserves
+one tenant/version attempt before any paid call; duplicate attempts cannot retry.
+Preview bytes remain in the exported review, not public StoreAsset storage.
+
+Factory review placements are versioned normalized print-area center/scale values,
+stored per review version and product type in exported files only. Colors share
+placement; explicit placements are never overwritten by copy. Edits invalidate
+Keep until reviewed again. src/lib/design/placement.ts supplies deterministic
+mapping/serialization and the compositor's optional placement input. Unconfigured
+provider dimensions explicitly block production readiness; no Printify coordinates
+are guessed. No endpoint, migration, paid generation or production write is added.
+See docs/design-factory/README.md for the mandatory future upscale/full-area
+transparent PNG/validation handoff and current the-look-03 QA.
+
+Factory review printAreas profiles now separate pixel canvas, measured mockup
+geometry and artwork bounds. Profiles are scoped by tenant/product/provider/front
+in exported review JSON only; shared zod schemas support scripted editing. The
+ShihTshirts Comfort Colors preset is explicitly applied as 4494x5097, with provider
+identity supplied by the operator. Calibration is reversible/editable and provisional;
+no inches, DPI, provider verification or readiness is inferred. printBoundary and
+printCanvasLayout preserve proportions; productionCanvasPlan rejects clipping and
+specifies transparent padding for future compositing. See manual browser QA in
+docs/design-factory/README.md. No new endpoint or production mutation is introduced.
+
+
+Design Factory placement review uses `constrainedPlacement()` in
+`src/lib/design/placement.ts` for fixed-canvas containment of nonzero-alpha ink.
+Client review measures native PNG alpha bounds; `productionCanvasPlan()` accepts
+those same source bounds (or conservatively contains the entire source). Future
+production consumers must measure source pixels independently, use the returned
+normalized placement/layout, and preserve transparent padding rather than crop ink.
+Review imports clamp legacy overflowing placements and invalidate Keep when changed.
+This is local review behavior, adds no endpoint, and grants no production readiness.
+
+Design Factory review layout keeps the garment preview sticky beside compact live
+placement sliders on desktop and stacks them on mobile. Provider/canvas calibration
+is expandable below the workspace. This changes presentation only; placement math,
+review export state, agent APIs and production readiness rules remain unchanged.
+Manual desktop/mobile QA steps are in docs/design-factory/README.md.
+
+
+### Factory photo print-area calibration
+`GET /api/agent/design-factory/calibration` returns `{profiles}` for the resolved
+store. `PUT` accepts one strict `printAreaProfileSchema` profile and returns that
+saved profile. Bearer authentication is required. Fields: `storeSlug`,
+`productType`, `provider`, `printAreaId` (side, e.g. `front`), `baseImageUrl`,
+`mockup:{width,height}`, `canvas:{width,height}`, and normalized
+`mapping:{x,y,width,height}`. The base URL must belong to this tenant's current
+MockupScene for that product type. Changing/replacing a base URL requires a new
+calibration. Profiles persist under Store.brief.factoryPrintAreas (no migration),
+with serializable updates preserving other brief keys. Preserve this key when
+replacing a store brief. Writes record the real actor in activity history.
+
+The Factory UI edits a draft via eight pointer/touch handles, arrow keys
+(Shift for larger steps), numeric fields, reset and cancel. Draft boundary edits
+leave artwork fixed. Save and apply explicitly remaps artwork using unchanged
+print-space placement and alpha containment; Keep is invalidated for re-review.
+Photograph mapping may have a different aspect than the 4494x5097 print canvas;
+the provider canvas and native visible-alpha bounds remain separate. Mapping is
+an axis-aligned affine approximation, not a perspective homography. Review
+export/import retains profiles, but importing does not silently write server
+configuration. No generation, upscale, provider call or publishing is involved.
+
+Local manual QA procedure (not a claim of completed browser QA): compare the
+Comfort Colors 1717 front against the supplied Printify schematic: use a tall
+front boundary below the collar and above the hem, adjusting photo coordinates
+rather than inferring them from pixel canvas dimensions. Verify all eight handles
+on desktop/touch, keyboard focus and arrow steps, narrow-screen stacking, color
+cycling, cancel/reset, reload after save, tenant isolation, export/import, and
+unchanged artwork while drafting. Then explicitly apply and re-review visible
+ink on each calibrated color. Visual calibration alone verifies neither physical
+print dimensions nor provider/garment identity, DPI or production readiness.
+The schematic image is not present in this checkout; this procedure requires the
+operator's supplied reference and real tenant photographs.
+
+Factory studio control styling is scoped in review.module.css: Tailwind Preflight
+removes native chrome, so every studio control now has explicit interactive and
+focus/disabled styles. Provider identity and Edit Print Area are beside placement;
+inline prerequisites explain disabled calibration. Advanced JSON remains optional.
+No agent interface or placement/persistence behavior changes. Pending local
+browser desktop/mobile QA is documented in docs/design-factory/README.md.

@@ -568,3 +568,62 @@ ShihTshirts defaults to combined mascot art at
 
 Set `theme.storefront.homepageTitle` (1–200 chars) via store PATCH to customize
 the default browser title independently of the store name and subpage template.
+
+Design Factory: POST /api/agent/design-factory/refine accepts
+{manifest, candidateId, feedback, preserve, currentPrompt?}, returns
+{prompt, rationale, preserved: string[]}. Store bearer auth; manifest storeSlug
+must match resolved store. Uses text credits and logs actor. Human-directed only;
+never choose Keep/Reject or generate images without separate human permission.
+Admin review/import/export: /admin/design-factory. See docs/design-factory/README.md.
+
+POST /api/agent/design-factory/generate accepts {manifest,version,
+approvePaidGeneration:true}, returns {image,provenance:{provider,model,sha256,
+seed?,rawParams}}. Requires matching store bearer auth, ungenerated child,
+FACTORY_IMAGE_GENERATION_ENABLED=true and explicit separate human image-credit
+approval. One reserved attempt per tenant/version, no retries, no publication.
+
+Factory review versions may carry placements[productType] = {version:1,scale,x,y};
+center coordinates and contain-fit scale are normalized to the garment print area.
+Preserve these when handing off a review. Missing provider dimensions means
+production not ready; placement does not authorize generation or publishing.
+
+Factory review files may include `printAreas` scoped by storeSlug/productType/
+provider/printAreaId. Validate with printAreaProfileSchema; they are local review
+configuration, not production PrintTemplates. ShihTshirts front 4494x5097 pixels
+require explicit provider identity and manual mockup calibration; physical size
+and provider verification remain required. See docs/design-factory/README.md.
+
+
+### Factory photo print-area calibration
+`GET /api/agent/design-factory/calibration` returns `{profiles}` for the resolved
+store. `PUT` accepts one strict `printAreaProfileSchema` profile and returns that
+saved profile. Bearer authentication is required. Fields: `storeSlug`,
+`productType`, `provider`, `printAreaId` (side, e.g. `front`), `baseImageUrl`,
+`mockup:{width,height}`, `canvas:{width,height}`, and normalized
+`mapping:{x,y,width,height}`. The base URL must belong to this tenant's current
+MockupScene for that product type. Changing/replacing a base URL requires a new
+calibration. Profiles persist under Store.brief.factoryPrintAreas (no migration),
+with serializable updates preserving other brief keys. Preserve this key when
+replacing a store brief. Writes record the real actor in activity history.
+
+The Factory UI edits a draft via eight pointer/touch handles, arrow keys
+(Shift for larger steps), numeric fields, reset and cancel. Draft boundary edits
+leave artwork fixed. Save and apply explicitly remaps artwork using unchanged
+print-space placement and alpha containment; Keep is invalidated for re-review.
+Photograph mapping may have a different aspect than the 4494x5097 print canvas;
+the provider canvas and native visible-alpha bounds remain separate. Mapping is
+an axis-aligned affine approximation, not a perspective homography. Review
+export/import retains profiles, but importing does not silently write server
+configuration. No generation, upscale, provider call or publishing is involved.
+
+Local manual QA procedure (not a claim of completed browser QA): compare the
+Comfort Colors 1717 front against the supplied Printify schematic: use a tall
+front boundary below the collar and above the hem, adjusting photo coordinates
+rather than inferring them from pixel canvas dimensions. Verify all eight handles
+on desktop/touch, keyboard focus and arrow steps, narrow-screen stacking, color
+cycling, cancel/reset, reload after save, tenant isolation, export/import, and
+unchanged artwork while drafting. Then explicitly apply and re-review visible
+ink on each calibrated color. Visual calibration alone verifies neither physical
+print dimensions nor provider/garment identity, DPI or production readiness.
+The schematic image is not present in this checkout; this procedure requires the
+operator's supplied reference and real tenant photographs.

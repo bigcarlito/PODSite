@@ -7,6 +7,7 @@ export type ActivityActor = "agent" | "admin" | "customer" | "system";
 export function logActivity(
   storeId: string,
   entry: {
+    id?: string;
     actor: ActivityActor;
     category: string;
     summary: string;
@@ -15,6 +16,7 @@ export function logActivity(
 ) {
   return prisma.activityLogEntry.create({
     data: {
+      ...(entry.id ? { id: entry.id } : {}),
       storeId,
       actor: entry.actor,
       category: entry.category,
