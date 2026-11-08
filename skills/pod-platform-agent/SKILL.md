@@ -627,3 +627,29 @@ ink on each calibrated color. Visual calibration alone verifies neither physical
 print dimensions nor provider/garment identity, DPI or production readiness.
 The schematic image is not present in this checkout; this procedure requires the
 operator's supplied reference and real tenant photographs.
+
+Factory Keep → Draft Product (never launch): POST
+`/api/agent/design-factory/draft-products` with `{manifest, version, ancestors?,
+printAreas, settings:{title,description,priceCents,productType?,colors?,sizes?,currency?}}`.
+Use an exported kept rendered review version, complete ancestor recipes without
+image bytes, explicit placement for the garment, and one matching front calibration
+per selected tenant-owned blank. PNG hash must match root manifest preview or
+child provenance.sha256; server remeasures alpha and refuses changed containment.
+Defaults: comfort-colors-1717; Ivory/Blossom/Butter/Bay/Espresso; S/M/L/XL; USD.
+All supplier combinations, costs and availability remain unverified. Response:
+`{product,reused,blockers}` with full rows, immutable factoryDraft provenance and
+ready:false. Draft is inactive/unfeatured; variants unavailable, no supplier IDs.
+Preview composites are labeled PODSite previews, not Printify verified mockups.
+Repeat brief/candidate/version identity returns the existing draft; changed evidence
+returns VERSION_CHANGED. Product/assets/activity are atomic and tenant-scoped.
+PATCH `/api/agent/design-factory/draft-products/:id` with the full settings object
+edits copy/price and originally reviewed color choices. A garment change requires
+new reviewed version placement/calibration (REVIEW_GARMENT_FIRST); extra colors
+require review (REVIEW_COLORS_FIRST). Referenced variants cannot be replaced.
+Existing product PATCH can edit individual variant prices but blocks Factory
+activation/featuring, supplier IDs/stock availability and garment changes.
+Existing product reads and summary.attention.factoryDrafts expose evidence/blockers.
+No generation, provider calls, checkout, fulfillment or launch. See the canonical
+Factory draft products section in docs/AGENT_API.md for exact errors and limits.
+
+Factory drafts: normal product PATCH cannot replace preview images/planned options; use the draft editor for supported option edits. Existing variant prices remain editable.

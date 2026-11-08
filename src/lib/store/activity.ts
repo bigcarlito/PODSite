@@ -12,9 +12,10 @@ export function logActivity(
     category: string;
     summary: string;
     details?: Record<string, unknown>;
-  }
+  },
+  db: Pick<typeof prisma, "activityLogEntry"> = prisma
 ) {
-  return prisma.activityLogEntry.create({
+  return db.activityLogEntry.create({
     data: {
       ...(entry.id ? { id: entry.id } : {}),
       storeId,

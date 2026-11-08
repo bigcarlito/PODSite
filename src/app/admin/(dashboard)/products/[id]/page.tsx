@@ -1,3 +1,5 @@
+import DraftProductForm from "../../design-factory/draft-product";
+import { factoryDraftSettingsSchema } from "@/lib/design/factory-draft";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getProductById } from "@/lib/store/products";
@@ -49,6 +51,14 @@ export default async function ProductVariantsPage({
         Scene-based mockups using uploaded blank images do not require supplier IDs.
       </p>
 
+      {product.factoryDraft && (() => {
+        const evidence = product.factoryDraft as Record<string, unknown>;
+        const settings = factoryDraftSettingsSchema.parse(evidence.settings);
+        const colors = Array.from(new Set(variants.map(v => v.options.color).filter(Boolean)));
+        return <><p className="mt-4 font-semibold">Factory draft: inactive, preview-only. Supplier data unverified.</p>
+          <DraftProductForm productId={product.id} garments={[product.productType!]} initial={{ ...settings, title: product.title, description: product.description, colors, priceCents: variants[0]?.priceCents ?? settings.priceCents }} />
+          <details><summary>Preserved artwork, version, placement and calibration evidence</summary><pre className="whitespace-pre-wrap break-all text-xs">{JSON.stringify(evidence, null, 2)}</pre></details></>;
+      })()}
       <VariantProviderIdsForm productId={product.id} variants={variants} />
     </div>
   );

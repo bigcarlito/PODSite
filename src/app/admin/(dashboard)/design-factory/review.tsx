@@ -6,6 +6,7 @@ import { cycle, constrainReviewPlacements, updateReviewPlacement, reviewFileSche
 import { DEFAULT_PLACEMENT, alphaBounds, constrainedPlacement, printAreaProfileSchema, printBoundary, mergeCalibration, type PrintAreaProfile, type ArtworkSource, type Placement } from "@/lib/design/placement";
 import type { DesignArea } from "@/lib/design/design-area";
 import Calibration from "./calibration";
+import DraftProductForm from "./draft-product";
 import { generate, refine, saveCalibration } from "./actions";
 import styles from "./review.module.css";
 
@@ -90,7 +91,7 @@ export default function Review({ storeSlug, scenes, initialPrintAreas }: { store
     if (!source || !canvas) return;
     setVersions(items => updateReviewPlacement(items, version.id, scene.productType, constrainedPlacement(next, source, canvas).normalized, copy));
   }
-  function decide(decision: "keep" | "refine" | "reject") { setVersions(v => v.map((item, i) => i === selected ? { ...item, decision, decisions: [...(item.decisions ?? []), { decision, at: new Date().toISOString() }] } : item)); }
+  function decide(decision: "keep" | "refine" | "reject") { setVersions(v => v.map((item, i) => i === selected ? { ...item, decision, placements: decision === "keep" && scene ? { ...item.placements, [scene.productType]: placement } : item.placements, decisions: [...(item.decisions ?? []), { decision, at: new Date().toISOString() }] } : item)); }
   async function importFiles(files: FileList | null) {
     if (!files) return;
     setError("");
@@ -207,6 +208,8 @@ export default function Review({ storeSlug, scenes, initialPrintAreas }: { store
       <h2 className={styles.sectionTitle}>Review decisions</h2><p>Review contrast, small lettering and edges on each real shirt color. Alpha is preserved; opaque source backgrounds remain visible. This visual check grants no print readiness.</p>
       <div className="flex flex-wrap items-center gap-4"><button onClick={() => select(i => cycle(i, -1, versions.length))}>← Candidate/version</button><span aria-live="polite">{selected + 1} / {versions.length} · {version?.decision}</span><button onClick={() => select(i => cycle(i, 1, versions.length))}>Candidate/version →</button></div>
       <div className="flex flex-wrap items-center gap-4"><button className={styles.primary} disabled={!!draft || saving} onClick={() => decide("keep")}>Keep</button><button className={styles.destructive} onClick={() => decide("reject")}>Reject</button></div>
+      {version?.decision === "keep" && version.image && !draft && !saving && <DraftProductForm key={`${version.id}-${scene?.productType}-${JSON.stringify(version.placements)}-${JSON.stringify(printAreas)}`} garments={scenes.map(s => s.productType)} evidence={{ manifest, version, ancestors: versions.filter(v => v.id !== version.id).map(v => ({ ...v, image: undefined })), printAreas }} />}
+      <p>Draft handoff requires Keep, matching artwork hashes, explicit garment placement, and a reviewed front calibration for every selected color. It never approves print readiness.</p>
       <label className="block">Creative feedback<textarea className="block w-full border" value={feedback} maxLength={1500} onChange={e => setFeedback(e.target.value)} /></label>
       <label className="block">Preserve these aspects<textarea className="block w-full border" value={preserve} maxLength={2000} onChange={e => setPreserve(e.target.value)} /></label>
       <button disabled={busy || !feedback.trim() || !preserve.trim() || versions.length >= 50} onClick={() => void revise()}>{busy ? "Revising…" : "Refine — prepare prompt (uses text-model credits)"}</button>

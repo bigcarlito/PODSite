@@ -1522,3 +1522,50 @@ ink on each calibrated color. Visual calibration alone verifies neither physical
 print dimensions nor provider/garment identity, DPI or production readiness.
 The schematic image is not present in this checkout; this procedure requires the
 operator's supplied reference and real tenant photographs.
+
+### Factory draft products (preview-only)
+
+- `POST /api/agent/design-factory/draft-products`: bearer-authenticated, store scoped.
+  Body: `{manifest, version, ancestors?: [], printAreas?: [], settings}`. Manifest
+  and version use the exported Factory review schemas; `version.decision` must be
+  `keep`, `image` an embedded PNG (maximum 6 MB encoded), and `placements` must
+  include the selected `settings.productType`. Root image hash/dimensions must
+  match manifest preview; child image hash must match `version.provenance.sha256`.
+  Include complete ancestor recipes without PNG bytes, plus exactly one front
+  calibration per selected color's current tenant-owned scene base URL. Profiles
+  must belong to the resolved store. Bytes/alpha containment are measured again;
+  missing bases/calibration never invoke AI or a provider.
+- Settings: `{title, description, priceCents, productType?: "comfort-colors-1717",
+  colors?: ["Ivory","Blossom","Butter","Bay","Espresso"],
+  sizes?: ["S","M","L","XL"], currency?: "USD"}`. Price is positive integer
+  cents. Colors are a nonempty unique subset of those five; sizes a unique subset
+  of S/M/L/XL/2XL/3XL/4XL. Garment/color/size choices are planned and unverified.
+- Returns `{product, reused, blockers}` (Zod-validated full resulting product,
+  variants, images and evidence). Product is inactive/unfeatured, every variant
+  `inStock:false`, `provider:"PRINTIFY"`, `providerVariantId:null`; no costs or
+  inventory are inferred. `factoryDraft` is immutable provenance/placement/
+  calibration/asset evidence with `ready:false`. Images explicitly label preview
+  composites, not Printify verified mockups. Source PNG bytes remain unchanged.
+- Unique identity is store + manifest brief ID + candidate ID + version ID. Repeat
+  requests return the existing draft (`reused:true`) without changing owner edits;
+  conflicting evidence under that identity returns `409 VERSION_CHANGED`. This
+  holds for concurrent attempts; product/assets/activity commit atomically.
+- `PATCH /api/agent/design-factory/draft-products/:id`: same authentication; full
+  settings object above edits title/description, price and reviewed color/size
+  choices. Only inactive/unavailable/unverified drafts with no referenced variants
+  qualify. Garment changes return `REVIEW_GARMENT_FIRST`; a new reviewed version
+  must carry that garment's placement/calibration. Colors outside original handoff
+  evidence return `REVIEW_COLORS_FIRST`. Evidence remains immutable. Existing
+  product PATCH supports individual variant prices, but refuses replacement of
+  preview images or planned options (use the draft editor), activation,
+  featuring, supplier IDs/stock availability or garment changes for Factory drafts.
+- Errors are structured: `STORE_MISMATCH`, `KEEP_REQUIRED`, `INVALID_LINEAGE`,
+  `ARTWORK_HASH_MISMATCH`, `ARTWORK_DIMENSIONS_MISMATCH`, `ARTWORK_TOO_LARGE`,
+  `INVALID_ARTWORK`, `PLACEMENT_REQUIRED`, `PLACEMENT_CHANGED`, `SCENE_REQUIRED`,
+  `BASE_REQUIRED`, `CALIBRATION_REQUIRED`, `STALE_CALIBRATION` (422),
+  `VERSION_CHANGED` / `FACTORY_DRAFT_ONLY` (409), `NOT_FOUND` (404), or standard
+  validation errors. Malformed/unreadable PNGs fail without committing anything.
+- Read through existing product endpoints; summary/briefing includes
+  `attention.factoryDrafts` with evidence and explicit readiness blockers. No paid
+  generation, publish/activation, checkout change, supplier API or fulfillment
+  capability is added. Admin parity: Factory Create Draft Product and draft editor.

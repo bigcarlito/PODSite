@@ -784,3 +784,15 @@ focus/disabled styles. Provider identity and Edit Print Area are beside placemen
 inline prerequisites explain disabled calibration. Advanced JSON remains optional.
 No agent interface or placement/persistence behavior changes. Pending local
 browser desktop/mobile QA is documented in docs/design-factory/README.md.
+
+### Factory Keep to draft products
+Authenticated admin and POST /api/agent/design-factory/draft-products share
+store/factory-draft.ts. PATCH on draft-products/:id edits merchandising settings.
+Only kept PNG versions with verified hashes, complete ancestry, reviewed placement
+and tenant-owned calibrated base photographs qualify. Atomic product/assets/activity
+writes and a tenant-scoped unique source identity prevent duplicates. Product
+factoryDraft retains immutable artwork/version/placement evidence and blockers.
+Drafts stay inactive/unfeatured, with unavailable planned variants and no supplier
+IDs. Existing product PATCH blocks activation/verification. Defaults are CC1717
+and Ivory/Blossom/Butter/Bay/Espresso; composites are previews, never provider proof.
+See docs/AGENT_API.md and docs/design-factory/README.md for payloads and handoff.

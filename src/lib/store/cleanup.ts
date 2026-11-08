@@ -12,11 +12,12 @@ import { logActivity, type ActivityActor } from "./activity";
  * here too.
  */
 async function collectReferencedAssetIds(storeId: string): Promise<Set<string>> {
-  const [store, scenes, images, designs] = await Promise.all([
+  const [store, scenes, images, designs, factoryProducts] = await Promise.all([
     prisma.store.findUniqueOrThrow({ where: { id: storeId }, select: { theme: true } }),
     prisma.mockupScene.findMany({ where: { storeId }, select: { imageUrl: true, baseImages: true } }),
     prisma.productImage.findMany({ where: { product: { storeId } }, select: { url: true } }),
     prisma.design.findMany({ where: { storeId }, select: { previewImageUrl: true, masterImageUrl: true } }),
+    prisma.product.findMany({ where: { storeId, factorySourceKey: { not: null } }, select: { factoryDraft: true } }),
   ]);
 
   const urls: string[] = [];
@@ -29,6 +30,7 @@ async function collectReferencedAssetIds(storeId: string): Promise<Set<string>> 
     else if (value && typeof value === "object") Object.values(value).forEach(collect);
   };
   collect(store.theme);
+  factoryProducts.forEach(p => collect(p.factoryDraft));
   for (const scene of scenes) {
     urls.push(scene.imageUrl);
     urls.push(...Object.values((scene.baseImages as Record<string, string> | null) ?? {}));
