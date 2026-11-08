@@ -653,3 +653,5 @@ No generation, provider calls, checkout, fulfillment or launch. See the canonica
 Factory draft products section in docs/AGENT_API.md for exact errors and limits.
 
 Factory drafts: normal product PATCH cannot replace preview images/planned options; use the draft editor for supported option edits. Existing variant prices remain editable.
+
+Factory draft settings require explicit productType matching the reviewed scene and version.placements key; no garment default is inferred. Missing source PNG, placement or per-color calibration fails closed with corrective guidance.

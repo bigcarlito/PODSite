@@ -1535,7 +1535,7 @@ operator's supplied reference and real tenant photographs.
   calibration per selected color's current tenant-owned scene base URL. Profiles
   must belong to the resolved store. Bytes/alpha containment are measured again;
   missing bases/calibration never invoke AI or a provider.
-- Settings: `{title, description, priceCents, productType?: "comfort-colors-1717",
+- Settings: `{title, description, priceCents, productType: "<reviewed scene.productType>",
   colors?: ["Ivory","Blossom","Butter","Bay","Espresso"],
   sizes?: ["S","M","L","XL"], currency?: "USD"}`. Price is positive integer
   cents. Colors are a nonempty unique subset of those five; sizes a unique subset
@@ -1569,3 +1569,5 @@ operator's supplied reference and real tenant photographs.
   `attention.factoryDrafts` with evidence and explicit readiness blockers. No paid
   generation, publish/activation, checkout change, supplier API or fulfillment
   capability is added. Admin parity: Factory Create Draft Product and draft editor.
+
+Factory draft settings require explicit productType matching the reviewed scene and version.placements key; no garment default is inferred. Missing source PNG, placement or per-color calibration fails closed with corrective guidance.

@@ -1,21 +1,25 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
-import { useEffect, useState, type CSSProperties, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type SetStateAction } from "react";
 import { factoryManifestSchema, type FactoryManifest } from "@/lib/design/factory";
-import { cycle, constrainReviewPlacements, updateReviewPlacement, reviewFileSchema, type ReviewVersion } from "@/lib/design/factory-review";
+import { cycle, keepReviewedVersion, constrainReviewPlacements, updateReviewPlacement, reviewFileSchema, type ReviewVersion } from "@/lib/design/factory-review";
 import { DEFAULT_PLACEMENT, alphaBounds, constrainedPlacement, printAreaProfileSchema, printBoundary, mergeCalibration, type PrintAreaProfile, type ArtworkSource, type Placement } from "@/lib/design/placement";
 import type { DesignArea } from "@/lib/design/design-area";
 import Calibration from "./calibration";
-import DraftProductForm from "./draft-product";
+import DraftProductForm, { type Settings } from "./draft-product";
 import { generate, refine, saveCalibration } from "./actions";
 import styles from "./review.module.css";
 
-type Scene = { productType: string; area: DesignArea; bases: Record<string, string> };
+type Scene = { defaultPriceCents?: number | null; productType: string; area: DesignArea; bases: Record<string, string> };
 function download(value: unknown, name: string) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }));
   const a = document.createElement("a"); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
 }
 export default function Review({ storeSlug, scenes, initialPrintAreas }: { storeSlug: string; scenes: Scene[]; initialPrintAreas: PrintAreaProfile[] }) {
+  const [draftSettings, setDraftSettings] = useState<Record<string, Settings>>({});
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [handoff, setHandoff] = useState<{ version: ReviewVersion; productType: string }>();
+  useEffect(() => { if (handoff) dialog.current?.showModal(); }, [handoff]);
   const [printAreas, setPrintAreas] = useState<PrintAreaProfile[]>(initialPrintAreas);
   const [provider, setProvider] = useState(initialPrintAreas[0]?.provider ?? "");
   const [draft, setDraft] = useState<PrintAreaProfile>();
@@ -41,7 +45,7 @@ export default function Review({ storeSlug, scenes, initialPrintAreas }: { store
   const geometry = (item: ReviewVersion, productType: string) => {
     const src = item.image ? sizes[item.image] : undefined;
     const garment = scenes.find(s => s.productType === productType);
-    const configured = printAreas.find(p => p.productType === productType && p.storeSlug === storeSlug && p.provider === provider && p.printAreaId === "front" && (!p.baseImageUrl || p.baseImageUrl === scene?.bases[color]));
+    const configured = printAreas.find(p => p.productType === productType && p.storeSlug === storeSlug && p.provider === provider && p.printAreaId === "front" && (!p.baseImageUrl || Object.values(garment?.bases ?? {}).includes(p.baseImageUrl)));
     const base = garment && Object.values(garment.bases).map(url => sizes[url]).find(Boolean);
     const target = configured?.canvas ?? (base && garment ? { width: base.width * garment.area.width, height: base.height * garment.area.height } : undefined);
     return src && target ? { source: src, canvas: target } : undefined;
@@ -91,7 +95,15 @@ export default function Review({ storeSlug, scenes, initialPrintAreas }: { store
     if (!source || !canvas) return;
     setVersions(items => updateReviewPlacement(items, version.id, scene.productType, constrainedPlacement(next, source, canvas).normalized, copy));
   }
-  function decide(decision: "keep" | "refine" | "reject") { setVersions(v => v.map((item, i) => i === selected ? { ...item, decision, placements: decision === "keep" && scene ? { ...item.placements, [scene.productType]: placement } : item.placements, decisions: [...(item.decisions ?? []), { decision, at: new Date().toISOString() }] } : item)); }
+  function decide(decision: "keep" | "refine" | "reject") {
+    if (!version) return;
+    if (decision === "keep" && (!scene || !layout || raw || !photo)) {
+      setError("Load the source PNG and garment photograph, then review placement on the garment before Keep."); return;
+    }
+    const reviewed: ReviewVersion = decision === "keep" ? keepReviewedVersion(version, scene.productType, placement) : { ...version, decision, decisions: [...(version.decisions ?? []), { decision, at: new Date().toISOString() }] };
+    setVersions(items => items.map(item => item.id === version.id ? reviewed : item));
+    if (decision === "keep") setHandoff({ version: reviewed, productType: scene.productType });
+  }
   async function importFiles(files: FileList | null) {
     if (!files) return;
     setError("");
@@ -208,7 +220,15 @@ export default function Review({ storeSlug, scenes, initialPrintAreas }: { store
       <h2 className={styles.sectionTitle}>Review decisions</h2><p>Review contrast, small lettering and edges on each real shirt color. Alpha is preserved; opaque source backgrounds remain visible. This visual check grants no print readiness.</p>
       <div className="flex flex-wrap items-center gap-4"><button onClick={() => select(i => cycle(i, -1, versions.length))}>← Candidate/version</button><span aria-live="polite">{selected + 1} / {versions.length} · {version?.decision}</span><button onClick={() => select(i => cycle(i, 1, versions.length))}>Candidate/version →</button></div>
       <div className="flex flex-wrap items-center gap-4"><button className={styles.primary} disabled={!!draft || saving} onClick={() => decide("keep")}>Keep</button><button className={styles.destructive} onClick={() => decide("reject")}>Reject</button></div>
-      {version?.decision === "keep" && version.image && !draft && !saving && <DraftProductForm key={`${version.id}-${scene?.productType}-${JSON.stringify(version.placements)}-${JSON.stringify(printAreas)}`} garments={scenes.map(s => s.productType)} evidence={{ manifest, version, ancestors: versions.filter(v => v.id !== version.id).map(v => ({ ...v, image: undefined })), printAreas }} />}
+      {version?.decision === "keep" && !draft && !saving && <button onClick={() => setHandoff({ version, productType: scene.productType })}>Create Draft Product</button>}
+      <dialog ref={dialog} aria-labelledby="draft-dialog-title" className={styles.draftDialog} onClose={() => setHandoff(undefined)}>
+        <h2 id="draft-dialog-title">Create Draft Product</h2>
+        <button autoFocus onClick={() => dialog.current?.close()} aria-label="Close Create Draft Product">Cancel / close</button>
+        {handoff && <>
+          <p>Version: {handoff.version.id}. Reviewed placement: {handoff.version.placements?.[handoff.productType] ? JSON.stringify(handoff.version.placements[handoff.productType]) : "Missing: close and review placement on this garment, then Keep."}</p>
+          <DraftProductForm key={`${handoff.version.id}-${handoff.productType}`} garments={[handoff.productType]} initial={draftSettings[`${handoff.version.id}-${handoff.productType}`] ?? { title: "", description: "", productType: handoff.productType, colors: ["Ivory", "Blossom", "Butter", "Bay", "Espresso"].filter(c => !!scenes.find(s => s.productType === handoff.productType)?.bases[c]), sizes: ["S", "M", "L", "XL"], priceCents: scenes.find(s => s.productType === handoff.productType)?.defaultPriceCents ?? 3200, currency: "USD" }} onSettingsChange={settings => setDraftSettings(items => ({ ...items, [`${handoff.version.id}-${handoff.productType}`]: settings }))} evidence={{ manifest, version: handoff.version, ancestors: versions.filter(v => v.id !== handoff.version.id).map(v => ({ ...v, image: undefined })), printAreas }} />
+        </>}
+      </dialog>
       <p>Draft handoff requires Keep, matching artwork hashes, explicit garment placement, and a reviewed front calibration for every selected color. It never approves print readiness.</p>
       <label className="block">Creative feedback<textarea className="block w-full border" value={feedback} maxLength={1500} onChange={e => setFeedback(e.target.value)} /></label>
       <label className="block">Preserve these aspects<textarea className="block w-full border" value={preserve} maxLength={2000} onChange={e => setPreserve(e.target.value)} /></label>

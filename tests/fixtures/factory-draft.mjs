@@ -14,7 +14,7 @@ manifest.candidates[0].preview={file:'fixture.png',sha256:digest(art),width:40,h
 const store={id:'store-a',slug:manifest.brief.storeSlug};
 const version={id:manifest.candidates[0].id,parentId:null,candidateId:manifest.candidates[0].id,prompt:manifest.candidates[0].prompt,rationale:'Imported',preserved:[],feedback:'',decision:'keep',createdAt:'2026-11-07',image:`data:image/png;base64,${art.toString('base64')}`,placements:{'comfort-colors-1717':{version:1,x:.5,y:.5,scale:.8}}};
 const profile={storeSlug:store.slug,productType:'comfort-colors-1717',provider:'unverified',printAreaId:'front',baseImageUrl:'/api/assets/base',mockup:{width:120,height:160},canvas:{width:4494,height:5097},mapping:{x:.2,y:.2,width:.6,height:.6}};
-const settings={title:'Review title',description:'Review description',priceCents:3200,colors:['Ivory']};
+const settings={productType:'comfort-colors-1717',title:'Review title',description:'Review description',priceCents:3200,colors:['Ivory']};
 const input=()=>structuredClone({manifest,version,printAreas:[profile],settings});
 const match=(p,w)=>Object.entries(w).every(([k,v])=>p[k]===v);
 const product={
@@ -130,4 +130,13 @@ test('child handoff preserves ancestry and requires current Keep history and has
   await assert.rejects(createFactoryDraft(store,changed,'agent'),{code:'ARTWORK_HASH_MISMATCH'});
   for(const change of [{images:[]},{optionNames:['size']},{variants:[{sku:'invented',options:{color:'Red'},priceCents:10,currency:'USD',provider:'PRINTIFY',inStock:false}]}])
     await assert.rejects(updateProduct(store.id,saved.product.id,change,'agent'),{code:'FACTORY_DRAFT_ONLY'});
+});
+
+ test('scene identifier must match explicit reviewed placement', async()=>{
+  const other=input();other.settings.productType='actual-scene';
+  await assert.rejects(createFactoryDraft(store,other,'admin'),{code:'PLACEMENT_REQUIRED'});
+  other.version.placements['actual-scene']=other.version.placements['comfort-colors-1717'];
+  other.printAreas[0].productType='actual-scene';
+  const saved=await createFactoryDraft(store,other,'admin');
+  assert.equal(saved.product.productType,'actual-scene');
 });

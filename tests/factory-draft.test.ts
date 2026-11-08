@@ -8,5 +8,5 @@ test('Factory Keep-to-draft handoff with isolated persistence and no providers',
   for (const key of Object.keys(env)) if (/DATABASE_URL|OPENROUTER|PRINTFUL/.test(key)) delete env[key];
   const child = spawnSync(process.execPath, ['--conditions=react-server', '--import', 'tsx', '--test', 'tests/fixtures/factory-draft.mjs'], { env, encoding: 'utf8', timeout: 60000 });
   assert.equal(child.status, 0, child.stdout + child.stderr);
-  assert.match(child.stdout, /tests 11/);
+  assert.match(child.stdout, /tests 12/);
 });

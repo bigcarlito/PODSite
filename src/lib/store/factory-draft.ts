@@ -23,7 +23,8 @@ export async function createFactoryDraft(store: Store, raw: unknown, actor: Acti
   if (manifest.brief.storeSlug !== store.slug || printAreas.some(p => p.storeSlug !== store.slug)) fail("STORE_MISMATCH", "Review belongs to another store");
   const candidate = manifest.candidates.find(c => c.id === version.candidateId);
   if (manifest.candidates.filter(c => c.id === version.candidateId).length !== 1 || ancestors.some(v => v.id === version.id) || new Set(ancestors.map(v => v.id)).size !== ancestors.length) fail("INVALID_LINEAGE", "Candidate and version identities must be unique");
-  if (!candidate || version.decision !== "keep" || !version.image) fail("KEEP_REQUIRED", "Select a kept version with PNG artwork");
+  if (!version.image) fail("KEEP_REQUIRED", "Source PNG is missing. Import the original artwork for this version before creating a draft");
+  if (!candidate || version.decision !== "keep") fail("KEEP_REQUIRED", "Select a kept version with PNG artwork");
   if (version.image.length > 6 * 1024 * 1024) fail("ARTWORK_TOO_LARGE", "Preview PNG must fit the 6 MB encoded handoff limit");
   if (version.decisions?.length && version.decisions.at(-1)?.decision !== "keep") fail("KEEP_REQUIRED", "Latest review decision must be Keep");
   const lineage = new Map(ancestors.map(v => [v.id, v]));
@@ -36,7 +37,7 @@ export async function createFactoryDraft(store: Store, raw: unknown, actor: Acti
   }
   if (printAreas.some(p => p.printAreaId !== "front")) fail("INVALID_CALIBRATION", "Only front placement is supported");
   const placement = version.placements?.[settings.productType];
-  if (!placement) fail("PLACEMENT_REQUIRED", "Review and Keep placement on the selected garment first");
+  if (!placement) fail("PLACEMENT_REQUIRED", `No reviewed placement for ${settings.productType}. Close the dialog, view that garment, review placement and click Keep`);
   const bytes = Buffer.from(version.image.split(",")[1], "base64");
   const artworkHash = hash(bytes);
   const expected = version.parentId ? version.provenance?.sha256 : candidate.preview?.sha256;
@@ -73,7 +74,7 @@ export async function createFactoryDraft(store: Store, raw: unknown, actor: Acti
     const base = await prisma.storeAsset.findFirst({ where: { id, storeId: store.id } });
     if (!base) fail("BASE_REQUIRED", `Photograph for ${color} is missing or belongs to another tenant`);
     const profiles = printAreas.filter(p => p.productType === settings.productType && p.baseImageUrl === url);
-    if (profiles.length !== 1) fail("CALIBRATION_REQUIRED", `Include exactly one reviewed front calibration for ${color}`);
+    if (profiles.length !== 1) fail("CALIBRATION_REQUIRED", `Include exactly one reviewed front calibration for ${settings.productType}, ${color}. Close the dialog, select this color and save its Print Area calibration`);
     const profile = profiles[0];
     const baseData = Buffer.from(base.data);
     const dimensions = await sharp(baseData).metadata();

@@ -793,6 +793,8 @@ and tenant-owned calibrated base photographs qualify. Atomic product/assets/acti
 writes and a tenant-scoped unique source identity prevent duplicates. Product
 factoryDraft retains immutable artwork/version/placement evidence and blockers.
 Drafts stay inactive/unfeatured, with unavailable planned variants and no supplier
-IDs. Existing product PATCH blocks activation/verification. Defaults are CC1717
-and Ivory/Blossom/Butter/Bay/Espresso; composites are previews, never provider proof.
+IDs. Existing product PATCH blocks activation/verification. Garment identity is explicitly supplied from the reviewed scene; planned colors are
+Ivory/Blossom/Butter/Bay/Espresso; composites are previews, never provider proof.
 See docs/AGENT_API.md and docs/design-factory/README.md for payloads and handoff.
+
+Factory Keep records the viewed scene productType and current reviewed placement before opening a native Create Draft Product dialog. Previously kept versions can reopen without re-Keep; Cancel/Escape preserves review state and creates nothing. Draft garment is fixed to the viewed scene, with session-retained merchandising fields. Per-color calibration and original PNG evidence remain mandatory; no supplier or activation safety gates are bypassed.

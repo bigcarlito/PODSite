@@ -7,7 +7,7 @@ export const FACTORY_COLORS = ["Ivory", "Blossom", "Butter", "Bay", "Espresso"] 
 export const factoryDraftSettingsSchema = z.object({
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().min(1).max(10000),
-  productType: z.string().trim().min(1).max(100).default("comfort-colors-1717"),
+  productType: z.string().trim().min(1).max(100),
   colors: z.array(z.enum(FACTORY_COLORS)).min(1).max(5).default([...FACTORY_COLORS]),
   sizes: z.array(z.enum(["S", "M", "L", "XL", "2XL", "3XL", "4XL"])).min(1).max(7).default(["S", "M", "L", "XL"]),
   priceCents: z.number().int().positive().max(1000000),
