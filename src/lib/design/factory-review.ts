@@ -7,6 +7,12 @@ export const refineSchema = z.object({ manifest: factoryManifestSchema, candidat
 export const reviewVersionSchema = z.object({ id: z.string(), parentId: z.string().nullable(), candidateId: z.string(), prompt: z.string().max(8000), rationale: z.string(), preserved: z.array(z.string()), feedback: z.string(), image: z.string().regex(/^data:image\/png;base64,[A-Za-z0-9+/=]+$/).optional(), decision: z.enum(["pending", "keep", "refine", "reject"]), decisions: z.array(z.object({ decision: z.enum(["keep", "refine", "reject"]), at: z.string() })).optional(), createdAt: z.string(), placements: z.record(placementSchema).optional(), provenance: z.record(z.unknown()).optional() });
 export const reviewFileSchema = z.object({ format: z.literal("factory-review-1"), manifest: factoryManifestSchema, versions: z.array(reviewVersionSchema).max(50), printAreas: z.array(printAreaProfileSchema).max(100).optional(), production: z.object({ ready: z.literal(false), reason: z.string() }).optional() });
 export type ReviewVersion = z.infer<typeof reviewVersionSchema>;
+/** Record exactly the placement and garment currently reviewed; never mutate artwork. */
+export function keepReviewedVersion(version: ReviewVersion, productType: string, placement: Placement): ReviewVersion {
+  if (!productType.trim()) throw new Error("Select a garment before Keep");
+  return { ...version, decision: "keep", placements: { ...version.placements, [productType]: placementSchema.parse(placement) },
+    decisions: [...(version.decisions ?? []), { decision: "keep", at: new Date().toISOString() }] };
+}
 export const factoryGenerationSchema = z.object({ manifest: factoryManifestSchema, version: reviewVersionSchema, approvePaidGeneration: z.literal(true) }).strict();
 export function cycle(index: number, delta: number, count: number) { return count ? (index + delta + count) % count : 0; }
 export function revisionInstruction(input: z.infer<typeof refineSchema>) {

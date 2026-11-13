@@ -82,3 +82,6 @@
   .studio button { max-width: 100%; overflow-wrap: anywhere; }
   .studio input:not([type=checkbox]):not([type=range]), .studio select, .studio textarea { font-size: 1rem; }
 }
+
+.draftDialog { margin: auto; width: min(44rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow-y: auto; border: 1px solid #b7bbad; border-radius: .75rem; padding: 1.25rem; background: #fffefb; }
+.draftDialog::backdrop { background: rgb(0 0 0 / .55); }

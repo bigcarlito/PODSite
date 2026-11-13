@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sameAssetUrl } from "./asset-url";
 
 /** Center and scale relative to the garment print area, never scene pixels. */
 export const placementSchema = z.object({
@@ -93,6 +94,16 @@ export const printAreaProfileSchema = z.object({
     .refine(m => m.x + m.width <= 1 && m.y + m.height <= 1, "Boundary must fit the mockup"),
 }).strict();
 export type PrintAreaProfile = z.infer<typeof printAreaProfileSchema>;
+
+/** Review uses the first garment color's calibration across its color lineup.
+ * Keep photo identities/dimensions intact for draft evidence and tenant checks.
+ */
+export function sharedReviewCalibrations(storeSlug: string, profiles: PrintAreaProfile[], productType: string, provider: string, bases: Record<string, string>) {
+  const urls = Object.values(bases);
+  const matches = profiles.filter(p => p.storeSlug === storeSlug && p.productType === productType && p.provider === provider && p.printAreaId === "front" && (!p.baseImageUrl || urls.some(url => sameAssetUrl(url, p.baseImageUrl!))));
+  const shared = urls.map(url => matches.find(p => p.baseImageUrl && sameAssetUrl(p.baseImageUrl, url))).find(Boolean) ?? matches[0];
+  return { shared, profiles: profiles.map(p => shared && matches.includes(p) ? { ...p, canvas: shared.canvas, mapping: shared.mapping } : p) };
+}
 
 /** Photograph mapping is independent of the provider pixel aspect. */
 export function printBoundary(profile: PrintAreaProfile) {

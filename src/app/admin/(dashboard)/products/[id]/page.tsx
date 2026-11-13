@@ -1,3 +1,5 @@
+import DraftProductForm from "../../design-factory/draft-product";
+import { factoryDraftSettingsSchema } from "@/lib/design/factory-draft";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getProductById } from "@/lib/store/products";
@@ -49,6 +51,18 @@ export default async function ProductVariantsPage({
         Scene-based mockups using uploaded blank images do not require supplier IDs.
       </p>
 
+      {product.factoryDraft && (() => {
+        const evidence = product.factoryDraft as Record<string, unknown>;
+        const settings = factoryDraftSettingsSchema.parse(evidence.settings);
+        const colors = Array.from(new Set(variants.map(v => v.options.color).filter(Boolean)));
+        const master = evidence.master as { url?: string } | undefined;
+        const editable = !product.isActive && variants.every(v => !v.inStock);
+        return <><p className="mt-4 font-semibold">Factory product: {product.isActive ? "published for manual fulfillment" : "unpublished"}. Supplier data unverified.</p>
+          {master?.url && <p><a className="underline" href={master.url} download>Download upscaled print artwork</a></p>}
+          <p>Publish or unpublish from the products list. Store checkout is controlled separately.</p>
+          {editable && <DraftProductForm productId={product.id} garments={[product.productType!]} initial={{ ...settings, title: product.title, description: product.description, colors, priceCents: variants[0]?.priceCents ?? settings.priceCents }} />}
+          <details><summary>Preserved artwork, version, placement and calibration evidence</summary><pre className="whitespace-pre-wrap break-all text-xs">{JSON.stringify(evidence, null, 2)}</pre></details></>;
+      })()}
       <VariantProviderIdsForm productId={product.id} variants={variants} />
     </div>
   );

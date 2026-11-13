@@ -40,9 +40,10 @@ export async function getProductById(storeId: string, id: string) {
 export async function createProduct(
   storeId: string,
   input: ProductCreateInput,
-  actor: ActivityActor = "agent"
+  actor: ActivityActor = "agent",
+  db: Prisma.TransactionClient = prisma
 ) {
-  const existing = await prisma.product.findUnique({
+  const existing = await db.product.findUnique({
     where: { storeId_slug: { storeId, slug: input.slug } },
   });
   if (existing) {
@@ -55,7 +56,7 @@ export async function createProduct(
 
   let product;
   try {
-    product = await prisma.product.create({
+    product = await db.product.create({
       data: {
         storeId,
         slug: input.slug,
@@ -117,7 +118,7 @@ export async function createProduct(
     category: "product",
     summary: `Created product "${product.title}"`,
     details: { productId: product.id, slug: product.slug },
-  });
+  }, db);
 
   return product;
 }
@@ -128,12 +129,25 @@ export async function updateProduct(
   input: ProductUpdateInput,
   actor: ActivityActor = "agent"
 ) {
-  const existing = await prisma.product.findFirst({ where: { id, storeId } });
+  const existing = await prisma.product.findFirst({ where: { id, storeId }, include: { variants: true } });
   if (!existing) throw notFound(`Product "${id}"`);
+
+  if (existing.factorySourceKey && (input.isActive || input.isFeatured || (input.productType !== undefined && input.productType !== existing.productType) || input.variants?.some(v => v.inStock || v.providerVariantId))) {
+    throw new StoreError("FACTORY_DRAFT_ONLY", "Factory drafts cannot be activated or made available by this workflow", { status: 409 });
+  }
+
+  if (existing.factorySourceKey && (input.images || input.optionNames || input.collectionIds || input.variants?.some(v => {
+    const prior = existing.variants.find(p => p.id === v.id);
+    const options = (prior?.options ?? {}) as Record<string, string>;
+    return !prior || v.sku !== prior.sku || v.provider !== prior.provider || v.currency !== prior.currency ||
+      Object.keys(v.options).length !== Object.keys(options).length || Object.entries(v.options).some(([key, value]) => options[key] !== value);
+  }))) {
+    throw new StoreError("FACTORY_DRAFT_ONLY", "Use the Factory draft editor for planned options; preview evidence cannot be replaced here", { status: 409 });
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.product.update({
-      where: { id },
+      where: { id, storeId },
       data: {
         title: input.title,
         description: input.description,
@@ -170,7 +184,7 @@ export async function updateProduct(
       for (const v of input.variants) {
         if (v.id) {
           await tx.productVariant.update({
-            where: { id: v.id, storeId },
+            where: { id: v.id, storeId, productId: id },
             data: {
               sku: v.sku,
               options: v.options,
@@ -223,7 +237,7 @@ export async function deactivateProduct(
   const existing = await prisma.product.findFirst({ where: { id, storeId } });
   if (!existing) throw notFound(`Product "${id}"`);
   const product = await prisma.product.update({
-    where: { id },
+    where: { id, storeId },
     data: { isActive: false },
     include: productInclude,
   });

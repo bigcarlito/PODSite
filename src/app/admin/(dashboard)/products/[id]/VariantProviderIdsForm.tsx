@@ -63,11 +63,9 @@ export function VariantProviderIdsForm({
                     name={`options_${v.id}`}
                     value={JSON.stringify(v.options)}
                   />
-                  <input
-                    type="hidden"
-                    name={`priceCents_${v.id}`}
-                    value={v.priceCents}
-                  />
+                  <label className="block text-xs">Price (integer cents)
+                    <input type="number" min="1" step="1" required name={`priceCents_${v.id}`} defaultValue={v.priceCents} className={inputClass} />
+                  </label>
                   <input type="hidden" name={`currency_${v.id}`} value={v.currency} />
                   <input type="hidden" name={`provider_${v.id}`} value={v.provider} />
                   <input
@@ -105,7 +103,7 @@ export function VariantProviderIdsForm({
         disabled={pending}
         className="mt-4 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white hover:bg-accent-dark disabled:opacity-50"
       >
-        {pending ? "Saving..." : "Save provider variant IDs"}
+        {pending ? "Saving..." : "Save variant prices and IDs"}
       </button>
     </form>
   );

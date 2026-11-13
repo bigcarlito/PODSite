@@ -22,6 +22,9 @@ export const DESIGN_OVERLAY_OPACITY = 0.85;
  */
 export async function compositeDesignOnScene(input: {
   baseImageUrl: string;
+  baseImageData?: Buffer;
+  designData?: Buffer;
+  printCanvas?: { width: number; height: number };
   designUrl: string;
   area?: DesignArea | null;
   opacity?: number;
@@ -30,19 +33,13 @@ export async function compositeDesignOnScene(input: {
   const area = input.area ?? DEFAULT_DESIGN_AREA;
   const opacity = input.opacity ?? DESIGN_OVERLAY_OPACITY;
 
-  const [baseRes, designRes] = await Promise.all([
-    fetch(input.baseImageUrl),
-    fetch(input.designUrl),
-  ]);
-  if (!baseRes.ok) {
-    throw new Error(`Could not fetch base mockup image (HTTP ${baseRes.status})`);
-  }
-  if (!designRes.ok) {
-    throw new Error(`Could not fetch design image (HTTP ${designRes.status})`);
-  }
-
-  const baseBuffer = Buffer.from(await baseRes.arrayBuffer());
-  const designBuffer = Buffer.from(await designRes.arrayBuffer());
+  const read = async (url: string, data?: Buffer) => {
+    if (data) return data;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Could not fetch mockup input (HTTP ${response.status})`);
+    return Buffer.from(await response.arrayBuffer());
+  };
+  const [baseBuffer, designBuffer] = await Promise.all([read(input.baseImageUrl, input.baseImageData), read(input.designUrl, input.designData)]);
 
   const baseImage = sharp(baseBuffer);
   const baseMeta = await baseImage.metadata();
@@ -59,7 +56,10 @@ export async function compositeDesignOnScene(input: {
 
   if (input.placement) {
     const meta = await sharp(designBuffer).metadata();
-    const layout = placementLayout(input.placement, { width: meta.width!, height: meta.height! }, { width: areaWidth, height: areaHeight });
+    const canvas = input.printCanvas ?? { width: areaWidth, height: areaHeight };
+    const print = placementLayout(input.placement, { width: meta.width!, height: meta.height! }, canvas);
+    const layout = { width: print.width / canvas.width * areaWidth, height: print.height / canvas.height * areaHeight,
+      left: print.left / canvas.width * areaWidth, top: print.top / canvas.height * areaHeight };
     const width = Math.max(1, Math.round(layout.width)), height = Math.max(1, Math.round(layout.height));
     const left = Math.round(layout.left), top = Math.round(layout.top);
     const cropLeft = Math.max(0, -left), cropTop = Math.max(0, -top);
@@ -67,7 +67,7 @@ export async function compositeDesignOnScene(input: {
     const visibleHeight = Math.min(height - cropTop, areaHeight - Math.max(0, top));
     const layers: OverlayOptions[] = [];
     if (visibleWidth > 0 && visibleHeight > 0) {
-      const { data, info } = await sharp(designBuffer).resize(width, height).ensureAlpha()
+      const { data, info } = await sharp(designBuffer).resize(width, height, { fit: "fill" }).ensureAlpha()
         .extract({ left: cropLeft, top: cropTop, width: visibleWidth, height: visibleHeight }).raw().toBuffer({ resolveWithObject: true });
       for (let i = 3; i < data.length; i += 4) data[i] = Math.round(data[i] * opacity);
       const overlay = await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } }).png().toBuffer();

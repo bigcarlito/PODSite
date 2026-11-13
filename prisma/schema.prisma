@@ -339,6 +339,9 @@ model Product {
   slug        String
   title       String
   description String
+  /// Immutable Factory review evidence; never a production-readiness certificate.
+  factoryDraft Json?
+  factorySourceKey String?
   /// Ordered variant option keys for this product, e.g. ["size","color"]
   /// for apparel or ["printType","size"] for wall art. Drives which
   /// selectors the product page renders and what keys each variant's
@@ -365,6 +368,7 @@ model Product {
   updatedAt   DateTime            @updatedAt
 
   @@unique([storeId, slug])
+  @@unique([storeId, factorySourceKey])
 }
 
 model ProductCollection {

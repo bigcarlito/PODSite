@@ -349,3 +349,71 @@ Local desktop/mobile manual QA (pending; not executed in this checkout):
 Rendered authenticated browser QA requires a local fixture tenant/database and
 admin session, which are not supplied here. No credentials or production database
 were accessed. These manual checks remain a handoff requirement for visual review.
+
+### Keep → Draft Product handoff
+
+A kept version with PNG bytes can create an inactive product through the Factory
+workspace. Before Keep, choose the garment, review placement and supply a matching
+front calibration for **each selected color photograph**. Use the existing scene
+and base-upload workflow; all base URLs must be tenant-owned `/api/assets/:id`
+references. Missing photographs/calibrations block creation rather than triggering
+AI recoloring. The default planned garment is Comfort Colors 1717, colors Ivory,
+Blossom, Butter, Bay and Espresso, and sizes S/M/L/XL. These are merchandising
+choices, not verified supplier combinations. Price defaults to a clearly labeled
+$32 proposal and must be reviewed.
+
+Import the saved review file, select each of the first five kept versions, enter
+title/description and review colors/price, then Create Draft Product. Nothing is
+created automatically for the batch. Root PNG bytes must match manifest SHA-256
+and dimensions; child PNG bytes must match generation provenance.sha256. Complete
+ancestor recipes must accompany a child. PNG alpha is independently measured on
+the server. If containment would change kept placement, handoff refuses it: return
+to placement review and Keep again. The original PNG is stored unchanged; native
+preview resolution is never promoted to a print master.
+
+`Product.factoryDraft` retains the manifest, selected version/ancestry, prompts,
+provider provenance, source hash/alpha bounds, placement, calibration snapshots,
+base/composite hashes, original artwork asset URL and blockers. No `Design` row
+is synthesized with invented structured aspects or a production master. A unique
+`(storeId, factorySourceKey)` prevents duplicate products for the brief/candidate/
+version identity, including racing requests. Repeat creation returns the existing
+product without overwriting owner edits; changed evidence under the same identity
+returns `VERSION_CHANGED` and needs a new reviewed version. Assets, product and
+activity entries commit together, so failures roll back. Orphan cleanup recognizes
+Factory evidence references.
+
+The draft admin page links to existing product/gallery workflows and edits title,
+description, selected reviewed colors and proposed price. The variants form now
+edits individual integer-cent prices too. Draft color edits are limited to colors
+whose previews were saved at handoff. Garment changes require a new version kept
+with that garment's placement/calibration, rather than reusing an unrelated print
+area. Immutable evidence remains unchanged when merchandising copy/prices change.
+Normal product PATCH refuses Factory activation, featuring, supplier IDs or stock
+availability. Launch/verification is a future separately approved workflow.
+
+Composites reuse the existing compositor with the reviewed canvas-to-photo affine
+mapping, including differing canvas/photo aspect ratios. They are labeled PODSite
+preview composites, **not Printify verified mockups**. Supplier variants, costs,
+availability/shipping, full-area transparent print export/upscale, physical sizing,
+DPI, sample, copy and launch approval remain blockers. No image/text generation,
+provider call, checkout enablement, order submission or publication occurs here.
+
+Agent parity: `POST /api/agent/design-factory/draft-products` imports the same
+review evidence; `PATCH /api/agent/design-factory/draft-products/:id` edits its
+merchandising settings. Both require the resolved store's bearer key and share
+services with authenticated admin actions. See `docs/AGENT_API.md` for payloads.
+Existing product reads and `summary.attention.factoryDrafts` expose review evidence.
+
+The additive migration adds two nullable Product fields and a tenant-scoped unique
+index; existing products remain unchanged. Migration application and actual tenant
+product creation are operator steps, not part of validation in this isolated
+checkout. No production database or local credentials were used.
+
+Manual browser QA (not executed by automated tests): import an exported review;
+verify pending/rejected/unrendered versions lack the handoff, and kept versions
+show it; check missing calibration errors; create each of five drafts and retry;
+inspect five labeled color previews and exact source hash; edit copy/prices/colors;
+reload admin; verify inactive status, unavailable variants and absent supplier IDs.
+Compare desktop/mobile placement to Factory previews. Do not activate to review.
+
+Factory Keep records the viewed scene productType and current reviewed placement before opening a native Create Draft Product dialog. Previously kept versions can reopen without re-Keep; Cancel/Escape preserves review state and creates nothing. Draft garment is fixed to the viewed scene, with session-retained merchandising fields. Per-color calibration and original PNG evidence remain mandatory; no supplier or activation safety gates are bypassed.
