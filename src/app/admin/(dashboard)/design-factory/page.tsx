@@ -9,5 +9,5 @@ export default async function Page() {
   const store = await requireCurrentStore();
   if (!await isAdminAuthenticated(store)) redirect("/admin/login");
   const scenes = await listMockupScenes(store.id);
-  return <Review initialPrintAreas={readCalibrations(store)} storeSlug={store.slug} scenes={scenes.map(s => ({ productType: s.productType, area: (s.designArea as DesignArea | null) ?? DEFAULT_DESIGN_AREA, bases: (s.baseImages as Record<string, string> | null) ?? {} }))} />;
+  return <Review initialPrintAreas={readCalibrations(store)} storeSlug={store.slug} scenes={scenes.map(s => ({ defaultPriceCents: s.defaultPriceCents, productType: s.productType, area: (s.designArea as DesignArea | null) ?? DEFAULT_DESIGN_AREA, bases: (s.baseImages as Record<string, string> | null) ?? {} }))} />;
 }

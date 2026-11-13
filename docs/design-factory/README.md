@@ -415,3 +415,5 @@ show it; check missing calibration errors; create each of five drafts and retry;
 inspect five labeled color previews and exact source hash; edit copy/prices/colors;
 reload admin; verify inactive status, unavailable variants and absent supplier IDs.
 Compare desktop/mobile placement to Factory previews. Do not activate to review.
+
+Factory Keep records the viewed scene productType and current reviewed placement before opening a native Create Draft Product dialog. Previously kept versions can reopen without re-Keep; Cancel/Escape preserves review state and creates nothing. Draft garment is fixed to the viewed scene, with session-retained merchandising fields. Per-color calibration and original PNG evidence remain mandatory; no supplier or activation safety gates are bypassed.

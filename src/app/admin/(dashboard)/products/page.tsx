@@ -4,6 +4,7 @@ import { listProducts } from "@/lib/store/products";
 import { requireCurrentStore } from "@/lib/store-context";
 import { formatCents } from "@/lib/money";
 import { DeleteProductButton } from "./DeleteProductButton";
+import { PublishProductButton } from "./PublishProductButton";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ export default async function AdminProductsPage() {
               <tr className="border-b border-border text-xs uppercase text-muted">
                 <th className="pb-2 pr-4 font-medium">Title</th>
                 <th className="pb-2 pr-4 font-medium">Price</th>
-                <th className="pb-2 pr-4 font-medium">Active</th>
+                <th className="pb-2 pr-4 font-medium">Published</th>
                 <th className="pb-2 pr-4 font-medium">Featured</th>
                 <th className="pb-2 font-medium"></th>
               </tr>
@@ -54,6 +55,7 @@ export default async function AdminProductsPage() {
                   <td className="py-3 pr-4">{p.isFeatured ? "Yes" : "No"}</td>
                   <td className="py-3">
                     <div className="flex gap-4">
+                      <PublishProductButton productId={p.id} isActive={p.isActive} />
                       <Link
                         href={`/admin/products/${p.id}`}
                         className="text-sm text-accent underline"

@@ -7,7 +7,7 @@ export const FACTORY_COLORS = ["Ivory", "Blossom", "Butter", "Bay", "Espresso"] 
 export const factoryDraftSettingsSchema = z.object({
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().min(1).max(10000),
-  productType: z.string().trim().min(1).max(100).default("comfort-colors-1717"),
+  productType: z.string().trim().min(1).max(100),
   colors: z.array(z.enum(FACTORY_COLORS)).min(1).max(5).default([...FACTORY_COLORS]),
   sizes: z.array(z.enum(["S", "M", "L", "XL", "2XL", "3XL", "4XL"])).min(1).max(7).default(["S", "M", "L", "XL"]),
   priceCents: z.number().int().positive().max(1000000),
@@ -23,14 +23,14 @@ export const factoryDraftInputSchema = z.object({
 }).strict();
 export const FACTORY_BLOCKERS = [
   "Supplier variants, costs, availability and shipping are unverified",
-  "Artwork is preview-only: approved upscale and full-area transparent print file required",
+  "Artwork is resized with Lanczos resampling; inspect print quality before manual fulfillment",
   "Provider identity, physical dimensions, DPI, placement proof and sample require approval",
   "Preview composites are PODSite previews, not Printify verified mockups",
-  "Owner copy, prices and launch approval required; product remains inactive and unavailable",
+  "Publish explicitly after reviewing copy, prices, sizes and colors; checkout is controlled separately",
 ];
 export const factoryDraftResultSchema = z.object({
-  product: z.object({ id: z.string(), storeId: z.string(), title: z.string(), description: z.string(), productType: z.string().nullable(), isActive: z.literal(false), isFeatured: z.literal(false),
-    variants: z.array(z.object({ inStock: z.literal(false), providerVariantId: z.null(), priceCents: z.number().int() }).passthrough()),
+  product: z.object({ id: z.string(), storeId: z.string(), title: z.string(), description: z.string(), productType: z.string().nullable(), isActive: z.boolean(), isFeatured: z.boolean(),
+    variants: z.array(z.object({ inStock: z.boolean(), providerVariantId: z.null(), priceCents: z.number().int() }).passthrough()),
     images: z.array(z.object({ url: z.string(), altText: z.string().nullable() }).passthrough()), factoryDraft: z.unknown(),
   }).passthrough(),
   reused: z.boolean(), blockers: z.array(z.string()),

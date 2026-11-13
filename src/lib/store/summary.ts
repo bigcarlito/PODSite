@@ -97,7 +97,7 @@ export async function getStoreSummary(storeId: string) {
     revenueCents: revenue._sum.subtotalCents ?? 0,
     attention: {
       factoryDrafts: await prisma.product.findMany({
-        where: { storeId, factorySourceKey: { not: null } },
+        where: { storeId, factorySourceKey: { not: null }, isActive: false },
         select: { id: true, title: true, isActive: true, factoryDraft: true },
       }),
       manualPaidOrders,
