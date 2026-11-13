@@ -4,8 +4,9 @@ import sharp from "sharp";
 import { Prisma, type Store } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { factoryDraftInputSchema, factoryDraftResultSchema, FACTORY_BLOCKERS } from "@/lib/design/factory-draft";
-import { alphaBounds, constrainedPlacement, type PrintAreaProfile } from "@/lib/design/placement";
-import { compositeDesignOnScene } from "@/lib/design/compositor";
+import { alphaBounds, constrainedPlacement, sharedReviewCalibrations, type PrintAreaProfile } from "@/lib/design/placement";
+import { localAssetId } from "@/lib/design/asset-url";
+import { renderFactoryArtwork, persistFactoryArtwork } from "./factory-artwork";
 import { productCreateSchema } from "./schemas";
 import { createProduct } from "./products";
 import { logActivity, type ActivityActor } from "./activity";
@@ -66,24 +67,36 @@ export async function createFactoryDraft(store: Store, raw: unknown, actor: Acti
   const scene = await prisma.mockupScene.findUnique({ where: { storeId_productType: { storeId: store.id, productType: settings.productType } } });
   if (!scene) fail("SCENE_REQUIRED", "Configure this tenant's garment photographs before creating a draft");
   const bases = (scene.baseImages ?? {}) as Record<string, string>;
-  const previews: { color: string; data: Buffer; profile: PrintAreaProfile; baseHash: string }[] = [];
+  const baseAssets = new Map<string, Uint8Array>();
   for (const color of settings.colors) {
-    const url = bases[color];
-    const id = /^\/api\/assets\/([^/?#]+)$/.exec(url ?? "")?.[1];
+    const id = localAssetId(bases[color]);
     if (!id) fail("BASE_REQUIRED", `Upload a tenant-owned blank photograph for ${color}`);
     const base = await prisma.storeAsset.findFirst({ where: { id, storeId: store.id } });
     if (!base) fail("BASE_REQUIRED", `Photograph for ${color} is missing or belongs to another tenant`);
-    const profiles = printAreas.filter(p => p.productType === settings.productType && p.baseImageUrl === url);
-    if (profiles.length !== 1) fail("CALIBRATION_REQUIRED", `Include exactly one reviewed front calibration for ${settings.productType}, ${color}. Close the dialog, select this color and save its Print Area calibration`);
-    const profile = profiles[0];
-    const baseData = Buffer.from(base.data);
+    baseAssets.set(color, base.data);
+  }
+  const applicable = printAreas.filter(p => p.productType === settings.productType && p.baseImageUrl && Object.values(bases).some(url => localAssetId(url) && localAssetId(url) === localAssetId(p.baseImageUrl)));
+  const providers = [...new Set(applicable.map(p => p.provider))];
+  if (providers.length !== 1) fail("CALIBRATION_REQUIRED", "Include a shared front calibration for this garment from exactly one print provider. Save its Print Area calibration and Keep before handoff");
+  const shared = sharedReviewCalibrations(store.slug, applicable, settings.productType, providers[0], bases).shared;
+  if (!shared?.baseImageUrl) fail("CALIBRATION_REQUIRED", "Save a shared front Print Area calibration for this garment before handoff");
+  const calibratedBase = await prisma.storeAsset.findFirst({ where: { id: localAssetId(shared.baseImageUrl), storeId: store.id } });
+  if (!calibratedBase) fail("BASE_REQUIRED", "Calibrated photograph is missing or belongs to another tenant");
+  const calibratedDimensions = await sharp(Buffer.from(calibratedBase.data)).metadata();
+  if (calibratedDimensions.width !== shared.mockup.width || calibratedDimensions.height !== shared.mockup.height) fail("STALE_CALIBRATION", "Calibrated photograph dimensions changed; save the shared Print Area calibration again");
+  const profiles: { color: string; profile: PrintAreaProfile }[] = [];
+  for (const color of settings.colors) {
+    const url = bases[color];
+    const baseData = Buffer.from(baseAssets.get(color)!);
     const dimensions = await sharp(baseData).metadata();
-    if (dimensions.width !== profile.mockup.width || dimensions.height !== profile.mockup.height) fail("STALE_CALIBRATION", `Photograph dimensions changed for ${color}`);
+    if (!dimensions.width || !dimensions.height) fail("BASE_REQUIRED", `Photograph dimensions unavailable for ${color}`);
+    const profile: PrintAreaProfile = { ...shared, baseImageUrl: url, mockup: { width: dimensions.width, height: dimensions.height } };
     const layout = constrainedPlacement(placement, source, profile.canvas);
     if (Math.abs(layout.normalized.x - placement.x) > 1e-8 || Math.abs(layout.normalized.y - placement.y) > 1e-8 || Math.abs(layout.normalized.scale - placement.scale) > 1e-8) fail("PLACEMENT_CHANGED", "Artwork requires containment changes; re-review and Keep before handoff");
-    const composite = await compositeDesignOnScene({ baseImageUrl: url, baseImageData: baseData, designUrl: version.image, designData: bytes, area: profile.mapping, placement, printCanvas: profile.canvas });
-    previews.push({ color, data: composite.data, profile, baseHash: hash(baseData) });
+    profiles.push({ color, profile });
   }
+  const rendered = await renderFactoryArtwork(store, bytes, placement, profiles);
+
   try {
     return await prisma.$transaction(async tx => {
       const prior = await tx.product.findFirst({ where: { storeId: store.id, factorySourceKey: sourceKey }, include });
@@ -92,25 +105,21 @@ export async function createFactoryDraft(store: Store, raw: unknown, actor: Acti
         return result(prior, true);
       }
       const art = await tx.storeAsset.create({ data: { storeId: store.id, kind: "factory-preview-artwork", mimeType: "image/png", data: new Uint8Array(bytes) } });
-      const images = [];
-      for (const preview of previews) {
-        const asset = await tx.storeAsset.create({ data: { storeId: store.id, kind: "factory-preview-composite", mimeType: "image/jpeg", data: new Uint8Array(preview.data) } });
-        images.push({ url: `/api/assets/${asset.id}`, altText: `PODSite preview composite: ${settings.productType}, ${preview.color}. Not Printify verified.`, color: preview.color });
-      }
+      const artwork = await persistFactoryArtwork(store.id, rendered, tx);
       // Existing product creation owns variant defaults and its activity entry.
       const product = await createProduct(store.id, productCreateSchema.parse({
         ...settings, slug: `factory-${sourceKey}`, optionNames: ["color", "size"], isActive: false, isFeatured: false, images: [],
         variants: settings.colors.flatMap((color, c) => settings.sizes.map((size, s) => ({ sku: `factory-${sourceKey}-${c}-${s}`, options: { color, size }, priceCents: settings.priceCents, currency: settings.currency, provider: "PRINTIFY", inStock: false }))),
       }), actor, tx);
       const snapshot = { ...evidence, fingerprint, sourceKey, artworkUrl: `/api/assets/${art.id}`, settings, ready: false, blockers: FACTORY_BLOCKERS,
-        previews: previews.map(p => ({ color: p.color, profile: p.profile, baseHash: p.baseHash, compositeHash: hash(p.data) })) };
+        master: artwork.master, previews: artwork.previews };
       const saved = await tx.product.update({ where: { id: product.id, storeId: store.id }, data: {
         factorySourceKey: sourceKey, factoryDraft: json(snapshot), images: { create: [
-          ...images.map((img, position) => ({ url: img.url, altText: img.altText, position, optionValues: { color: img.color } })),
-          { url: `/api/assets/${art.id}`, altText: "Kept preview artwork (original bytes); not a production print file", position: images.length },
+          ...artwork.images,
+          { url: `/api/assets/${art.id}`, altText: "Kept preview artwork (original bytes); not a production print file", position: artwork.images.length },
         ] },
       }, include });
-      await logActivity(store.id, { actor, category: "factory-draft", summary: `Created inactive Factory draft: ${saved.title}`, details: { productId: saved.id, sourceKey, artworkHash, fingerprint, blockers: FACTORY_BLOCKERS } }, tx);
+      await logActivity(store.id, { actor, category: "factory-draft", summary: `Created inactive Factory draft: ${saved.title}`, details: { productId: saved.id, sourceKey, artworkHash, fingerprint, master: artwork.master, blockers: FACTORY_BLOCKERS } }, tx);
       return result(saved, false);
     }, { timeout: 20000 });
   } catch (error) {

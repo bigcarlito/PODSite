@@ -1571,3 +1571,54 @@ operator's supplied reference and real tenant photographs.
   capability is added. Admin parity: Factory Create Draft Product and draft editor.
 
 Factory draft settings require explicit productType matching the reviewed scene and version.placements key; no garment default is inferred. Missing source PNG, placement or per-color calibration fails closed with corrective guidance.
+
+Factory review shares the first calibrated color in scene order's print boundary and canvas across the garment color lineup. Centering and scale remain per artwork version and garment, independent of the viewed color. Editing the boundary on any color updates that shared calibration. Export and draft handoff carry the shared geometry on existing per-photo profiles while retaining photo identities and dimensions; missing per-color calibration still blocks draft creation. Calibration REST payloads and authentication are unchanged.
+
+Factory draft handoff accepts root-relative or absolute HTTP(S) `/api/assets/:id` URLs for scene photographs and matching calibration evidence (query/fragment ignored). It resolves the asset ID directly from the database with the current storeId; it never fetches the URL host. Missing or foreign-tenant assets still fail with BASE_REQUIRED.
+
+Factory draft shared-calibration update: one reviewed front profile for the garment and one selected provider now supplies every selected color (supersedes the separate-per-color calibration requirement above). The canonical profile follows scene color order, matching preview behavior. It must reference a current tenant-owned scene photograph with matching dimensions. Each selected photograph is independently checked for ownership; its actual dimensions and the shared mapping/canvas are recorded in preview evidence. Absolute and relative asset URLs match by local asset ID. Missing/stale shared calibration or multiple providers fails closed; the UI sends only the chosen provider.
+
+
+### Factory upscale and manual product publication
+
+After Keep, creating a Factory draft validates the original PNG/provenance, then
+`upscaleToPrintCanvas()` in `src/lib/design/upscale.ts` uses Lanczos resampling to
+rasterize the reviewed scale/center onto the calibrated transparent print canvas
+(e.g. 4494 x 5097). This preserves placement, including source alpha padding;
+it does not perform AI enhancement or certify supplier print readiness. The
+canvas is capped at 50 million pixels and the stored master at 32 MB. Every color
+mockup is composited from this same master. Original bytes/hash remain unchanged.
+`product.factoryDraft.master` contains `url`, `sha256`, `width`, `height`,
+`method: "lanczos3"`, and the reviewed `placement`; `previews` retains per-color
+calibration and source/composite hashes. Admin product details link the master
+for download. Draft creation itself stays inactive/unavailable; duplicate handoff
+returns the existing product even if it has subsequently been published.
+
+- `POST /api/agent/products/:id/publish` accepts `{}` (or an empty body).
+- `POST /api/agent/products/:id/unpublish` accepts `{}` (or an empty body).
+
+Both require the resolved store's bearer key, validate strict empty-object input,
+and return `{product}` with the full resulting product, variants, ordered images
+and collections, validated by `productPublicationResultSchema`. They use shared
+`src/lib/store/product-publication.ts` functions, also called by the authenticated
+Publish/Unpublish buttons on `/admin/products`. Both are idempotent and log the
+real actor on changes. Unpublish sets `isActive:false` without deleting variants
+or changing stock, artwork, or existing orders. Publishing a normal product
+preserves variant availability.
+
+Publishing a Factory product requires store manual fulfillment mode, a complete
+listing with positive variant prices, kept artwork evidence, and a tenant-owned
+master whose hash matches. First publication marks its planned variants available;
+subsequent unpublish/republish preserves deliberate stock changes. Legacy Factory
+drafts without a master are upgraded and their mockups regenerated atomically
+from the kept original before activation. Source bytes and hashes are verified;
+missing/foreign photos or invalid calibration cannot bypass these checks.
+Only garment mockups appear in the published gallery; original artwork stays in
+preserved evidence. Supplier IDs and automatic fulfillment remain unconfigured.
+Errors include `PRODUCT_INCOMPLETE`, `MANUAL_FULFILLMENT_REQUIRED`,
+`INVALID_FACTORY_EVIDENCE`, `ARTWORK_REQUIRED`, `ARTWORK_HASH_MISMATCH`,
+`MASTER_REQUIRED`, `CALIBRATION_REQUIRED`, `BASE_REQUIRED`, `STALE_CALIBRATION`,
+and tenant-scoped `NOT_FOUND`. Store checkout policy is unchanged by publication.
+Published Factory products are excluded from `attention.factoryDrafts`.
+This explicit publication path supersedes the previous blanket Factory activation
+prohibition; generic product PATCH still cannot activate a Factory draft.

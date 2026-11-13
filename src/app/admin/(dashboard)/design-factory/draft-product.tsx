@@ -35,7 +35,7 @@ export default function DraftProductForm({ evidence, garments, initial, productI
       }
       catch (e) { setError(e instanceof Error ? e.message : "Draft save failed; no automatic retry"); }
       finally { submitting.current = false; setBusy(false); }
-    }}>{busy ? "Saving draft..." : productId ? "Save draft edits" : "Create Draft Product"}</button>
+    }}>{busy ? (productId ? "Saving draft..." : "Upscaling artwork and generating mockups...") : productId ? "Save draft edits" : "Create Draft Product"}</button>
     <p role="alert">{error}</p>
     {result && <div><p>{result.reused ? "Existing draft returned; no duplicate created." : "Draft saved inactive and unavailable."} <Link className="underline" href={`/admin/products/${result.product.id}`}>Review and edit draft</Link> · <Link className="underline" href={`/admin/products/${result.product.id}/mockups`}>Existing gallery workflow</Link></p>
       <div className="flex flex-wrap gap-2">{result.product.images.map(img => <figure key={img.url} className="w-40"><img src={img.url} alt={img.altText ?? "Draft preview"} /><figcaption className="text-xs">{img.altText}</figcaption></figure>)}</div>

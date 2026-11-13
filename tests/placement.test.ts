@@ -143,6 +143,25 @@ test("clamped per-version placements survive export/import and are independent o
 });
 
 import { resizeBoundary, mergeCalibration } from "../src/lib/design/placement";
+import { sharedReviewCalibrations } from "../src/lib/design/placement";
+
+test("review colors share the first color boundary and canvas, retaining photo evidence", () => {
+  const first = { ...profile, baseImageUrl: "/api/assets/first" };
+  const second = { ...profile, baseImageUrl: "/api/assets/second", mockup: { width: 800, height: 900 }, canvas: { width: 1000, height: 1000 }, mapping: { x: .1, y: .1, width: .2, height: .2 } };
+  const foreign = { ...second, storeSlug: "other-store" };
+  const before = JSON.stringify([second, foreign, first]);
+  const bases = { Ivory: first.baseImageUrl, Black: second.baseImageUrl, Missing: "/api/assets/missing" };
+  const result = sharedReviewCalibrations(profile.storeSlug, [second, foreign, first], profile.productType, profile.provider, bases);
+  assert.equal(result.shared, first);
+  assert.deepEqual(result.profiles[0].mapping, first.mapping);
+  assert.deepEqual(result.profiles[0].canvas, first.canvas);
+  assert.deepEqual(result.profiles[0].mockup, second.mockup);
+  assert.equal(result.profiles[0].baseImageUrl, second.baseImageUrl);
+  assert.equal(result.profiles[1], foreign);
+  assert.equal(result.profiles.length, 3);
+  assert.equal(JSON.stringify([second, foreign, first]), before);
+  assert.equal(sharedReviewCalibrations(profile.storeSlug, [second], profile.productType, profile.provider, bases).shared, second);
+});
 test("edge and corner drag limits stay on photograph without changing canvas or artwork", () => {
   const snapshot = JSON.stringify(profile), placement = { ...DEFAULT_PLACEMENT, scale: .4 };
   const before = printCanvasLayout(placement, { width: 100, height: 200 }, profile);
