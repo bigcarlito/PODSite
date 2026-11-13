@@ -1,10 +1,9 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { checkAdminPassword, createAdminSession } from "@/lib/admin-auth";
 import { requireCurrentStore } from "@/lib/store-context";
 
-export type LoginState = { error?: string };
+export type LoginState = { error?: string; success?: boolean };
 
 export async function adminLogin(
   _prevState: LoginState,
@@ -18,5 +17,8 @@ export async function adminLogin(
   }
 
   await createAdminSession(store);
-  redirect("/admin");
+  // Let the browser make a fresh same-origin request. A Server Action redirect
+  // can render /admin through the server's internal origin, losing tenant host
+  // context behind a reverse proxy even though the session cookie was saved.
+  return { success: true };
 }
